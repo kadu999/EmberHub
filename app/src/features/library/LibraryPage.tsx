@@ -1,4 +1,5 @@
 // 游戏库页（默认首页）：左侧信息面板 + 右侧游戏网格。
+// 点击右侧游戏卡片即启动；左侧面板仅作信息展示。
 import { useMemo, useState } from "react";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
@@ -59,6 +60,18 @@ export function LibraryPage({ onOpenSettings }: Props) {
     );
   }
 
+  // 启动（点击卡片即调用）
+  async function launch(g: Game) {
+    setSelected(g);
+    setLaunchMsg(null);
+    try {
+      await launchGame(g, provider!, source!, (s) => setLaunchMsg({ ok: true, text: s }));
+      setLaunchMsg({ ok: true, text: "已启动" });
+    } catch (e) {
+      setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   const games = result?.games ?? [];
   const filtered = collection === "全部" ? games : games.filter((g) => g.collection === collection);
 
@@ -84,7 +97,12 @@ export function LibraryPage({ onOpenSettings }: Props) {
       {result ? (
         <div
           className="library-layout"
-          style={{ display: "grid", gridTemplateColumns: "300px minmax(0, 1fr)", gap: 24, alignItems: "start" }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "clamp(240px, 24vw, 340px) minmax(0, 1fr)",
+            gap: 24,
+            alignItems: "start",
+          }}
         >
           {/* 左侧：信息面板 */}
           <aside className="detail-panel">
@@ -128,21 +146,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 </dl>
 
                 <div className="launch-row">
-                  <button
-                    onClick={async () => {
-                      setLaunchMsg(null);
-                      try {
-                        await launchGame(selected, provider, source, (s) =>
-                          setLaunchMsg({ ok: true, text: s }),
-                        );
-                        setLaunchMsg({ ok: true, text: "已启动" });
-                      } catch (e) {
-                        setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
-                      }
-                    }}
-                  >
-                    ▶ 启动
-                  </button>
+                  <button onClick={() => launch(selected)}>▶ 启动</button>
                 </div>
                 {launchMsg && <p className={launchMsg.ok ? "ok" : "error"}>{launchMsg.text}</p>}
 
@@ -189,10 +193,9 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 <button
                   key={g.id}
                   className={g.id === selected?.id ? "game-card active" : "game-card"}
-                  onClick={() => {
-                    setLaunchMsg(null);
-                    setSelected(g);
-                  }}
+                  onMouseEnter={() => setSelected(g)}
+                  onClick={() => launch(g)}
+                  title="点击启动"
                 >
                   <Cover provider={provider} path={g.coverPath} title={g.title} />
                   <span className="game-title" title={g.title}>
