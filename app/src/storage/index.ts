@@ -2,7 +2,6 @@
 import type { SourceConfig, StorageProvider } from "./types";
 import { LocalProvider } from "./providers/local";
 import { WebDavProvider } from "./providers/webdav";
-import { FtpProvider } from "./providers/ftp";
 
 export function createProvider(source: SourceConfig): StorageProvider {
   switch (source.kind) {
@@ -13,14 +12,6 @@ export function createProvider(source: SourceConfig): StorageProvider {
         source.url ?? "",
         source.username ?? "",
         source.password ?? "",
-      );
-    case "ftp":
-      return new FtpProvider(
-        source.host ?? "",
-        source.port ?? 21,
-        source.username ?? "",
-        source.password ?? "",
-        source.basePath ?? "",
       );
     default: {
       const never: never = source.kind;

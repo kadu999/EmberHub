@@ -31,7 +31,7 @@
 - 打开即进入**游戏库**（主机前端式交互）
 - 资源格式为**自定义 JSON**：服务器根 `manifest.json` + `Roms/<平台>/games.json`，封面按 `media/` 约定
 - **按 `F1`** 打开设置（配置存储源 / 游戏目录），`Esc` 关闭
-- 存储源支持本地文件夹、WebDAV（对接 OpenList）、FTP
+- 存储源支持本地文件夹、WebDAV（对接 OpenList）
 
 ## 🛠️ 技术选型
 

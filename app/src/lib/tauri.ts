@@ -18,13 +18,6 @@ export interface DavEntry {
   modified: string | null;
 }
 
-export interface FtpEntry {
-  name: string;
-  path: string;
-  is_dir: boolean;
-  size: number;
-}
-
 export interface AppInfo {
   name: string;
   version: string;
@@ -35,14 +28,6 @@ export interface DavAuth {
   root: string;
   username: string;
   password: string;
-}
-
-export interface FtpAuth {
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-  base: string;
 }
 
 export const tauri = {
@@ -61,14 +46,6 @@ export const tauri = {
     invoke<string>("webdav_read_text", { ...auth, path }),
   webdavReadBase64: (auth: DavAuth, path: string) =>
     invoke<string>("webdav_read_base64", { ...auth, path }),
-
-  // ---- FTP ----
-  ftpList: (auth: FtpAuth, path: string) => invoke<FtpEntry[]>("ftp_list", { ...auth, path }),
-  ftpReadText: (auth: FtpAuth, path: string) => invoke<string>("ftp_read_text", { ...auth, path }),
-  ftpReadBase64: (auth: FtpAuth, path: string) =>
-    invoke<string>("ftp_read_base64", { ...auth, path }),
-  ftpDownload: (auth: FtpAuth, path: string, dest: string) =>
-    invoke<number>("ftp_download", { ...auth, path, dest }),
 
   // ---- 下载 / 解压 / 本地文件 ----
   webdavDownload: (auth: DavAuth, path: string, dest: string) =>

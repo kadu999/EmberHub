@@ -1,4 +1,4 @@
-// 设置页：存储源配置（本地文件夹 / WebDAV / FTP）。
+// 设置页：存储源配置（本地文件夹 / WebDAV）。
 // 默认隐藏，按 F1 打开。
 import { useEffect, useState } from "react";
 import { useStore } from "../../store";
@@ -17,7 +17,6 @@ function uid(): string {
 
 function describe(s: SourceConfig): string {
   if (s.kind === "webdav") return s.url ?? "";
-  if (s.kind === "ftp") return `ftp://${s.host ?? ""}:${s.port ?? 21}${s.basePath ?? ""}`;
   return s.root ?? "";
 }
 
@@ -43,9 +42,6 @@ export function SourcesPage({ onClose }: Props) {
   const [romsPath, setRomsPath] = useState("Roms");
   const [root, setRoot] = useState("");
   const [url, setUrl] = useState("");
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("21");
-  const [basePath, setBasePath] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -60,20 +56,6 @@ export function SourcesPage({ onClose }: Props) {
         kind,
         romsPath: romsPath.trim(),
         root: root.trim(),
-      };
-    }
-    if (kind === "ftp") {
-      if (!host.trim()) return null;
-      return {
-        id: uid(),
-        name: name.trim() || "FTP",
-        kind,
-        romsPath: romsPath.trim(),
-        host: host.trim(),
-        port: Number(port) || 21,
-        basePath: basePath.trim(),
-        username: username.trim(),
-        password,
       };
     }
     if (!url.trim()) return null;
@@ -112,9 +94,6 @@ export function SourcesPage({ onClose }: Props) {
     setName("");
     setRoot("");
     setUrl("");
-    setHost("");
-    setPort("21");
-    setBasePath("");
     setUsername("");
     setPassword("");
     setMessage({ ok: true, text: "已添加存储源" });
@@ -173,9 +152,6 @@ export function SourcesPage({ onClose }: Props) {
           <button className={kind === "webdav" ? "active" : ""} onClick={() => setKind("webdav")}>
             WebDAV
           </button>
-          <button className={kind === "ftp" ? "active" : ""} onClick={() => setKind("ftp")}>
-            FTP
-          </button>
           <button className={kind === "local" ? "active" : ""} onClick={() => setKind("local")}>
             本地文件夹
           </button>
@@ -200,31 +176,6 @@ export function SourcesPage({ onClose }: Props) {
                 onChange={(e) => setUrl(e.currentTarget.value)}
                 placeholder="http://127.0.0.1:5244/dav"
               />
-            </div>
-            <div className="field">
-              <label>用户名</label>
-              <input value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
-            </div>
-            <div className="field">
-              <label>密码</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
-            </div>
-          </>
-        )}
-
-        {kind === "ftp" && (
-          <>
-            <div className="field">
-              <label>主机</label>
-              <input value={host} onChange={(e) => setHost(e.currentTarget.value)} placeholder="192.168.1.10" />
-            </div>
-            <div className="field">
-              <label>端口</label>
-              <input value={port} onChange={(e) => setPort(e.currentTarget.value)} placeholder="21" />
-            </div>
-            <div className="field">
-              <label>根路径（可选，如 /games）</label>
-              <input value={basePath} onChange={(e) => setBasePath(e.currentTarget.value)} placeholder="/games" />
             </div>
             <div className="field">
               <label>用户名</label>
