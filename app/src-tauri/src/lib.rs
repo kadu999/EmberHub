@@ -9,7 +9,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 use url::Url;
 
@@ -657,14 +657,13 @@ fn emit_download_progress(app: &tauri::AppHandle, path: &str, downloaded: u64, t
     );
 }
 
-/// 默认下载目录（程序数据目录）。
+/// 默认下载目录：程序所在目录（其下包含 Roms/ 与 Emulators/）。
 #[tauri::command]
-fn default_download_dir(app: tauri::AppHandle) -> Result<String, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("无法获取数据目录: {}", e))?;
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+fn default_download_dir() -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|e| format!("无法获取程序路径: {}", e))?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| "无法获取程序目录".to_string())?;
     Ok(dir.to_string_lossy().to_string())
 }
 
