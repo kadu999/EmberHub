@@ -82,7 +82,10 @@ export function LibraryPage({ onOpenSettings }: Props) {
       {error && <p className="error">{error}</p>}
 
       {result ? (
-        <div className="library-layout">
+        <div
+          className="library-layout"
+          style={{ display: "grid", gridTemplateColumns: "300px minmax(0, 1fr)", gap: 24, alignItems: "start" }}
+        >
           {/* 左侧：信息面板 */}
           <aside className="detail-panel">
             {selected ? (

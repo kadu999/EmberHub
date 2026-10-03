@@ -13,6 +13,14 @@
   box-sizing: border-box;
 }
 
+/* 隐藏滚动条（仍可用滚轮/手柄滚动） */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 html,
 body,
 #root {
@@ -235,15 +243,14 @@ code {
 
 /* ---------- 左详情 / 右列表 布局 ---------- */
 .library-layout {
-  display: flex;
-  gap: 28px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
   margin-top: 18px;
 }
 
 .detail-panel {
-  width: 320px;
-  flex-shrink: 0;
   position: sticky;
   top: 24px;
   background: var(--panel);
@@ -276,7 +283,6 @@ code {
 }
 
 .library-main {
-  flex: 1;
   min-width: 0;
 }
 
