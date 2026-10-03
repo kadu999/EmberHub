@@ -299,7 +299,7 @@ code {
   border: none;
   padding: 0;
   color: var(--text);
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -314,6 +314,7 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
 .game-sub {
