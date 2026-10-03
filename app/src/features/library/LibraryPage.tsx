@@ -59,11 +59,15 @@ export function LibraryPage({ onOpenSettings }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, source, scanToken]);
 
-  // 下载进度
+  // 下载进度（ROM / 模拟器）；媒体预览静默下载，不显示进度条
   useEffect(() => {
     const un = listen<{ path: string; downloaded: number; total: number | null }>(
       "download-progress",
-      (e) => setProgress(e.payload),
+      (e) => {
+        const p = e.payload.path.replace(/\\/g, "/");
+        if (p.includes("/.cache/media/")) return;
+        setProgress(e.payload);
+      },
     );
     return () => {
       un.then((f) => f()).catch(() => undefined);
