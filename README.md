@@ -20,9 +20,13 @@
 
 **Early Development** — 目前处于早期规划阶段，欢迎关注和参与。
 
-## 🛠️ 技术选型（待定）
+## 🛠️ 技术选型
 
-> TBD — 将在讨论后确定（候选方向：Tauri / Flutter / Electron）。
+- **客户端**：Flutter（一套代码覆盖 Windows / Linux / macOS + Android）
+- **状态管理**：Riverpod ｜ **本地库**：Drift (SQLite) ｜ **网络**：Dio
+- **存储**：适配器架构，**直连优先**（Local / 阿里云盘 / OneDrive / …），WebDAV / S3 作为兜底
+
+> 详细的模块划分、存储接口与路线图见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 
 ## 🚀 快速开始
 
