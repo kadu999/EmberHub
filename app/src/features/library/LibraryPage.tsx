@@ -11,6 +11,8 @@ import { Cover } from "../../components/Cover";
 import { VirtualGrid } from "../../components/VirtualGrid";
 import { launchGame } from "../../library/launch";
 import { ensureLocalMedia } from "../../library/ensure";
+import { joinPath } from "../../lib/path";
+import { pickVideoName } from "../../lib/media";
 
 interface Props {
   onOpenSettings: () => void;
@@ -68,16 +70,28 @@ export function LibraryPage({ onOpenSettings }: Props) {
     };
   }, []);
 
-  // 选中游戏的视频预览
+  // 选中游戏的视频预览（懒加载：列出 media 目录 → 挑视频 → 按需下载）
   useEffect(() => {
     let alive = true;
     setVideoSrc(null);
-    if (!selected?.videoPath || !provider || !source) return;
-    ensureLocalMedia(provider, source, selected.videoPath)
-      .then((p) => {
+    if (!selected || !provider || !source) return;
+    (async () => {
+      try {
+        let videoRel: string | undefined;
+        if (selected.mediaDir) {
+          const names = (await provider.list(selected.mediaDir))
+            .filter((e) => !e.isDir)
+            .map((e) => e.name);
+          const pick = pickVideoName(names);
+          if (pick) videoRel = joinPath(selected.mediaDir!, pick);
+        }
+        if (!videoRel) return;
+        const p = await ensureLocalMedia(provider, source, videoRel);
         if (alive) setVideoSrc(convertFileSrc(p));
-      })
-      .catch(() => undefined);
+      } catch {
+        // 忽略
+      }
+    })();
     return () => {
       alive = false;
     };
@@ -134,7 +148,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
               {videoSrc ? (
                 <video className="preview-video" src={videoSrc} autoPlay muted loop playsInline />
               ) : (
-                <Cover provider={provider} path={selected.coverPath} title={selected.title} />
+                <Cover provider={provider} path={selected.coverPath} dir={selected.mediaDir} title={selected.title} />
               )}
               <h3 className="detail-title">{selected.title}</h3>
               <p className="detail-sub">{selected.collection}</p>
@@ -218,7 +232,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 }}
                 onDoubleClick={() => launch(g)}
               >
-                <Cover provider={provider} path={g.coverPath} title={g.title} />
+                <Cover provider={provider} path={g.coverPath} dir={g.mediaDir} title={g.title} />
                 <span className="game-title" title={g.title}>
                   {g.title}
                 </span>

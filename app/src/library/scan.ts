@@ -1,7 +1,7 @@
 // 游戏库扫描：读取自定义 JSON 资源（manifest.json + Roms/<平台>/games.json）。
-// 详见 docs/REQUIREMENTS.md 第 3 节。
+// 封面/视频不在扫描阶段解析（避免大量目录请求），改为显示时懒加载。
 import type { StorageProvider } from "../storage/types";
-import { basename, extname, isAbsolute, joinPath, stripExt } from "../lib/path";
+import { basename, isAbsolute, joinPath, stripExt } from "../lib/path";
 import { parseManifest, parsePlatformGames } from "./parse";
 
 export interface Game {
@@ -20,10 +20,10 @@ export interface Game {
   description?: string;
   /** 启动命令（游戏级或平台级，Roms 优先） */
   launch?: string;
-  /** 封面在存储源中的相对路径 */
+  /** 显式指定的封面路径（games.json 里的 cover） */
   coverPath?: string;
-  /** 视频在存储源中的相对路径 */
-  videoPath?: string;
+  /** 该游戏对应的 media 子目录（懒加载封面/视频用） */
+  mediaDir?: string;
   /** 内部：Roms/<平台> 目录 */
   _baseDir?: string;
 }
@@ -34,21 +34,6 @@ export interface ScanResult {
   warnings: string[];
 }
 
-const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
-const VIDEO_EXTS = ["mp4", "webm", "avi", "mkv"];
-const COVER_PRIORITY = [
-  "boxfront",
-  "box_front",
-  "box2dfront",
-  "cover",
-  "front",
-  "tile",
-  "banner",
-  "logo",
-  "screenshot",
-  "titlescreen",
-];
-
 function normalizeRel(baseDir: string, file: string): string {
   const f = file.replace(/\\/g, "/").trim();
   if (f === "") return f;
@@ -56,34 +41,14 @@ function normalizeRel(baseDir: string, file: string): string {
   return joinPath(baseDir, f);
 }
 
-function pickCover(names: string[]): string | undefined {
-  const imgs = names.filter((n) => IMAGE_EXTS.includes(extname(n)));
-  if (imgs.length === 0) return undefined;
-  const score = (n: string): number => {
-    const l = n.toLowerCase();
-    for (let i = 0; i < COVER_PRIORITY.length; i++) {
-      if (l.includes(COVER_PRIORITY[i])) return i;
-    }
-    return COVER_PRIORITY.length;
-  };
-  return [...imgs].sort((a, b) => score(a) - score(b))[0];
-}
-
-function pickVideo(names: string[]): string | undefined {
-  const vids = names.filter((n) => VIDEO_EXTS.includes(extname(n)));
-  if (vids.length === 0) return undefined;
-  return vids.find((n) => n.toLowerCase().includes("video")) ?? vids[0];
-}
-
-async function resolveMedia(
+/** 建立 media 子目录索引（每个平台只列一次）。 */
+async function mediaIndex(
   provider: StorageProvider,
-  game: Game,
-  mediaIndexCache: Map<string, Map<string, string>>,
-): Promise<void> {
-  const baseDir = game._baseDir ?? "";
+  baseDir: string,
+  cache: Map<string, Map<string, string>>,
+): Promise<Map<string, string>> {
   const mediaDir = joinPath(baseDir, "media");
-
-  let index = mediaIndexCache.get(mediaDir);
+  let index = cache.get(mediaDir);
   if (!index) {
     index = new Map();
     try {
@@ -93,32 +58,9 @@ async function resolveMedia(
     } catch {
       // 没有 media 目录
     }
-    mediaIndexCache.set(mediaDir, index);
+    cache.set(mediaDir, index);
   }
-
-  const candidates = [game.title.toLowerCase()];
-  if (game.files[0]) candidates.push(stripExt(basename(game.files[0])).toLowerCase());
-
-  for (const key of candidates) {
-    const sub = index.get(key);
-    if (!sub) continue;
-    try {
-      const names = (await provider.list(joinPath(mediaDir, sub)))
-        .filter((f) => !f.isDir)
-        .map((f) => f.name);
-      if (!game.coverPath) {
-        const cover = pickCover(names);
-        if (cover) game.coverPath = joinPath(mediaDir, sub, cover);
-      }
-      if (!game.videoPath) {
-        const video = pickVideo(names);
-        if (video) game.videoPath = joinPath(mediaDir, sub, video);
-      }
-      if (game.coverPath && game.videoPath) return;
-    } catch {
-      // 忽略
-    }
-  }
+  return index;
 }
 
 /** 扫描资源服务器，构建游戏库。romsPath 默认 "Roms"。 */
@@ -131,6 +73,7 @@ export async function scanLibrary(
 
   const manifestText = await provider.readText("manifest.json");
   const manifest = parseManifest(manifestText);
+  const mediaCache = new Map<string, Map<string, string>>();
 
   for (const platform of manifest.platforms) {
     const baseDir = joinPath(romsPath, platform);
@@ -150,9 +93,11 @@ export async function scanLibrary(
       continue;
     }
 
+    const index = await mediaIndex(provider, baseDir, mediaCache);
+
     for (const gm of pg.games) {
       const file = normalizeRel(baseDir, gm.file);
-      games.push({
+      const game: Game = {
         id: file,
         title: gm.title,
         collection: platform,
@@ -167,14 +112,23 @@ export async function scanLibrary(
         launch: gm.launch ?? pg.launch,
         coverPath: gm.cover ? normalizeRel(baseDir, gm.cover) : undefined,
         _baseDir: baseDir,
-      });
-    }
-  }
+      };
 
-  // 解析封面与视频（显式优先，其次 media 约定）
-  const mediaIndexCache = new Map<string, Map<string, string>>();
-  for (const g of games) {
-    await resolveMedia(provider, g, mediaIndexCache);
+      // 懒加载：只记录 media 子目录，不在这里列目录
+      if (!game.coverPath) {
+        const candidates = [game.title.toLowerCase()];
+        if (file) candidates.push(stripExt(basename(file)).toLowerCase());
+        for (const key of candidates) {
+          const sub = index.get(key);
+          if (sub) {
+            game.mediaDir = joinPath(baseDir, "media", sub);
+            break;
+          }
+        }
+      }
+
+      games.push(game);
+    }
   }
 
   const collections = Array.from(new Set(games.map((g) => g.collection))).sort();

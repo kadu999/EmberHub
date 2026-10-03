@@ -1,10 +1,14 @@
 // 封面组件：按需从存储源加载图片（data URL），带小型缓存。
+// 支持两种来源：显式 path，或 dir（media 子目录，懒加载挑封面）。
 import { useEffect, useState } from "react";
 import type { StorageProvider } from "../storage/types";
+import { joinPath } from "../lib/path";
+import { pickCoverName } from "../lib/media";
 
 interface Props {
   provider: StorageProvider;
   path?: string;
+  dir?: string;
   title: string;
 }
 
@@ -20,7 +24,7 @@ function cacheSet(key: string, value: string) {
   }
 }
 
-export function Cover({ provider, path, title }: Props) {
+export function Cover({ provider, path, dir, title }: Props) {
   const [src, setSrc] = useState<string>();
   const [failed, setFailed] = useState(false);
 
@@ -28,28 +32,50 @@ export function Cover({ provider, path, title }: Props) {
     let alive = true;
     setSrc(undefined);
     setFailed(false);
-    if (!path) return;
 
-    const key = `${provider.kind}:${path}`;
+    const key = path
+      ? `p:${provider.kind}:${path}`
+      : dir
+        ? `d:${provider.kind}:${dir}`
+        : null;
+    if (!key) return;
+
     const cached = cache.get(key);
     if (cached) {
       setSrc(cached);
       return;
     }
 
-    provider
-      .readFileDataUrl(path)
-      .then((d) => {
+    (async () => {
+      let target = path;
+      if (!target && dir) {
+        try {
+          const names = (await provider.list(dir))
+            .filter((e) => !e.isDir)
+            .map((e) => e.name);
+          const pick = pickCoverName(names);
+          if (pick) target = joinPath(dir, pick);
+        } catch {
+          // 忽略
+        }
+      }
+      if (!target) {
+        if (alive) setFailed(true);
+        return;
+      }
+      try {
+        const d = await provider.readFileDataUrl(target);
         cacheSet(key, d);
         if (alive) setSrc(d);
-      })
-      .catch(() => {
+      } catch {
         if (alive) setFailed(true);
-      });
+      }
+    })();
+
     return () => {
       alive = false;
     };
-  }, [provider, path]);
+  }, [provider, path, dir]);
 
   if (src) {
     return <img className="cover" src={src} alt={title} loading="lazy" />;
