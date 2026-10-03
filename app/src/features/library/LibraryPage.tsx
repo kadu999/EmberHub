@@ -65,7 +65,8 @@ export function LibraryPage({ onOpenSettings }: Props) {
       "download-progress",
       (e) => {
         const p = e.payload.path.replace(/\\/g, "/");
-        if (p.includes("/.cache/media/")) return;
+        // 封面/视频预览（在 media/ 下）静默下载，不显示进度条
+        if (p.includes("/media/")) return;
         setProgress(e.payload);
       },
     );

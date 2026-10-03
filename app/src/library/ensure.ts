@@ -145,7 +145,7 @@ async function firstRomFile(dir: string): Promise<string | undefined> {
   return undefined;
 }
 
-/** 确保媒体文件（封面/视频）在本地；返回本地绝对路径（远程则下载到缓存）。 */
+/** 确保媒体文件（封面/视频）在本地；返回本地绝对路径（远程则按资源结构镜像下载）。 */
 export async function ensureLocalMedia(
   provider: StorageProvider,
   source: SourceConfig,
@@ -156,7 +156,8 @@ export async function ensureLocalMedia(
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
   const dl = await getDownloadDir(source);
-  const dest = joinPath(dl, ".cache", "media", relPath);
+  // 与下载资源一致：镜像服务器结构，如 <下载目录>/Roms/GBA/media/<游戏>/video.mp4
+  const dest = joinPath(dl, relPath);
   if (!(await tauri.fileExists(dest))) {
     await provider.downloadTo(relPath, dest);
   }
