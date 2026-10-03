@@ -749,7 +749,7 @@ fn extract_archive(path: String, dest_dir: String) -> Result<(), String> {
     std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
     let lower = path.to_ascii_lowercase();
     if lower.ends_with(".7z") {
-        sevenz_rust::decompress_file(&path, &dest_dir)
+        sevenz_rust2::decompress_file(&path, &dest_dir)
             .map_err(|e| format!("解压 7z 失败：{}", e))?;
         Ok(())
     } else if lower.ends_with(".zip") {
@@ -916,5 +916,23 @@ mod ftp_tests {
             .expect("resume 失败");
         assert!(n2 >= n, "resume n2={} n={}", n2, n);
         let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    #[ignore]
+    fn extract_mgba_7z() {
+        let src =
+            r"E:\WorkSpace\EmberHub\app\examples\sample-library\Emulators\GBA\mGBA-0.10.5-win64.7z";
+        let dest = std::env::temp_dir().join("emberhub_mgba_extract");
+        let _ = std::fs::remove_dir_all(&dest);
+        sevenz_rust2::decompress_file(src, &dest).expect("decompress 7z");
+        let top: Vec<String> = std::fs::read_dir(&dest)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        println!("TOP: {:?}", top);
+        let exe = dest.join("mGBA-0.10.5-win64").join("mGBA.exe");
+        println!("EXE EXISTS: {}", exe.exists());
+        assert!(exe.exists(), "expected {:?}", exe);
     }
 }
