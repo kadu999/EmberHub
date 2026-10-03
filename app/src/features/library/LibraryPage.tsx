@@ -145,12 +145,10 @@ export function LibraryPage({ onOpenSettings }: Props) {
                   )}
                 </dl>
 
-                <div className="launch-row">
-                  <button onClick={() => launch(selected)}>▶ 启动</button>
-                </div>
                 {launchMsg && <p className={launchMsg.ok ? "ok" : "error"}>{launchMsg.text}</p>}
 
                 {selected.description && <p className="desc">{selected.description}</p>}
+                <p className="hint">双击游戏卡片启动</p>
               </>
             ) : (
               <p className="hint">从右侧选择一个游戏</p>
@@ -193,9 +191,12 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 <button
                   key={g.id}
                   className={g.id === selected?.id ? "game-card active" : "game-card"}
-                  onMouseEnter={() => setSelected(g)}
-                  onClick={() => launch(g)}
-                  title="点击启动"
+                  onClick={() => {
+                    setLaunchMsg(null);
+                    setSelected(g);
+                  }}
+                  onDoubleClick={() => launch(g)}
+                  title="双击启动"
                 >
                   <Cover provider={provider} path={g.coverPath} title={g.title} />
                   <span className="game-title" title={g.title}>
