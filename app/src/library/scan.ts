@@ -295,13 +295,21 @@ export async function scanLibrary(
     }
   }
 
+  // 去重：同一文件可能被显式声明与扩展名发现重复收录
+  const unique = new Map<string, Game>();
+  for (const g of games) {
+    const key = g.id.toLowerCase();
+    if (!unique.has(key)) unique.set(key, g);
+  }
+  const deduped = Array.from(unique.values());
+
   // 解析封面
   const mediaIndexCache = new Map<string, Map<string, string>>();
-  await mapLimit(games, 4, async (g) => {
+  await mapLimit(deduped, 4, async (g) => {
     g.coverPath = await resolveCoverPath(provider, g, mediaIndexCache);
   });
 
-  const collections = Array.from(new Set(games.map((g) => g.collection))).sort();
+  const collections = Array.from(new Set(deduped.map((g) => g.collection))).sort();
 
-  return { collections, games, warnings };
+  return { collections, games: deduped, warnings };
 }

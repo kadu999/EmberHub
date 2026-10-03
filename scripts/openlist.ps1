@@ -22,9 +22,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ---------------- 路径 ----------------
-$repoRoot  = Split-Path $PSScriptRoot -Parent          # ...\EmberHub
-$parentDir = Split-Path $repoRoot -Parent              # ...\WorkSpace
-$olDir     = Join-Path $parentDir 'OpenList'           # ...\WorkSpace\OpenList（与仓库同级）
+$repoRoot  = Split-Path $PSScriptRoot -Parent          # ...\EmberHub（仓库根 = 项目根）
+$olDir     = Join-Path $repoRoot 'openlist'            # ...\EmberHub\openlist（项目内，已 gitignore）
 $exe       = Join-Path $olDir 'openlist.exe'
 $dataDb    = Join-Path $olDir 'data\data.db'
 $port      = 5244

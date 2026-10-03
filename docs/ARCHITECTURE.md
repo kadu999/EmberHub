@@ -167,38 +167,33 @@ export interface EmulatorAdapter {
 - **PC**：定位模拟器可执行文件 → 调用 Rust `launch_emulator`。
 - **Android（后续）**：构造 Intent 调用目标 App，附 ROM 路径。
 
-## 8. 目录结构（规划）
+## 8. 目录结构
 
 ```
-EmberHub/
+EmberHub/                     # 仓库根（项目）
+├── app/                      # 应用（Tauri 2 + React + TS）
+│   ├── src/                  # 前端 Web UI（TypeScript）
+│   │   ├── components/       # 通用组件（封面等）
+│   │   ├── features/
+│   │   │   ├── library/      # 游戏库页
+│   │   │   └── sources/      # 存储源配置页
+│   │   ├── storage/          # 存储抽象层
+│   │   │   ├── types.ts
+│   │   │   └── providers/    # local / webdav / aliyundrive ...
+│   │   ├── library/          # Pegasus 解析与库扫描
+│   │   ├── lib/              # Tauri invoke 封装、路径工具
+│   │   └── main.tsx
+│   ├── src-tauri/            # Rust 薄壳（启动/文件/WebDAV 命令）
+│   ├── examples/             # 示例 Pegasus 游戏库
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tsconfig.json
+├── openlist/                 # 中转站（gitignore，不提交）
+├── scripts/                  # 一键脚本
+│   ├── dev.ps1 / build.ps1
+│   └── openlist.bat / .ps1
 ├── docs/
-│   └── ARCHITECTURE.md
-├── src/                      # 前端 Web UI（TypeScript）
-│   ├── app/                  # 入口、路由、主题
-│   ├── components/           # 通用组件
-│   ├── features/
-│   │   ├── library/          # 游戏库
-│   │   ├── download/         # 下载中心
-│   │   ├── settings/         # 设置
-│   │   └── emulator/         # 模拟器管理
-│   ├── storage/              # 存储抽象层
-│   │   ├── types.ts
-│   │   └── providers/        # local / aliyundrive / onedrive ...
-│   ├── emulators/            # 模拟器适配层
-│   ├── lib/                  # Tauri invoke 封装
-│   └── main.tsx
-├── src-tauri/                # Rust 薄壳
-│   ├── src/
-│   │   ├── main.rs
-│   │   ├── lib.rs
-│   │   └── commands.rs
-│   ├── Cargo.toml
-│   ├── tauri.conf.json
-│   └── icons/
-├── index.html
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
 └── README.md
 ```
 

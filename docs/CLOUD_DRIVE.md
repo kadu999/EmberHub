@@ -11,15 +11,18 @@ EmberHub 采用「直连优先」的存储适配器架构。当前已实现：
 
 ## 零、一键搭建（推荐）
 
-中转站与 EmberHub **同级**，**不放进**仓库：
+中转站安装在**项目内**的 `openlist/` 目录（已 gitignore，程序与数据都不进 Git）：
 
 ```
-E:\WorkSpace\
-├─ EmberHub\        ← 模拟器管理器
-└─ OpenList\        ← 中转站（脚本安装到这里）
+EmberHub\                 ← 仓库根（项目）
+├─ app\                   ← 应用
+├─ openlist\              ← 中转站（脚本安装到这里）
+├─ scripts\
+├─ docs\
+└─ README.md
 ```
 
-**双击 `scripts\openlist.bat`**，选择「1) 安装 / 更新」即可自动下载并初始化到 `..\OpenList`。
+**双击 `scripts\openlist.bat`**，选择「1) 安装 / 更新」即可自动下载并初始化到 `openlist/`。
 菜单还提供：启动、停止、打开管理页面、查看状态。
 
 也可以命令行调用：
@@ -42,7 +45,7 @@ OpenList 是 AList 的官方继任者，一个绿色小程序，无需数据库�
 1. 从 [OpenList Releases](https://github.com/OpenListTeam/OpenList/releases) 下载
    `openlist-windows-amd64-lite.zip`（约 31MB）。
    > 国内网络若无法直连 GitHub，可用镜像，例如在链接前加 `https://gh-proxy.com/`。
-2. 解压得到 `openlist.exe`，放到任意目录（例如 `E:\WorkSpace\openlist`）。
+2. 解压得到 `openlist.exe`，放到 `EmberHub\openlist` 目录。
 3. 设置管理员密码并启动：
 
    ```powershell

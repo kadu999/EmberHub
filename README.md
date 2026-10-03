@@ -44,17 +44,30 @@
 - [Rust](https://rustup.rs) 工具链
 - Windows 需要：Visual Studio 的 **C++ 生成工具**（MSVC 链接器）+ **Windows SDK** + WebView2（Win10+ 通常自带）
 
+### 目录结构
+
+```
+EmberHub/                 # 仓库根（项目）
+├─ app/                   # 应用（Tauri 2 + React + TS）
+├─ openlist/              # 中转站（OpenList，已 gitignore，不提交）
+├─ scripts/               # 一键脚本
+│  ├─ dev.ps1 / build.ps1     # 应用开发 / 打包（自动加载 VS 环境）
+│  └─ openlist.bat / .ps1     # 中转站一键管理
+├─ docs/
+└─ README.md
+```
+
 ### 开发
 
 ```bash
 git clone https://github.com/kadu999/EmberHub.git
-cd EmberHub
+cd EmberHub/app
 pnpm install
 pnpm tauri dev      # 启动桌面应用
 ```
 
 > **Windows 提示**：Rust 的 MSVC 工具链链接时需要 `link.exe` 与 Windows SDK 环境，
-> 普通终端里可能报 ``linker `link.exe` not found``。可直接用仓库自带脚本（会自动加载 VS 环境）：
+> 普通终端里可能报 ``linker `link.exe` not found``。可直接用仓库自带脚本（会自动进入 `app/` 并加载 VS 环境）：
 >
 > ```powershell
 > powershell -ExecutionPolicy Bypass -File scripts/dev.ps1     # 开发
@@ -64,17 +77,20 @@ pnpm tauri dev      # 启动桌面应用
 ### 构建
 
 ```bash
+cd app
 pnpm tauri build    # 打包安装包
 ```
 
 ## ☁️ 中转站（网盘，可选）
 
-要接入阿里云盘/夸克等网盘，可用 OpenList 作为中转站。它会被安装到**与 EmberHub 同级**的目录（`..\OpenList`），不会放进本仓库：
+要接入阿里云盘/夸克等网盘，可用 OpenList 作为中转站。它安装在**项目内**的 `openlist/` 目录，
+程序与数据均已 gitignore（不进 Git），仓库只提交管理脚本：
 
 ```
-WorkSpace\
-├─ EmberHub\
-└─ OpenList\
+EmberHub/
+├─ app/
+├─ openlist/     ← 中转站（gitignore）
+└─ scripts/
 ```
 
 **双击 `scripts\openlist.bat`** 即可一键安装/启动/停止。

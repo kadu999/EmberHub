@@ -25,5 +25,10 @@ if (-not (Test-Path $vcvars)) {
 }
 
 Write-Host "使用 VS 环境: $vcvars" -ForegroundColor DarkGray
+
+# 应用代码位于 app/ 子目录
+$appRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'app'
+Set-Location $appRoot
+
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 cmd /c "`"$vcvars`" >nul && pnpm tauri build"
