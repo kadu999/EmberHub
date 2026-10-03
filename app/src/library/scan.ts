@@ -22,6 +22,8 @@ export interface Game {
   launch?: string;
   /** 封面在存储源中的相对路径 */
   coverPath?: string;
+  /** 视频在存储源中的相对路径 */
+  videoPath?: string;
   /** 内部：Roms/<平台> 目录 */
   _baseDir?: string;
 }
@@ -33,6 +35,7 @@ export interface ScanResult {
 }
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
+const VIDEO_EXTS = ["mp4", "webm", "avi", "mkv"];
 const COVER_PRIORITY = [
   "boxfront",
   "box_front",
@@ -66,13 +69,17 @@ function pickCover(names: string[]): string | undefined {
   return [...imgs].sort((a, b) => score(a) - score(b))[0];
 }
 
-async function resolveCover(
+function pickVideo(names: string[]): string | undefined {
+  const vids = names.filter((n) => VIDEO_EXTS.includes(extname(n)));
+  if (vids.length === 0) return undefined;
+  return vids.find((n) => n.toLowerCase().includes("video")) ?? vids[0];
+}
+
+async function resolveMedia(
   provider: StorageProvider,
   game: Game,
   mediaIndexCache: Map<string, Map<string, string>>,
-): Promise<string | undefined> {
-  if (game.coverPath) return game.coverPath; // 已显式指定
-
+): Promise<void> {
   const baseDir = game._baseDir ?? "";
   const mediaDir = joinPath(baseDir, "media");
 
@@ -96,14 +103,22 @@ async function resolveCover(
     const sub = index.get(key);
     if (!sub) continue;
     try {
-      const files = await provider.list(joinPath(mediaDir, sub));
-      const pick = pickCover(files.filter((f) => !f.isDir).map((f) => f.name));
-      if (pick) return joinPath(mediaDir, sub, pick);
+      const names = (await provider.list(joinPath(mediaDir, sub)))
+        .filter((f) => !f.isDir)
+        .map((f) => f.name);
+      if (!game.coverPath) {
+        const cover = pickCover(names);
+        if (cover) game.coverPath = joinPath(mediaDir, sub, cover);
+      }
+      if (!game.videoPath) {
+        const video = pickVideo(names);
+        if (video) game.videoPath = joinPath(mediaDir, sub, video);
+      }
+      if (game.coverPath && game.videoPath) return;
     } catch {
       // 忽略
     }
   }
-  return undefined;
 }
 
 /** 扫描资源服务器，构建游戏库。romsPath 默认 "Roms"。 */
@@ -156,10 +171,10 @@ export async function scanLibrary(
     }
   }
 
-  // 解析封面（显式优先，其次 media 约定）
+  // 解析封面与视频（显式优先，其次 media 约定）
   const mediaIndexCache = new Map<string, Map<string, string>>();
   for (const g of games) {
-    g.coverPath = await resolveCover(provider, g, mediaIndexCache);
+    await resolveMedia(provider, g, mediaIndexCache);
   }
 
   const collections = Array.from(new Set(games.map((g) => g.collection))).sort();

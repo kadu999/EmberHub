@@ -2,12 +2,14 @@
 // 点击右侧游戏卡片即启动；左侧面板仅作信息展示。
 import { useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { scanLibrary, type Game, type ScanResult } from "../../library/scan";
 import { Cover } from "../../components/Cover";
 import { launchGame } from "../../library/launch";
+import { ensureLocalMedia } from "../../library/ensure";
 
 interface Props {
   onOpenSettings: () => void;
@@ -40,6 +42,22 @@ export function LibraryPage({ onOpenSettings }: Props) {
       un.then((f) => f()).catch(() => undefined);
     };
   }, []);
+
+  // 选中游戏的视频预览（本地源直接用，远程按需下载到缓存）
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setVideoSrc(null);
+    if (!selected?.videoPath || !provider || !source) return;
+    ensureLocalMedia(provider, source, selected.videoPath)
+      .then((p) => {
+        if (alive) setVideoSrc(convertFileSrc(p));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [selected, provider, source]);
 
   const scanRoot = (source?.romsPath ?? "Roms").trim();
 
@@ -128,7 +146,11 @@ export function LibraryPage({ onOpenSettings }: Props) {
           <aside className="detail-panel">
             {selected ? (
               <>
-                <Cover provider={provider} path={selected.coverPath} title={selected.title} />
+                {videoSrc ? (
+                  <video className="preview-video" src={videoSrc} autoPlay muted loop playsInline />
+                ) : (
+                  <Cover provider={provider} path={selected.coverPath} title={selected.title} />
+                )}
                 <h3 className="detail-title">{selected.title}</h3>
                 <p className="detail-sub">{selected.collection}</p>
 

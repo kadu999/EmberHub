@@ -144,3 +144,21 @@ async function firstRomFile(dir: string): Promise<string | undefined> {
   }
   return undefined;
 }
+
+/** 确保媒体文件（封面/视频）在本地；返回本地绝对路径（远程则下载到缓存）。 */
+export async function ensureLocalMedia(
+  provider: StorageProvider,
+  source: SourceConfig,
+  relPath: string,
+): Promise<string> {
+  const local = provider.absolute?.(relPath);
+  if (local) return local;
+  if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
+
+  const dl = await getDownloadDir(source);
+  const dest = joinPath(dl, ".cache", "media", relPath);
+  if (!(await tauri.fileExists(dest))) {
+    await provider.downloadTo(relPath, dest);
+  }
+  return dest;
+}
