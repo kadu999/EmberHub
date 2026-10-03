@@ -225,7 +225,7 @@ async fn webdav_list(
         return Err("认证失败：用户名或密码错误（HTTP 401）".to_string());
     }
     if !status.is_success() && status.as_u16() != 207 {
-        return Err(format!("WebDAV 返回 HTTP {}", status));
+        return Err(format!("WebDAV 返回 HTTP {}：{}", status, url));
     }
     let body = resp
         .text()
@@ -251,7 +251,7 @@ async fn webdav_read_text(
         .await
         .map_err(|e| format!("WebDAV request failed: {}", e))?;
     if !resp.status().is_success() {
-        return Err(format!("WebDAV 返回 HTTP {}", resp.status()));
+        return Err(format!("WebDAV 返回 HTTP {}：{}", resp.status(), url));
     }
     resp.text()
         .await
@@ -275,7 +275,7 @@ async fn webdav_read_base64(
         .await
         .map_err(|e| format!("WebDAV request failed: {}", e))?;
     if !resp.status().is_success() {
-        return Err(format!("WebDAV 返回 HTTP {}", resp.status()));
+        return Err(format!("WebDAV 返回 HTTP {}：{}", resp.status(), url));
     }
     let bytes = resp
         .bytes()
@@ -396,7 +396,7 @@ async fn webdav_download(
         return Ok(existing);
     }
     if !status.is_success() {
-        return Err(format!("WebDAV 返回 HTTP {}", status));
+        return Err(format!("WebDAV 返回 HTTP {}：{}", status, url));
     }
 
     // 服务器是否接受了 Range（206）；否则从头下载
