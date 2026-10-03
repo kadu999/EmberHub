@@ -1,4 +1,4 @@
-# 加载 Visual Studio 开发环境后启动 EmberHub 桌面开发模式。
+﻿# 加载 Visual Studio 开发环境后启动 EmberHub 桌面开发模式。
 #
 # 为什么需要它：
 #   Windows 上的 Rust（MSVC 工具链）链接时依赖 link.exe 与 Windows SDK 的

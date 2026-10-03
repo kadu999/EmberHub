@@ -1,4 +1,4 @@
-# 加载 Visual Studio 开发环境后打包 EmberHub 桌面安装包。
+﻿# 加载 Visual Studio 开发环境后打包 EmberHub 桌面安装包。
 #
 # Windows 上 Rust（MSVC）链接需要 link.exe 与 Windows SDK 环境，
 # 普通 PowerShell 没有，会报 "linker `link.exe` not found"。
