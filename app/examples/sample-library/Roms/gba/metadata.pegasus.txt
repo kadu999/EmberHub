@@ -3,7 +3,11 @@
 
 collection: Game Boy Advance
 shortname: gba
-launch: retroarch.exe -L cores/mgba_libretro.dll "{file.path}"
+# 注意：launch 是启动命令，{file.path} 会替换为 ROM 的绝对路径。
+# 下面是 Windows 演示命令（用资源管理器选中 ROM），方便你验证启动链路；
+# 请替换为你自己的模拟器，例如：
+#   launch: RetroArch\retroarch.exe -L cores\mgba_libretro.dll "{file.path}"
+launch: explorer.exe /select,"{file.path}"
 extensions: gba, gbc, gb
 
 game: Advance Wars
