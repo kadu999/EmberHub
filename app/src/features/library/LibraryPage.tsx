@@ -1,7 +1,8 @@
 // 游戏库页（默认首页）：左侧信息面板 + 右侧游戏网格。
 // 点击右侧游戏卡片即启动；左侧面板仅作信息展示。
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { scanLibrary, type Game, type ScanResult } from "../../library/scan";
@@ -23,6 +24,22 @@ export function LibraryPage({ onOpenSettings }: Props) {
   const [collection, setCollection] = useState("");
   const [selected, setSelected] = useState<Game | null>(null);
   const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [progress, setProgress] = useState<{
+    path: string;
+    downloaded: number;
+    total: number | null;
+  } | null>(null);
+
+  // 监听下载进度事件
+  useEffect(() => {
+    const un = listen<{ path: string; downloaded: number; total: number | null }>(
+      "download-progress",
+      (e) => setProgress(e.payload),
+    );
+    return () => {
+      un.then((f) => f()).catch(() => undefined);
+    };
+  }, []);
 
   const scanRoot = (source?.romsPath ?? "Roms").trim();
 
@@ -66,6 +83,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
   async function launch(g: Game) {
     setSelected(g);
     setLaunchMsg(null);
+    setProgress(null);
     try {
       await launchGame(g, provider!, source!, (s) => setLaunchMsg({ ok: true, text: s }));
       await getCurrentWindow().close();
@@ -217,6 +235,27 @@ export function LibraryPage({ onOpenSettings }: Props) {
             games.json 并列出游戏。
           </p>
         )
+      )}
+
+      {progress && (
+        <div className="dl-bar">
+          <span className="dl-name">{progress.path.replace(/\\/g, "/").split("/").pop()}</span>
+          <div className="dl-track">
+            <div
+              className="dl-fill"
+              style={{
+                width: progress.total
+                  ? `${Math.min(100, (progress.downloaded / progress.total) * 100)}%`
+                  : "100%",
+              }}
+            />
+          </div>
+          <span className="dl-text">
+            {progress.total
+              ? `${(progress.downloaded / 1048576).toFixed(1)} / ${(progress.total / 1048576).toFixed(1)} MB`
+              : `${(progress.downloaded / 1048576).toFixed(1)} MB`}
+          </span>
+        </div>
       )}
 
       <p className="key-hint">按 F1 打开设置</p>

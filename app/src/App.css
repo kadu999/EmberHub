@@ -119,6 +119,55 @@ h3 {
   pointer-events: none;
 }
 
+/* ---------- 下载进度条 ---------- */
+.dl-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  min-width: 420px;
+  max-width: 80vw;
+  z-index: 30;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.dl-name {
+  font-size: 12px;
+  color: var(--text);
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dl-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dl-fill {
+  height: 100%;
+  background: var(--ember);
+  transition: width 0.2s linear;
+}
+
+.dl-text {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 code {
   background: var(--bg-soft);
   border: 1px solid var(--border);

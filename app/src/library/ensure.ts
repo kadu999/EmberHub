@@ -50,6 +50,7 @@ export async function ensureEmulator(
     try {
       const stamp = JSON.parse(await tauri.readTextFile(stampPath)) as { version?: string };
       if (stamp.version === config.version) {
+        onStatus?.(`模拟器已就绪（${config.version}）`);
         return { dir: localDir, config };
       }
     } catch {
@@ -103,12 +104,12 @@ export async function ensureRom(
   const dl = await getDownloadDir(source);
   const dest = joinPath(dl, "Roms", game.collection, basename(romRel));
 
-  if (!(await tauri.fileExists(dest))) {
-    onStatus?.(`下载中… ${basename(romRel)}`);
+  if (await tauri.fileExists(dest)) {
+    onStatus?.("已下载，直接启动");
+  } else {
+    onStatus?.(`开始下载 ${basename(romRel)}`);
     await provider.downloadTo(romRel, dest);
     onStatus?.("下载完成");
-  } else {
-    onStatus?.("已命中本地缓存");
   }
 
   return maybeExtract(dest, onStatus);

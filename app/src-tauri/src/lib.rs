@@ -2,13 +2,14 @@
 // 只暴露少量系统操作命令，业务逻辑尽量放在前端 TypeScript。
 // 详见 docs/ARCHITECTURE.md
 
+use std::io::{Read, Write};
 use std::process::Command;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 use url::Url;
 
@@ -555,7 +556,7 @@ async fn ftp_read_base64(
     .map_err(|e| e.to_string())?
 }
 
-fn ftp_download_sync(
+fn ftp_download_sync<F: Fn(u64, Option<u64>)>(
     host: &str,
     port: u16,
     username: &str,
@@ -563,6 +564,7 @@ fn ftp_download_sync(
     base: &str,
     path: &str,
     dest: &str,
+    on_progress: F,
 ) -> Result<u64, String> {
     let mut ftp = ftp_connect(host, port, username, password)?;
     let full = ftp_join(base, path);
@@ -571,6 +573,8 @@ fn ftp_download_sync(
     if let Some(parent) = std::path::Path::new(dest).parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+
+    let total_size = ftp.size(full.as_str()).ok().map(|s| s as u64);
 
     if existing > 0 {
         ftp.resume_transfer(existing as usize)
@@ -588,17 +592,34 @@ fn ftp_download_sync(
         std::fs::File::create(dest).map_err(|e| format!("无法创建文件 {}：{}", dest, e))?
     };
 
-    let n = std::io::copy(&mut stream, &mut file).map_err(|e| e.to_string())?;
+    let mut total = existing;
+    let mut buf = vec![0u8; 64 * 1024];
+    let mut last = std::time::Instant::now();
+    loop {
+        let n = stream.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+        total += n as u64;
+        if last.elapsed().as_millis() >= 200 {
+            on_progress(total, total_size);
+            last = std::time::Instant::now();
+        }
+    }
     stream
         .finish()
         .map_err(|e| format!("FTP 传输收尾失败：{}", e))?;
+    on_progress(total, total_size);
     let _ = ftp.quit();
-    Ok(existing + n)
+    Ok(total)
 }
 
 /// 从 FTP 下载文件到本地，支持断点续传（REST），返回字节数。
+/// 下载过程中通过 `download://progress` 事件上报进度。
 #[tauri::command]
 async fn ftp_download(
+    app: tauri::AppHandle,
     host: String,
     port: u16,
     username: String,
@@ -608,7 +629,17 @@ async fn ftp_download(
     dest: String,
 ) -> Result<u64, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        ftp_download_sync(&host, port, &username, &password, &base, &path, &dest)
+        let dest_for_event = dest.clone();
+        ftp_download_sync(
+            &host,
+            port,
+            &username,
+            &password,
+            &base,
+            &path,
+            &dest,
+            move |done, total| emit_download_progress(&app, &dest_for_event, done, total),
+        )
     })
     .await
     .map_err(|e| e.to_string())?
@@ -617,6 +648,14 @@ async fn ftp_download(
 // ---------------------------------------------------------------------------
 // 下载 / 解压 / 本地文件操作
 // ---------------------------------------------------------------------------
+
+/// 上报下载进度事件（前端监听 "download-progress"）。
+fn emit_download_progress(app: &tauri::AppHandle, path: &str, downloaded: u64, total: Option<u64>) {
+    let _ = app.emit(
+        "download-progress",
+        serde_json::json!({ "path": path, "downloaded": downloaded, "total": total }),
+    );
+}
 
 /// 默认下载目录（程序数据目录）。
 #[tauri::command]
@@ -702,8 +741,10 @@ fn extract_zip(zip_path: String, dest_dir: String) -> Result<(), String> {
 }
 
 /// 从 WebDAV 下载文件到本地，支持**断点续传**（若目标已存在则用 Range 续传），返回字节数。
+/// 下载过程中通过 `download://progress` 事件上报进度。
 #[tauri::command]
 async fn webdav_download(
+    app: tauri::AppHandle,
     root: String,
     username: String,
     password: String,
@@ -723,6 +764,7 @@ async fn webdav_download(
 
     if status.as_u16() == 416 {
         // 已下载完整
+        emit_download_progress(&app, &dest, existing, Some(existing));
         return Ok(existing);
     }
     if !status.is_success() {
@@ -734,6 +776,7 @@ async fn webdav_download(
     if !append {
         existing = 0;
     }
+    let total_size = resp.content_length().map(|c| c + existing);
 
     if let Some(parent) = std::path::Path::new(&dest).parent() {
         tokio::fs::create_dir_all(parent)
@@ -753,13 +796,19 @@ async fn webdav_download(
     };
 
     let mut total: u64 = existing;
+    let mut last = std::time::Instant::now();
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("下载中断: {}", e))?;
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
         total += chunk.len() as u64;
+        if last.elapsed().as_millis() >= 200 {
+            emit_download_progress(&app, &dest, total, total_size);
+            last = std::time::Instant::now();
+        }
     }
     file.flush().await.map_err(|e| e.to_string())?;
+    emit_download_progress(&app, &dest, total, total_size);
     Ok(total)
 }
 
@@ -830,20 +879,20 @@ mod ftp_tests {
         let roms =
             ftp_list_sync("127.0.0.1", 2121, "test", "test", "", "Roms").expect("list Roms 失败");
         let rn: Vec<&str> = roms.iter().map(|e| e.name.as_str()).collect();
-        assert!(rn.contains(&"gba"), "Roms entries: {:?}", rn);
+        assert!(rn.contains(&"GBA"), "Roms entries: {:?}", rn);
 
         // 下载（含断点续传）
         let tmp = std::env::temp_dir().join("emberhub_ftp_test_manifest.json");
         let tmp_s = tmp.to_string_lossy().to_string();
         let _ = std::fs::remove_file(&tmp);
-        let n = ftp_download_sync("127.0.0.1", 2121, "test", "test", "", "manifest.json", &tmp_s)
+        let n = ftp_download_sync("127.0.0.1", 2121, "test", "test", "", "manifest.json", &tmp_s, |_, _| {})
             .expect("download 失败");
         assert!(n > 0, "downloaded {} bytes", n);
         let dl = std::fs::read_to_string(&tmp).expect("read downloaded 失败");
         assert!(dl.contains("platforms"), "downloaded content: {}", dl);
 
         // 再次下载：文件已存在，应走 REST 续传且不报错
-        let n2 = ftp_download_sync("127.0.0.1", 2121, "test", "test", "", "manifest.json", &tmp_s)
+        let n2 = ftp_download_sync("127.0.0.1", 2121, "test", "test", "", "manifest.json", &tmp_s, |_, _| {})
             .expect("resume 失败");
         assert!(n2 >= n, "resume n2={} n={}", n2, n);
         let _ = std::fs::remove_file(&tmp);
