@@ -920,6 +920,21 @@ mod ftp_tests {
 
     #[test]
     #[ignore]
+    fn ftp_list_world() {
+        let dir = "Roms/GBA/media/世界传说 换装迷宫2";
+        let entries =
+            ftp_list_sync("127.0.0.1", 2121, "test", "test", "", dir).expect("list 失败");
+        for e in &entries {
+            println!("ENTRY: name={} dir={} size={}", e.name, e.is_dir, e.size);
+        }
+        assert!(
+            entries.iter().any(|e| e.name.to_lowercase() == "boxfront.png"),
+            "no boxFront.png"
+        );
+    }
+
+    #[test]
+    #[ignore]
     fn extract_mgba_7z() {
         let src =
             r"E:\WorkSpace\EmberHub\app\examples\sample-library\Emulators\GBA\mGBA-0.10.5-win64.7z";
