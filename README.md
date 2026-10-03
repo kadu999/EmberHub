@@ -22,17 +22,42 @@
 
 ## 🛠️ 技术选型
 
-- **客户端**：Flutter（一套代码覆盖 Windows / Linux / macOS + Android）
-- **状态管理**：Riverpod ｜ **本地库**：Drift (SQLite) ｜ **网络**：Dio
+- **应用壳**：Tauri 2（产物仅几 MB，复用系统 WebView2，Windows 优先、Android 后续）
+- **主语言**：TypeScript / React + Vite ｜ **状态管理**：Zustand
+- **本地库**：SQLite ｜ **后端**：Rust（极薄一层，仅做进程启动、文件、下载）
 - **存储**：适配器架构，**直连优先**（Local / 阿里云盘 / OneDrive / …），WebDAV / S3 作为兜底
 
 > 详细的模块划分、存储接口与路线图见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 
 ## 🚀 快速开始
 
+### 环境要求
+
+- Node.js 18+ 与 pnpm
+- [Rust](https://rustup.rs) 工具链
+- Windows 需要 Visual Studio C++ 生成工具（MSVC 链接器）与 WebView2（Win10+ 通常自带）
+
+### 开发
+
 ```bash
 git clone https://github.com/kadu999/EmberHub.git
 cd EmberHub
+pnpm install
+pnpm tauri dev      # 启动桌面应用
+```
+
+> **Windows 提示**：Rust 的 MSVC 工具链链接时需要 `link.exe` 与 Windows SDK 环境，
+> 普通终端里可能报 ``linker `link.exe` not found``。可直接用仓库自带脚本（会自动加载 VS 环境）：
+>
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File scripts/dev.ps1     # 开发
+> powershell -ExecutionPolicy Bypass -File scripts/build.ps1   # 打包
+> ```
+
+### 构建
+
+```bash
+pnpm tauri build    # 打包安装包
 ```
 
 ## 🤝 参与贡献
