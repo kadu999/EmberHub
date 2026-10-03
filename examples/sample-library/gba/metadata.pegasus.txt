@@ -1,0 +1,41 @@
+# EmberHub 示例游戏库（Pegasus / 天马G 格式）
+# 用「本地文件夹」存储源指向本目录（examples/sample-library/gba）即可看到效果。
+
+collection: Game Boy Advance
+shortname: gba
+launch: retroarch.exe -L cores/mgba_libretro.dll "{file.path}"
+extensions: gba, gbc, gb
+
+game: Advance Wars
+file: Advance Wars (USA).gba
+developer: Intelligent Systems
+publisher: Nintendo
+genre: Strategy
+players: 4
+release: 2001-09-10
+rating: 92%
+description:
+  This turn-based strategy game hails back to a classic Japanese
+  strategy game titled Famicom Wars. Advance Wars pits players against
+  very computer AI in a number of battles involving submarines, warships,
+  infantry, tanks, helicopters, and other weapons.
+
+game: Metroid Fusion
+file: Metroid Fusion (USA).gba
+developer: Nintendo R&D1
+publisher: Nintendo
+genre: Action, Adventure
+players: 1
+release: 2002-11-17
+rating: 90%
+description: Samus investigates a research station overrun by the X parasite.
+
+game: Golden Sun
+file: Golden Sun (USA).gba
+developer: Camelot Software Planning
+publisher: Nintendo
+genre: Role-playing
+players: 1
+release: 2001-11-11
+rating: 91%
+description: A classic turn-based RPG featuring the Psynergy system.

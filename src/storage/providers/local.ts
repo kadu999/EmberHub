@@ -1,42 +1,30 @@
-// LocalProvider：本地文件夹。0 依赖，最先实现（M1）。
-// 详见 docs/ARCHITECTURE.md 第 5.3 节
-
+// LocalProvider：本地文件夹。0 依赖。
 import { tauri } from "../../lib/tauri";
-import type { DownloadTicket, RemoteEntry, StorageProvider } from "../types";
+import { joinPath } from "../../lib/path";
+import type { RemoteEntry, StorageProvider } from "../types";
 
-export class LocalStorageProvider implements StorageProvider {
-  readonly id = "local";
-  readonly displayName = "本地文件夹";
-  readonly needsAuth = false;
+export class LocalProvider implements StorageProvider {
+  readonly kind = "local" as const;
 
-  isAuthenticated(): boolean {
-    return true;
-  }
-
-  async authenticate(): Promise<void> {
-    // 本地无需授权
-  }
-
-  async logout(): Promise<void> {
-    // 本地无需登出
-  }
+  constructor(private readonly root: string) {}
 
   async list(path: string): Promise<RemoteEntry[]> {
-    const entries = await tauri.listLocalDir(path);
+    const abs = path ? joinPath(this.root, path) : this.root;
+    const entries = await tauri.listLocalDir(abs);
     return entries.map((e) => ({
-      id: e.path,
+      // 统一暴露相对根的路径，保证与 WebDAV 行为一致
+      path: path ? joinPath(path, e.name) : e.name,
       name: e.name,
-      size: e.size,
       isDir: e.is_dir,
+      size: e.size,
     }));
   }
 
-  async getDownloadUrl(fileId: string): Promise<DownloadTicket> {
-    // 本地文件本就在磁盘上，直接返回 file:// 语义的直链
-    return {
-      url: fileId,
-      headers: {},
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-    };
+  readText(path: string): Promise<string> {
+    return tauri.readLocalText(joinPath(this.root, path));
+  }
+
+  readFileDataUrl(path: string): Promise<string> {
+    return tauri.readLocalBase64(joinPath(this.root, path));
   }
 }

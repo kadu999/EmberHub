@@ -2,46 +2,36 @@
 // 直连优先，想加哪个 Provider 就实现这个接口即可。
 // 详见 docs/ARCHITECTURE.md 第 5 节
 
-/** 远端文件/目录条目 */
-export interface RemoteEntry {
-  /** 远端唯一 ID（网盘 file_id，本地为绝对路径） */
+export type StorageKind = "local" | "webdav";
+
+/** 用户配置的一个存储源 */
+export interface SourceConfig {
   id: string;
   name: string;
-  size: number;
-  isDir: boolean;
-  modified?: Date;
-  /** 若存储能提供缩略图/封面 */
-  coverUrl?: string;
+  kind: StorageKind;
+  /** local: 根目录绝对路径 */
+  root?: string;
+  /** webdav: 服务地址 */
+  url?: string;
+  username?: string;
+  password?: string;
 }
 
-/** 下载凭证（含直链时效与必要请求头） */
-export interface DownloadTicket {
-  url: string;
-  headers: Record<string, string>;
-  expiresAt: Date;
+/** 远端文件/目录条目，`path` 为相对根的 posix 路径 */
+export interface RemoteEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+  modified?: string | null;
 }
 
 export interface StorageProvider {
-  /** 唯一标识，如 'local' | 'aliyundrive' */
-  readonly id: string;
-  readonly displayName: string;
-  /** 是否需要授权（网盘为 true，本地为 false） */
-  readonly needsAuth: boolean;
-
-  isAuthenticated(): boolean;
-  authenticate(): Promise<void>;
-  logout(): Promise<void>;
-
-  /** 列出某路径下的条目 */
+  readonly kind: StorageKind;
+  /** 列出某路径下的条目（path 为相对根的 posix 路径，"" 表示根） */
   list(path: string): Promise<RemoteEntry[]>;
-
-  /** 获取文件下载直链 */
-  getDownloadUrl(fileId: string): Promise<DownloadTicket>;
-
-  /** 上传（可选能力） */
-  upload?(
-    localPath: string,
-    remotePath: string,
-    onProgress?: (done: number, total: number) => void,
-  ): Promise<void>;
+  /** 读取文本文件 */
+  readText(path: string): Promise<string>;
+  /** 读取文件并返回 data URL（用于图片） */
+  readFileDataUrl(path: string): Promise<string>;
 }
