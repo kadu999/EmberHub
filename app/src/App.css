@@ -233,6 +233,62 @@ code {
   color: var(--muted);
 }
 
+/* ---------- 左详情 / 右列表 布局 ---------- */
+.library-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  margin-top: 18px;
+}
+
+.detail-panel {
+  width: 320px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.detail-panel .cover {
+  margin-bottom: 16px;
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.detail-panel .detail-sub {
+  margin: 4px 0 14px;
+}
+
+.detail-panel dl {
+  margin-bottom: 4px;
+}
+
+.detail-panel .desc {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.library-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-main .filters {
+  margin-top: 0;
+}
+
+.game-card.active .cover {
+  border-color: var(--ember);
+  box-shadow: 0 0 0 2px rgba(255, 107, 44, 0.45);
+}
+
 /* ---------- 封面 ---------- */
 .cover {
   width: 100%;
