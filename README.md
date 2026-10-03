@@ -35,7 +35,7 @@
 
 - Node.js 18+ 与 pnpm
 - [Rust](https://rustup.rs) 工具链
-- Windows 需要 Visual Studio C++ 生成工具（MSVC 链接器）与 WebView2（Win10+ 通常自带）
+- Windows 需要：Visual Studio 的 **C++ 生成工具**（MSVC 链接器）+ **Windows SDK** + WebView2（Win10+ 通常自带）
 
 ### 开发
 
