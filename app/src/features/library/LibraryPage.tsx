@@ -121,8 +121,9 @@ export function LibraryPage({ onOpenSettings }: Props) {
         style={{
           display: "grid",
           gridTemplateColumns: "clamp(240px, 24vw, 340px) minmax(0, 1fr)",
+          gridTemplateRows: "1fr",
           gap: 24,
-          alignItems: "start",
+          alignItems: "stretch",
         }}
       >
         {/* 左侧：信息面板 */}

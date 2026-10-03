@@ -299,8 +299,9 @@ code {
 .library-layout {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-rows: 1fr;
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
   margin-top: 18px;
   flex: 1;
   min-height: 0;
