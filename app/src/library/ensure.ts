@@ -1,6 +1,7 @@
 // 确保资源就位：模拟器（按平台，带版本比对）与 ROM（断点续传 + 自动解压）。
 import { tauri } from "../lib/tauri";
 import { basename, dirname, extname, joinPath, stripExt } from "../lib/path";
+import { useStore } from "../store";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { parseEmulatorConfig, parsePlatformMap } from "./parse";
 import type { EmulatorConfig } from "./types";
@@ -8,8 +9,10 @@ import type { Game } from "./scan";
 
 const ARCHIVE_EXTS = ["zip", "7z"];
 
-/** 下载目录：用户指定优先，否则程序数据目录。 */
+/** 下载目录：全局设置优先，其次存储源设置，最后程序数据目录。 */
 export async function getDownloadDir(source: SourceConfig): Promise<string> {
+  const global = useStore.getState().downloadDir;
+  if (global && global.trim() !== "") return global.trim();
   if (source.downloadDir && source.downloadDir.trim() !== "") return source.downloadDir.trim();
   return tauri.defaultDownloadDir();
 }

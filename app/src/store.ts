@@ -6,9 +6,12 @@ import type { SourceConfig } from "./storage/types";
 interface AppStore {
   sources: SourceConfig[];
   activeSourceId: string | null;
+  /** 下载目录（空 = 使用程序目录） */
+  downloadDir: string;
   addSource: (s: SourceConfig) => void;
   removeSource: (id: string) => void;
   setActiveSource: (id: string | null) => void;
+  setDownloadDir: (dir: string) => void;
 }
 
 export const useStore = create<AppStore>()(
@@ -16,6 +19,7 @@ export const useStore = create<AppStore>()(
     (set) => ({
       sources: [],
       activeSourceId: null,
+      downloadDir: "",
       addSource: (s) =>
         set((st) => ({
           sources: [...st.sources, s],
@@ -27,6 +31,7 @@ export const useStore = create<AppStore>()(
           activeSourceId: st.activeSourceId === id ? null : st.activeSourceId,
         })),
       setActiveSource: (id) => set({ activeSourceId: id }),
+      setDownloadDir: (dir) => set({ downloadDir: dir }),
     }),
     { name: "emberhub" },
   ),

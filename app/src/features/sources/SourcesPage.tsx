@@ -1,8 +1,9 @@
 // 设置页：存储源配置（本地文件夹 / WebDAV / FTP）。
 // 默认隐藏，按 F1 打开。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
+import { tauri } from "../../lib/tauri";
 import type { SourceConfig, StorageKind } from "../../storage/types";
 
 interface Props {
@@ -21,7 +22,20 @@ function describe(s: SourceConfig): string {
 }
 
 export function SourcesPage({ onClose }: Props) {
-  const { sources, activeSourceId, addSource, removeSource, setActiveSource } = useStore();
+  const {
+    sources,
+    activeSourceId,
+    addSource,
+    removeSource,
+    setActiveSource,
+    downloadDir,
+    setDownloadDir,
+  } = useStore();
+
+  const [defaultDir, setDefaultDir] = useState("");
+  useEffect(() => {
+    tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
+  }, []);
 
   const [kind, setKind] = useState<StorageKind>("ftp");
   const [name, setName] = useState("");
@@ -118,6 +132,29 @@ export function SourcesPage({ onClose }: Props) {
       <p className="hint">
         资源服务器支持：FTP（默认）、WebDAV（OpenList）、本地文件夹。游戏库放在「游戏目录」下，按平台分子文件夹。
       </p>
+
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>下载目录</h3>
+        <p className="hint">
+          ROM 与模拟器的存放位置（其下自动创建 <code>Roms/</code> 与 <code>Emulators/</code>）。留空则使用程序目录。
+        </p>
+        <div className="field">
+          <label>下载目录</label>
+          <input
+            value={downloadDir}
+            onChange={(e) => setDownloadDir(e.currentTarget.value)}
+            placeholder={defaultDir || "程序所在目录"}
+          />
+        </div>
+        <div className="actions">
+          <button className="ghost small" onClick={() => setDownloadDir("")}>
+            重置为默认
+          </button>
+        </div>
+        <p className="hint">
+          当前默认：<code>{defaultDir || "程序所在目录"}</code>
+        </p>
+      </div>
 
       <div className="card">
         <div className="segmented">
