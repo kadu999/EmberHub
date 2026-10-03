@@ -1,4 +1,5 @@
 // 存储源工厂：根据配置创建对应的 Provider。
+import { openlistDavUrl } from "./types";
 import type { SourceConfig, StorageProvider } from "./types";
 import { LocalProvider } from "./providers/local";
 import { WebDavProvider } from "./providers/webdav";
@@ -7,9 +8,9 @@ export function createProvider(source: SourceConfig): StorageProvider {
   switch (source.kind) {
     case "local":
       return new LocalProvider(source.root ?? "");
-    case "webdav":
+    case "openlist":
       return new WebDavProvider(
-        source.url ?? "",
+        openlistDavUrl(source),
         source.username ?? "",
         source.password ?? "",
       );

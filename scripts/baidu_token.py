@@ -24,9 +24,9 @@ import urllib.request
 import webbrowser
 
 # ============================ 填写参数 ============================
-APP_KEY = ""          # 必填：百度开放平台 AppKey（百度 OAuth 里的 client_id）
-SECRET_KEY = ""       # 必填：百度开放平台 SecretKey（百度 OAuth 里的 client_secret）
-APP_ID = ""           # 选填：AppID（仅硬件应用会作为 device_id 传，软件应用留空）
+APP_KEY = "HOVSD4Xn89hAXcs6KzxFGweo0KAavalW"          # 必填：百度开放平台 AppKey（百度 OAuth 里的 client_id）
+SECRET_KEY = "QTsfmYkNP2FGdTeMvOMwtq3GeftRswRk"       # 必填：百度开放平台 SecretKey（百度 OAuth 里的 client_secret）
+APP_ID = "124406017"           # 选填：AppID（仅硬件应用会作为 device_id 传，软件应用留空）
 REDIRECT_URI = "oob"  # 必须与百度应用「安全设置 → OAuth 回调地址」完全一致
 SCOPE = "basic,netdisk"
 

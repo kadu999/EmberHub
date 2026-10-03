@@ -2,7 +2,7 @@
 // 直连优先，想加哪个 Provider 就实现这个接口即可。
 // 详见 docs/ARCHITECTURE.md 第 5 节
 
-export type StorageKind = "local" | "webdav";
+export type StorageKind = "local" | "openlist";
 
 /** 用户配置的一个存储源 */
 export interface SourceConfig {
@@ -17,10 +17,22 @@ export interface SourceConfig {
   downloadDir?: string;
   /** local: 根目录绝对路径 */
   root?: string;
-  /** webdav: 服务地址 */
-  url?: string;
+  /** openlist: 服务地址（ip:端口 或完整 http(s) 地址） */
+  server?: string;
+  /** openlist: 选中的资源源挂载路径，如 /EmberHub_Baidu */
+  mountPath?: string;
   username?: string;
   password?: string;
+}
+
+/** 由 OpenList 地址 + 资源源挂载路径推导 WebDAV 根地址 */
+export function openlistDavUrl(source: SourceConfig): string {
+  const server = (source.server ?? "").trim().replace(/\/+$/, "");
+  if (!server) return "";
+  const withScheme = /^https?:\/\//i.test(server) ? server : `http://${server}`;
+  let mount = (source.mountPath ?? "").trim();
+  if (mount && !mount.startsWith("/")) mount = "/" + mount;
+  return `${withScheme}/dav${mount}`;
 }
 
 /** 远端文件/目录条目，`path` 为相对根的 posix 路径 */

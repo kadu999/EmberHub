@@ -1,4 +1,4 @@
-// 设置页：存储源配置（本地文件夹 / WebDAV）。
+// 设置页：存储源配置（OpenList / 本地文件夹）。
 // 默认隐藏，按 F1 打开。
 import { useEffect, useState } from "react";
 import { useStore } from "../../store";
@@ -16,14 +16,19 @@ function uid(): string {
 }
 
 function describe(s: SourceConfig): string {
-  if (s.kind === "webdav") return s.url ?? "";
+  if (s.kind === "openlist") return `${s.server ?? ""}${s.mountPath ?? ""}`;
   return s.root ?? "";
 }
 
-// WebDAV（OpenList）表单默认值：预填，可直接修改后再添加
-const DEFAULT_DAV_URL = "http://127.0.0.1:5244/dav/EmberHub_Baidu";
-const DEFAULT_DAV_USER = "admin";
-const DEFAULT_DAV_PASS = "12345";
+// OpenList 表单默认值：预填，可直接修改后再添加
+const DEFAULT_SERVER = "127.0.0.1:5244";
+const DEFAULT_USER = "admin";
+const DEFAULT_PASS = "12345";
+
+interface Mount {
+  path: string;
+  name: string;
+}
 
 export function SourcesPage({ onClose }: Props) {
   const {
@@ -42,15 +47,57 @@ export function SourcesPage({ onClose }: Props) {
     tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
   }, []);
 
-  const [kind, setKind] = useState<StorageKind>("webdav");
+  const [kind, setKind] = useState<StorageKind>("openlist");
   const [name, setName] = useState("");
   const [romsPath, setRomsPath] = useState("Roms");
   const [root, setRoot] = useState("");
-  const [url, setUrl] = useState(DEFAULT_DAV_URL);
-  const [username, setUsername] = useState(DEFAULT_DAV_USER);
-  const [password, setPassword] = useState(DEFAULT_DAV_PASS);
+  const [server, setServer] = useState(DEFAULT_SERVER);
+  const [mountPath, setMountPath] = useState("");
+  const [mounts, setMounts] = useState<Mount[]>([]);
+  const [loadingMounts, setLoadingMounts] = useState(false);
+  const [username, setUsername] = useState(DEFAULT_USER);
+  const [password, setPassword] = useState(DEFAULT_PASS);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
+
+  /** 只填 IP:端口 也能用，自动补 http:// 并去掉结尾斜杠。 */
+  function normalizeServer(v: string): string {
+    const s = v.trim().replace(/\/+$/, "");
+    if (!s) return "";
+    return /^https?:\/\//i.test(s) ? s : `http://${s}`;
+  }
+
+  /** 从 OpenList 拉取资源源（挂载）列表。 */
+  async function fetchMounts() {
+    const base = normalizeServer(server);
+    if (!base) {
+      setMessage({ ok: false, text: "请先填写 OpenList 地址（IP:端口）" });
+      return;
+    }
+    setLoadingMounts(true);
+    setMessage(null);
+    try {
+      const entries = await tauri.webdavList(
+        { root: `${base}/dav`, username: username.trim(), password },
+        "",
+      );
+      const dirs: Mount[] = entries
+        .filter((e) => e.is_dir)
+        .map((e) => ({ path: `/${e.path || e.name}`, name: e.name }));
+      setMounts(dirs);
+      if (dirs.length === 0) {
+        setMessage({ ok: false, text: "没有找到资源源（检查账号密码，或 OpenList 里还没挂载存储）" });
+      } else {
+        setMountPath((prev) => (prev && dirs.some((d) => d.path === prev) ? prev : dirs[0].path));
+        setMessage({ ok: true, text: `找到 ${dirs.length} 个资源源` });
+      }
+    } catch (e) {
+      setMounts([]);
+      setMessage({ ok: false, text: `获取失败：${String(e)}` });
+    } finally {
+      setLoadingMounts(false);
+    }
+  }
 
   function buildConfig(): SourceConfig | null {
     if (kind === "local") {
@@ -63,13 +110,14 @@ export function SourcesPage({ onClose }: Props) {
         root: root.trim(),
       };
     }
-    if (!url.trim()) return null;
+    if (!normalizeServer(server) || !mountPath) return null;
     return {
       id: uid(),
-      name: name.trim() || "WebDAV",
+      name: name.trim() || "OpenList",
       kind,
       romsPath: romsPath.trim(),
-      url: url.trim(),
+      server: server.trim(),
+      mountPath,
       username: username.trim(),
       password,
     };
@@ -92,15 +140,17 @@ export function SourcesPage({ onClose }: Props) {
   async function add() {
     const cfg = buildConfig();
     if (!cfg) {
-      setMessage({ ok: false, text: "请填写必填项" });
+      setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
       return;
     }
     addSource(cfg);
     setName("");
     setRoot("");
-    setUrl(DEFAULT_DAV_URL);
-    setUsername(DEFAULT_DAV_USER);
-    setPassword(DEFAULT_DAV_PASS);
+    setServer(DEFAULT_SERVER);
+    setMountPath("");
+    setMounts([]);
+    setUsername(DEFAULT_USER);
+    setPassword(DEFAULT_PASS);
     setMessage({ ok: true, text: "已添加存储源" });
   }
 
@@ -126,7 +176,7 @@ export function SourcesPage({ onClose }: Props) {
         </div>
       </div>
       <p className="hint">
-        资源服务器推荐用 WebDAV（OpenList）。游戏库放在「游戏目录」下，按平台分子文件夹。
+        资源服务器用 OpenList。填地址（IP:端口）后获取资源源列表，选一个即可。游戏库放在「游戏目录」下。
       </p>
 
       <div className="card">
@@ -154,8 +204,8 @@ export function SourcesPage({ onClose }: Props) {
 
       <div className="card">
         <div className="segmented">
-          <button className={kind === "webdav" ? "active" : ""} onClick={() => setKind("webdav")}>
-            WebDAV
+          <button className={kind === "openlist" ? "active" : ""} onClick={() => setKind("openlist")}>
+            OpenList
           </button>
           <button className={kind === "local" ? "active" : ""} onClick={() => setKind("local")}>
             本地文件夹
@@ -172,14 +222,14 @@ export function SourcesPage({ onClose }: Props) {
           <input value={romsPath} onChange={(e) => setRomsPath(e.currentTarget.value)} placeholder="Roms" />
         </div>
 
-        {kind === "webdav" && (
+        {kind === "openlist" && (
           <>
             <div className="field">
-              <label>WebDAV 地址</label>
+              <label>OpenList 地址（IP:端口）</label>
               <input
-                value={url}
-                onChange={(e) => setUrl(e.currentTarget.value)}
-                placeholder="http://127.0.0.1:5244/dav"
+                value={server}
+                onChange={(e) => setServer(e.currentTarget.value)}
+                placeholder="127.0.0.1:5244"
               />
             </div>
             <div className="field">
@@ -190,6 +240,34 @@ export function SourcesPage({ onClose }: Props) {
               <label>密码</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
             </div>
+            <div className="field">
+              <label>资源源（OpenList 挂载）</label>
+              <div className="field-row">
+                <select
+                  value={mountPath}
+                  onChange={(e) => setMountPath(e.currentTarget.value)}
+                  disabled={mounts.length === 0}
+                >
+                  {mounts.length === 0 ? (
+                    <option value="">{loadingMounts ? "获取中…" : "点击右侧按钮获取"}</option>
+                  ) : (
+                    mounts.map((m) => (
+                      <option key={m.path} value={m.path}>
+                        {m.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <button className="ghost small" onClick={() => void fetchMounts()} disabled={loadingMounts}>
+                  {loadingMounts ? "获取中…" : "获取资源源"}
+                </button>
+              </div>
+            </div>
+            {mountPath && (
+              <p className="hint">
+                将使用：<code>{normalizeServer(server)}/dav{mountPath}</code>
+              </p>
+            )}
           </>
         )}
 
@@ -208,7 +286,7 @@ export function SourcesPage({ onClose }: Props) {
             onClick={() => {
               const cfg = buildConfig();
               if (cfg) void test(cfg);
-              else setMessage({ ok: false, text: "请填写必填项" });
+              else setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
             }}
           >
             {testing ? "测试中…" : "测试连接"}

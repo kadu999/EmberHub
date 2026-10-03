@@ -4,7 +4,7 @@ import { tauri, type DavAuth } from "../../lib/tauri";
 import type { RemoteEntry, StorageProvider } from "../types";
 
 export class WebDavProvider implements StorageProvider {
-  readonly kind = "webdav" as const;
+  readonly kind = "openlist" as const;
   private readonly auth: DavAuth;
 
   constructor(url: string, username: string, password: string) {
