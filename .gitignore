@@ -14,3 +14,6 @@
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# 本地令牌 / 密钥（百度网盘 token 等）
+baidu_token.json
