@@ -492,6 +492,12 @@ fn app_info() -> serde_json::Value {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// 当前运行平台（编译目标 OS）：windows / linux / macos / android / ios
+#[tauri::command]
+fn host_os() -> String {
+    std::env::consts::OS.to_string()
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -513,7 +519,8 @@ pub fn run() {
             remove_path,
             extract_zip,
             extract_archive,
-            app_info
+            app_info,
+            host_os
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

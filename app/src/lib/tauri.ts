@@ -34,6 +34,9 @@ export const tauri = {
   /** 读取应用信息 */
   appInfo: () => invoke<AppInfo>("app_info"),
 
+  /** 当前运行平台（windows / linux / macos / android / ios） */
+  hostOs: () => invoke<string>("host_os"),
+
   // ---- 本地文件系统 ----
   listLocalDir: (path: string) => invoke<LocalEntry[]>("list_local_dir", { path }),
   readLocalText: (path: string) => invoke<string>("read_local_text", { path }),

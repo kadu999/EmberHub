@@ -42,7 +42,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 ```
 <资源服务器根>/
 ├─ manifest.json             # 只表明有几个平台
-├─ Roms/
+├─ Roms/                     # 游戏资源（不分运行平台）
 │  ├─ GBA/
 │  │  ├─ games.json          # 该平台的游戏列表
 │  │  ├─ xxx.gba             # ROM 文件
@@ -51,12 +51,15 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 │  │        ├─ boxFront.png
 │  │        └─ video.mp4
 │  └─ NES/...
-└─ Emulators/
-   ├─ platforms.json         # 平台映射表（Roms 文件夹 → Emulators 文件夹）
-   ├─ GBA/
-   │  ├─ config.json         # 模拟器配置文件（含版本）
-   │  └─ GBA.zip             # 模拟器压缩包
-   └─ NES/...
+└─ Emulators/                # 模拟器按「运行平台」分（客户端只下自己系统的）
+   ├─ platforms.json         # 平台映射表（Roms 文件夹 → Emulators 游戏平台文件夹）
+   ├─ Windows/
+   │  ├─ GBA/
+   │  │  ├─ config.json      # 模拟器配置文件（含版本）
+   │  │  └─ GBA.zip          # 模拟器压缩包
+   │  └─ NES/...
+   └─ Android/
+      └─ GBA/...
 ```
 
 ### 3.3 根清单 `manifest.json`
@@ -110,7 +113,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 - 约定文件名：`boxFront.*`（封面）、`logo.*`、`video.*`（视频）等，支持 png/jpg/jpeg/webp、mp4/webm
 - 查找顺序：① `games.json` 里显式写的 `cover` → ② `media/<title>/` → ③ `media/<文件名(去扩展名)>/`
 
-### 3.6 Emulators 配置 `Emulators/<平台>/config.json`
+### 3.6 Emulators 配置 `Emulators/<运行平台>/<平台>/config.json`
 
 ```json
 {
@@ -136,7 +139,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 ### 3.7 平台映射 `Emulators/platforms.json`
 
-键 = Roms 下平台文件夹名，值 = Emulators 下平台文件夹名：
+全局一份（不分运行平台）。键 = Roms 下平台文件夹名，值 = Emulators 下游戏平台文件夹名：
 
 ```json
 {

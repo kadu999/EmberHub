@@ -17,6 +17,24 @@ export async function getDownloadDir(source?: SourceConfig): Promise<string> {
   return tauri.defaultDownloadDir();
 }
 
+/** 运行平台 → 服务器上的文件夹名（Windows / Android / Linux / MacOS / iOS）。 */
+function osFolder(os: string): string {
+  switch (os) {
+    case "windows":
+      return "Windows";
+    case "android":
+      return "Android";
+    case "linux":
+      return "Linux";
+    case "macos":
+      return "MacOS";
+    case "ios":
+      return "iOS";
+    default:
+      return os ? os[0].toUpperCase() + os.slice(1) : "Windows";
+  }
+}
+
 export interface EmulatorInstall {
   /** 本地模拟器目录 */
   dir: string;
@@ -31,6 +49,7 @@ export async function ensureEmulator(
   onStatus?: (s: string) => void,
 ): Promise<EmulatorInstall> {
   const emuRoot = (source.emulatorsPath ?? "Emulators").trim() || "Emulators";
+  const hostOs = osFolder(await tauri.hostOs());
 
   // 平台映射（无映射表则同名）
   let emuPlatform = platform;
@@ -41,7 +60,8 @@ export async function ensureEmulator(
     // 忽略
   }
 
-  const emuBase = joinPath(emuRoot, emuPlatform);
+  // 服务器结构：Emulators/<运行平台>/<游戏平台>/
+  const emuBase = joinPath(emuRoot, hostOs, emuPlatform);
   const config = parseEmulatorConfig(await provider.readText(joinPath(emuBase, "config.json")));
 
   const dl = await getDownloadDir(source);
