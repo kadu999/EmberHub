@@ -119,7 +119,8 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
   "archive": "GBA.zip",
   "exe": "retroarch.exe",
   "args": ["-L", "cores/mgba_libretro.dll", "{file.path}"],
-  "workdir": "."
+  "workdir": ".",
+  "extract": true
 }
 ```
 
@@ -131,6 +132,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 | `exe` | 解压后可执行文件路径（相对解压根） |
 | `args` | 启动参数数组，支持 `{file.path}` 等占位符 |
 | `workdir` | 工作目录（相对解压根，可选） |
+| `extract` | 是否解压 ROM 压缩包（默认 `true`）。模拟器能直接读压缩包时设为 `false`（如 mGBA 读 zip） |
 
 ### 3.7 平台映射 `Emulators/platforms.json`
 
