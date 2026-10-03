@@ -48,8 +48,6 @@ export function SourcesPage({ onClose }: Props) {
   }, []);
 
   const [kind, setKind] = useState<StorageKind>("openlist");
-  const [name, setName] = useState("");
-  const [romsPath, setRomsPath] = useState("Roms");
   const [root, setRoot] = useState("");
   const [server, setServer] = useState(DEFAULT_SERVER);
   const [mountPath, setMountPath] = useState("");
@@ -104,18 +102,18 @@ export function SourcesPage({ onClose }: Props) {
       if (!root.trim()) return null;
       return {
         id: uid(),
-        name: name.trim() || "本地文件夹",
+        name: "本地文件夹",
         kind,
-        romsPath: romsPath.trim(),
+        romsPath: "Roms",
         root: root.trim(),
       };
     }
     if (!normalizeServer(server) || !mountPath) return null;
     return {
       id: uid(),
-      name: name.trim() || "OpenList",
+      name: mountPath.replace(/^\//, "") || "OpenList",
       kind,
-      romsPath: romsPath.trim(),
+      romsPath: "Roms",
       server: server.trim(),
       mountPath,
       username: username.trim(),
@@ -144,7 +142,6 @@ export function SourcesPage({ onClose }: Props) {
       return;
     }
     addSource(cfg);
-    setName("");
     setRoot("");
     setServer(DEFAULT_SERVER);
     setMountPath("");
@@ -210,16 +207,6 @@ export function SourcesPage({ onClose }: Props) {
           <button className={kind === "local" ? "active" : ""} onClick={() => setKind("local")}>
             本地文件夹
           </button>
-        </div>
-
-        <div className="field">
-          <label>名称</label>
-          <input value={name} onChange={(e) => setName(e.currentTarget.value)} placeholder="例如：我的游戏库" />
-        </div>
-
-        <div className="field">
-          <label>游戏目录（相对存储源根，默认 Roms）</label>
-          <input value={romsPath} onChange={(e) => setRomsPath(e.currentTarget.value)} placeholder="Roms" />
         </div>
 
         {kind === "openlist" && (
@@ -308,10 +295,7 @@ export function SourcesPage({ onClose }: Props) {
               />
               <span className="src-name">{s.name}</span>
             </label>
-            <span className="src-detail">
-              {describe(s)}
-              {s.romsPath ? `  ·  ${s.romsPath}` : ""}
-            </span>
+            <span className="src-detail">{describe(s)}</span>
             <button className="ghost small" onClick={() => removeSource(s.id)}>
               删除
             </button>
