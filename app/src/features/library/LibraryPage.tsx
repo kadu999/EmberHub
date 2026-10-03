@@ -91,7 +91,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
           if (pick) videoRel = joinPath(selected.mediaDir!, pick);
         }
         if (!videoRel) return;
-        const p = await ensureLocalMedia(provider, source, videoRel);
+        const p = await ensureLocalMedia(provider, videoRel);
         if (alive) setVideoSrc(convertFileSrc(p));
       } catch {
         // 忽略

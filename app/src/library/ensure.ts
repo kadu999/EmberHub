@@ -10,10 +10,10 @@ import type { Game } from "./scan";
 const ARCHIVE_EXTS = ["zip", "7z"];
 
 /** 下载目录：全局设置优先，其次存储源设置，最后程序数据目录。 */
-export async function getDownloadDir(source: SourceConfig): Promise<string> {
+export async function getDownloadDir(source?: SourceConfig): Promise<string> {
   const global = useStore.getState().downloadDir;
   if (global && global.trim() !== "") return global.trim();
-  if (source.downloadDir && source.downloadDir.trim() !== "") return source.downloadDir.trim();
+  if (source?.downloadDir && source.downloadDir.trim() !== "") return source.downloadDir.trim();
   return tauri.defaultDownloadDir();
 }
 
@@ -148,14 +148,13 @@ async function firstRomFile(dir: string): Promise<string | undefined> {
 /** 确保媒体文件（封面/视频）在本地；返回本地绝对路径（远程则按资源结构镜像下载）。 */
 export async function ensureLocalMedia(
   provider: StorageProvider,
-  source: SourceConfig,
   relPath: string,
 ): Promise<string> {
   const local = provider.absolute?.(relPath);
   if (local) return local;
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
-  const dl = await getDownloadDir(source);
+  const dl = await getDownloadDir();
   // 与下载资源一致：镜像服务器结构，如 <下载目录>/Roms/GBA/media/<游戏>/video.mp4
   const dest = joinPath(dl, relPath);
   if (!(await tauri.fileExists(dest))) {

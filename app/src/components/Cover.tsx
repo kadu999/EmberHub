@@ -1,9 +1,10 @@
-// 封面组件：按需从存储源加载图片（data URL），带小型缓存。
-// 支持两种来源：显式 path，或 dir（media 子目录，懒加载挑封面）。
+// 封面组件：下载一次到本地（与资源结构一致），之后直接用本地文件。
 import { useEffect, useState } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { StorageProvider } from "../storage/types";
 import { joinPath } from "../lib/path";
 import { pickCoverName } from "../lib/media";
+import { ensureLocalMedia } from "../library/ensure";
 
 interface Props {
   provider: StorageProvider;
@@ -12,15 +13,15 @@ interface Props {
   title: string;
 }
 
-// 小型缓存：避免虚拟滚动来回时重复下载封面
-const cache = new Map<string, string>();
-const MAX_CACHE = 120;
+// 已解析的本地路径缓存（避免重复存在性检查）
+const pathCache = new Map<string, string>();
+const MAX_CACHE = 300;
 
-function cacheSet(key: string, value: string) {
-  cache.set(key, value);
-  if (cache.size > MAX_CACHE) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
+function remember(key: string, value: string) {
+  pathCache.set(key, value);
+  if (pathCache.size > MAX_CACHE) {
+    const oldest = pathCache.keys().next().value;
+    if (oldest !== undefined) pathCache.delete(oldest);
   }
 }
 
@@ -40,33 +41,29 @@ export function Cover({ provider, path, dir, title }: Props) {
         : null;
     if (!key) return;
 
-    const cached = cache.get(key);
+    const cached = pathCache.get(key);
     if (cached) {
-      setSrc(cached);
+      setSrc(convertFileSrc(cached));
       return;
     }
 
     (async () => {
-      let target = path;
-      if (!target && dir) {
-        try {
+      try {
+        let target = path;
+        if (!target && dir) {
           const names = (await provider.list(dir))
             .filter((e) => !e.isDir)
             .map((e) => e.name);
           const pick = pickCoverName(names);
           if (pick) target = joinPath(dir, pick);
-        } catch {
-          // 忽略
         }
-      }
-      if (!target) {
-        if (alive) setFailed(true);
-        return;
-      }
-      try {
-        const d = await provider.readFileDataUrl(target);
-        cacheSet(key, d);
-        if (alive) setSrc(d);
+        if (!target) {
+          if (alive) setFailed(true);
+          return;
+        }
+        const local = await ensureLocalMedia(provider, target);
+        remember(key, local);
+        if (alive) setSrc(convertFileSrc(local));
       } catch {
         if (alive) setFailed(true);
       }
