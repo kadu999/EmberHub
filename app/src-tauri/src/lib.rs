@@ -612,7 +612,11 @@ fn ftp_download_sync<F: Fn(u64, Option<u64>)>(
         .finish()
         .map_err(|e| format!("FTP 传输收尾失败：{}", e))?;
     drop(file);
-    std::fs::rename(&part, dest).map_err(|e| format!("重命名失败：{}", e))?;
+    if let Err(e) = std::fs::rename(&part, dest) {
+        if !std::path::Path::new(dest).exists() {
+            return Err(format!("重命名失败：{}", e));
+        }
+    }
     on_progress(total, total_size);
     let _ = ftp.quit();
     Ok(total)
@@ -832,7 +836,11 @@ async fn webdav_download(
     }
     file.flush().await.map_err(|e| e.to_string())?;
     drop(file);
-    std::fs::rename(&part, &dest).map_err(|e| format!("重命名失败: {}", e))?;
+    if let Err(e) = std::fs::rename(&part, &dest) {
+        if !std::path::Path::new(&dest).exists() {
+            return Err(format!("重命名失败: {}", e));
+        }
+    }
     emit_download_progress(&app, &dest, total, total_size);
     Ok(total)
 }
