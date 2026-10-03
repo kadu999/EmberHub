@@ -9,7 +9,33 @@ EmberHub 采用「直连优先」的存储适配器架构。当前已实现：
 
 ---
 
-## 一、部署 OpenList（Windows 本地）
+## 零、一键搭建（推荐）
+
+中转站与 EmberHub **同级**，**不放进**仓库：
+
+```
+E:\WorkSpace\
+├─ EmberHub\        ← 模拟器管理器
+└─ OpenList\        ← 中转站（脚本安装到这里）
+```
+
+**双击 `scripts\openlist.bat`**，选择「1) 安装 / 更新」即可自动下载并初始化到 `..\OpenList`。
+菜单还提供：启动、停止、打开管理页面、查看状态。
+
+也可以命令行调用：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\openlist.ps1 -Action setup
+# -Action: menu | setup | start | stop | restart | open | status
+# -Password: 初始管理员密码（默认 EmberHub@2026）
+# -Force: 强制重新下载
+```
+
+> 脚本会自动尝试多个 GitHub 镜像，适合国内网络。
+
+---
+
+## 一、手动部署 OpenList（Windows 本地）
 
 OpenList 是 AList 的官方继任者，一个绿色小程序，无需数据库。
 

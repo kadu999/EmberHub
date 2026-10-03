@@ -67,6 +67,20 @@ pnpm tauri dev      # 启动桌面应用
 pnpm tauri build    # 打包安装包
 ```
 
+## ☁️ 中转站（网盘，可选）
+
+要接入阿里云盘/夸克等网盘，可用 OpenList 作为中转站。它会被安装到**与 EmberHub 同级**的目录（`..\OpenList`），不会放进本仓库：
+
+```
+WorkSpace\
+├─ EmberHub\
+└─ OpenList\
+```
+
+**双击 `scripts\openlist.bat`** 即可一键安装/启动/停止。
+
+详见 [`docs/CLOUD_DRIVE.md`](docs/CLOUD_DRIVE.md)。
+
 ## 🤝 参与贡献
 
 欢迎提交 Issue 和 Pull Request。
