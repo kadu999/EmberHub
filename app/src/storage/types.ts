@@ -36,4 +36,6 @@ export interface StorageProvider {
   readText(path: string): Promise<string>;
   /** 读取文件并返回 data URL（用于图片） */
   readFileDataUrl(path: string): Promise<string>;
+  /** 把相对路径解析为本地绝对路径（仅本地源支持；远程源返回 undefined） */
+  absolute?(path: string): string | undefined;
 }

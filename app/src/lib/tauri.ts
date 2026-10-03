@@ -48,6 +48,6 @@ export const tauri = {
     invoke<string>("webdav_read_base64", { ...auth, path }),
 
   /** 启动外部模拟器，返回进程 PID */
-  launchEmulator: (exePath: string, args: string[] = []) =>
-    invoke<number>("launch_emulator", { exePath, args }),
+  launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>
+    invoke<number>("launch_emulator", { exePath, args, workdir }),
 };

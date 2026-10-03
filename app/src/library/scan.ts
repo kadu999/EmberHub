@@ -14,6 +14,9 @@ export interface Game {
   release?: string;
   rating?: number;
   description?: string;
+  /** 启动命令（来自 game 或 collection 的 launch） */
+  launch?: string;
+  workdir?: string;
   /** 封面在存储源中的相对路径 */
   coverPath?: string;
   /** 内部：元数据所在目录（用于解析素材） */
@@ -214,15 +217,15 @@ async function resolveCoverPath(
 }
 
 function gameFromPegasus(
-  collection: string,
+  col: PegasusCollection,
   g: PegasusCollection["games"][number],
   baseDir: string,
 ): Game {
   const files = g.files.map((f) => normalizeRel(baseDir, f));
   return {
-    id: files[0] ?? `${collection}:${g.title}`,
+    id: files[0] ?? `${col.name}:${g.title}`,
     title: g.title,
-    collection,
+    collection: col.name,
     files,
     developer: g.developers.join(", ") || undefined,
     genre: g.genres.join(", ") || undefined,
@@ -230,6 +233,8 @@ function gameFromPegasus(
     release: g.release,
     rating: g.rating,
     description: g.summary ?? g.description,
+    launch: g.launch ?? col.launch,
+    workdir: g.workdir ?? col.workdir,
     _baseDir: baseDir,
     _assets: g.assets,
   };
@@ -270,7 +275,7 @@ export async function scanLibrary(
     for (const col of collections) {
       // 1) 显式声明的游戏
       for (const g of col.games) {
-        const game = gameFromPegasus(col.name, g, baseDir);
+        const game = gameFromPegasus(col, g, baseDir);
         game.files.forEach((f) => seenFiles.add(f.toLowerCase()));
         if (game.title) games.push(game);
       }
@@ -288,6 +293,8 @@ export async function scanLibrary(
             title: stripExt(basename(f)),
             collection: col.name,
             files: [f],
+            launch: col.launch,
+            workdir: col.workdir,
             _baseDir: baseDir,
           });
         }

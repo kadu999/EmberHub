@@ -27,4 +27,8 @@ export class LocalProvider implements StorageProvider {
   readFileDataUrl(path: string): Promise<string> {
     return tauri.readLocalBase64(joinPath(this.root, path));
   }
+
+  absolute(path: string): string {
+    return joinPath(this.root, path);
+  }
 }

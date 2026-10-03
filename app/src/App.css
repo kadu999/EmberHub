@@ -514,6 +514,15 @@ dd.files {
   white-space: pre-wrap;
 }
 
+.launch-row {
+  margin-top: 18px;
+}
+
+.launch-row button {
+  font-size: 15px;
+  padding: 11px 26px;
+}
+
 .close {
   position: absolute;
   top: 12px;

@@ -4,6 +4,7 @@ import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { scanLibrary, type Game, type ScanResult } from "../../library/scan";
 import { Cover } from "../../components/Cover";
+import { launchGame } from "../../library/launch";
 
 interface Props {
   onOpenSettings: () => void;
@@ -19,6 +20,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [collection, setCollection] = useState("全部");
   const [selected, setSelected] = useState<Game | null>(null);
+  const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const scanRoot = (source?.romsPath ?? "Roms").trim();
 
@@ -110,7 +112,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
 
           <div className="grid">
             {filtered.map((g) => (
-              <button key={g.id} className="game-card" onClick={() => setSelected(g)}>
+              <button key={g.id} className="game-card" onClick={() => { setLaunchMsg(null); setSelected(g); }}>
                 <Cover provider={provider} path={g.coverPath} title={g.title} />
                 <span className="game-title" title={g.title}>
                   {g.title}
@@ -180,7 +182,30 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 <dd className="files">{selected.files.join("\n") || "（未指定）"}</dd>
               </dl>
               {selected.description && <p className="desc">{selected.description}</p>}
-              <p className="hint">启动模拟器配置将在下一步实现。</p>
+
+              <div className="launch-row">
+                <button
+                  onClick={async () => {
+                    setLaunchMsg(null);
+                    try {
+                      await launchGame(selected, provider);
+                      setLaunchMsg({ ok: true, text: "已启动模拟器" });
+                    } catch (e) {
+                      setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+                    }
+                  }}
+                >
+                  ▶ 启动
+                </button>
+              </div>
+              {launchMsg && <p className={launchMsg.ok ? "ok" : "error"}>{launchMsg.text}</p>}
+              {selected.launch ? (
+                <p className="hint">
+                  launch：<code>{selected.launch}</code>
+                </p>
+              ) : (
+                <p className="hint">该集合未配置 launch 命令。</p>
+              )}
             </div>
             <button className="close" onClick={() => setSelected(null)}>
               ×
