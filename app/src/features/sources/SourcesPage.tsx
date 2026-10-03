@@ -20,6 +20,11 @@ function describe(s: SourceConfig): string {
   return s.root ?? "";
 }
 
+// WebDAV（OpenList）表单默认值：预填，可直接修改后再添加
+const DEFAULT_DAV_URL = "http://127.0.0.1:5244/dav/EmberHub_Baidu";
+const DEFAULT_DAV_USER = "admin";
+const DEFAULT_DAV_PASS = "12345";
+
 export function SourcesPage({ onClose }: Props) {
   const {
     sources,
@@ -41,9 +46,9 @@ export function SourcesPage({ onClose }: Props) {
   const [name, setName] = useState("");
   const [romsPath, setRomsPath] = useState("Roms");
   const [root, setRoot] = useState("");
-  const [url, setUrl] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [url, setUrl] = useState(DEFAULT_DAV_URL);
+  const [username, setUsername] = useState(DEFAULT_DAV_USER);
+  const [password, setPassword] = useState(DEFAULT_DAV_PASS);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
@@ -93,9 +98,9 @@ export function SourcesPage({ onClose }: Props) {
     addSource(cfg);
     setName("");
     setRoot("");
-    setUrl("");
-    setUsername("");
-    setPassword("");
+    setUrl(DEFAULT_DAV_URL);
+    setUsername(DEFAULT_DAV_USER);
+    setPassword(DEFAULT_DAV_PASS);
     setMessage({ ok: true, text: "已添加存储源" });
   }
 
