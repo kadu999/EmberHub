@@ -1,7 +1,6 @@
 {
   "platform": "gba",
   "name": "Game Boy Advance",
-  "launch": "explorer.exe /select,\"{file.path}\"",
   "games": [
     {
       "title": "Advance Wars",
@@ -12,7 +11,8 @@
       "players": 4,
       "release": "2001-09-10",
       "rating": 92,
-      "description": "经典的回合制策略游戏，指挥部队在战场上攻城略地。"
+      "description": "经典的回合制策略游戏，指挥部队在战场上攻城略地。",
+      "launch": "explorer.exe /select,\"{file.path}\""
     },
     {
       "title": "Metroid Fusion",

@@ -285,18 +285,24 @@ async fn webdav_read_base64(
 }
 
 // ---------------------------------------------------------------------------
-// 按需下载 / 缓存
+// 下载 / 解压 / 本地文件操作
 // ---------------------------------------------------------------------------
 
-/// 应用缓存目录（用于按需下载的 ROM）。
+/// 默认下载目录（程序数据目录）。
 #[tauri::command]
-fn cache_dir(app: tauri::AppHandle) -> Result<String, String> {
+fn default_download_dir(app: tauri::AppHandle) -> Result<String, String> {
     let dir = app
         .path()
-        .app_cache_dir()
-        .map_err(|e| format!("无法获取缓存目录: {}", e))?;
+        .app_data_dir()
+        .map_err(|e| format!("无法获取数据目录: {}", e))?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.to_string_lossy().to_string())
+}
+
+/// 路径是否存在（文件或目录）。
+#[tauri::command]
+fn path_exists(path: String) -> bool {
+    std::path::Path::new(&path).exists()
 }
 
 /// 本地文件是否存在。
@@ -305,7 +311,67 @@ fn file_exists(path: String) -> bool {
     std::path::Path::new(&path).is_file()
 }
 
-/// 从 WebDAV 流式下载文件到本地，返回字节数。
+/// 创建目录（递归）。
+#[tauri::command]
+fn ensure_dir(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
+}
+
+/// 读取文本文件。
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+/// 写入文本文件（自动创建父目录）。
+#[tauri::command]
+fn write_text_file(path: String, content: String) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+/// 删除文件或目录。
+#[tauri::command]
+fn remove_path(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if p.is_dir() {
+        std::fs::remove_dir_all(p).map_err(|e| e.to_string())
+    } else if p.exists() {
+        std::fs::remove_file(p).map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    }
+}
+
+/// 解压 zip 到目标目录。
+#[tauri::command]
+fn extract_zip(zip_path: String, dest_dir: String) -> Result<(), String> {
+    let file = std::fs::File::open(&zip_path).map_err(|e| format!("打开压缩包失败: {}", e))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("读取压缩包失败: {}", e))?;
+    std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let outpath = match entry.enclosed_name() {
+            Some(p) => std::path::Path::new(&dest_dir).join(p),
+            None => continue, // 防目录穿越
+        };
+        if entry.name().ends_with('/') {
+            std::fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
+        } else {
+            if let Some(parent) = outpath.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            let mut outfile = std::fs::File::create(&outpath).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut outfile).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// 从 WebDAV 下载文件到本地，支持**断点续传**（若目标已存在则用 Range 续传），返回字节数。
 #[tauri::command]
 async fn webdav_download(
     root: String,
@@ -316,14 +382,27 @@ async fn webdav_download(
 ) -> Result<u64, String> {
     let url = dav_join(&root, &path)?;
     let client = reqwest::Client::new();
-    let resp = client
-        .get(&url)
-        .basic_auth(&username, Some(&password))
-        .send()
-        .await
-        .map_err(|e| format!("WebDAV 请求失败: {}", e))?;
-    if !resp.status().is_success() {
-        return Err(format!("WebDAV 返回 HTTP {}", resp.status()));
+
+    let mut existing: u64 = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
+    let mut req = client.get(&url).basic_auth(&username, Some(&password));
+    if existing > 0 {
+        req = req.header("Range", format!("bytes={}-", existing));
+    }
+    let resp = req.send().await.map_err(|e| format!("WebDAV 请求失败: {}", e))?;
+    let status = resp.status();
+
+    if status.as_u16() == 416 {
+        // 已下载完整
+        return Ok(existing);
+    }
+    if !status.is_success() {
+        return Err(format!("WebDAV 返回 HTTP {}", status));
+    }
+
+    // 服务器是否接受了 Range（206）；否则从头下载
+    let append = existing > 0 && status.as_u16() == 206;
+    if !append {
+        existing = 0;
     }
 
     if let Some(parent) = std::path::Path::new(&dest).parent() {
@@ -331,11 +410,19 @@ async fn webdav_download(
             .await
             .map_err(|e| e.to_string())?;
     }
-    let mut file = tokio::fs::File::create(&dest)
-        .await
-        .map_err(|e| format!("无法创建文件 {}: {}", dest, e))?;
+    let mut file = if append {
+        tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(&dest)
+            .await
+            .map_err(|e| format!("无法打开文件 {}: {}", dest, e))?
+    } else {
+        tokio::fs::File::create(&dest)
+            .await
+            .map_err(|e| format!("无法创建文件 {}: {}", dest, e))?
+    };
 
-    let mut total: u64 = 0;
+    let mut total: u64 = existing;
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("下载中断: {}", e))?;
@@ -373,8 +460,14 @@ pub fn run() {
             webdav_read_text,
             webdav_read_base64,
             webdav_download,
-            cache_dir,
+            default_download_dir,
+            path_exists,
             file_exists,
+            ensure_dir,
+            read_text_file,
+            write_text_file,
+            remove_path,
+            extract_zip,
             app_info
         ])
         .run(tauri::generate_context!())

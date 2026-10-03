@@ -11,6 +11,10 @@ export interface SourceConfig {
   kind: StorageKind;
   /** 游戏库根目录（相对存储源根，默认 Roms） */
   romsPath?: string;
+  /** 模拟器目录（相对存储源根，默认 Emulators） */
+  emulatorsPath?: string;
+  /** 下载目录（默认程序数据目录，可改） */
+  downloadDir?: string;
   /** local: 根目录绝对路径 */
   root?: string;
   /** webdav: 服务地址 */

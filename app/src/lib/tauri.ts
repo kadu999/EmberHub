@@ -47,11 +47,19 @@ export const tauri = {
   webdavReadBase64: (auth: DavAuth, path: string) =>
     invoke<string>("webdav_read_base64", { ...auth, path }),
 
-  // ---- 缓存 / 按需下载 ----
-  cacheDir: () => invoke<string>("cache_dir"),
-  fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
+  // ---- 下载 / 解压 / 本地文件 ----
   webdavDownload: (auth: DavAuth, path: string, dest: string) =>
     invoke<number>("webdav_download", { ...auth, path, dest }),
+  defaultDownloadDir: () => invoke<string>("default_download_dir"),
+  pathExists: (path: string) => invoke<boolean>("path_exists", { path }),
+  fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
+  ensureDir: (path: string) => invoke<void>("ensure_dir", { path }),
+  readTextFile: (path: string) => invoke<string>("read_text_file", { path }),
+  writeTextFile: (path: string, content: string) =>
+    invoke<void>("write_text_file", { path, content }),
+  removePath: (path: string) => invoke<void>("remove_path", { path }),
+  extractZip: (zipPath: string, destDir: string) =>
+    invoke<void>("extract_zip", { zipPath, destDir }),
 
   /** 启动外部模拟器，返回进程 PID */
   launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>

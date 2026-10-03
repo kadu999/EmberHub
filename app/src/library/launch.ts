@@ -1,9 +1,10 @@
 // 启动 + 按需下载。
-// EmberHub 只做两件事：① 按需从存储源下载 ROM；② 用 ROM 路径拉起模拟器。
+// 启动命令来源：Roms 的 launch 优先 → 否则用 Emulators 的 config.json。
 // 不配置模拟器、不管理模拟器生命周期（不关闭、不重启）。
 import { tauri } from "../lib/tauri";
 import { basename, dirname, isAbsolute, joinPath, stripExt } from "../lib/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
+import { ensureEmulator, ensureRom } from "./ensure";
 import type { Game } from "./scan";
 
 /** 按引号规则把命令行切分为 token（去掉引号）。 */
@@ -52,61 +53,39 @@ export interface LaunchPlan {
   workdir?: string;
 }
 
-/** 根据 ROM 的本地绝对路径生成启动计划。 */
-export function buildLaunchPlan(game: Game, romAbs: string, baseDirAbs?: string): LaunchPlan {
-  if (!game.launch || game.launch.trim() === "") {
-    throw new Error("该游戏/平台没有配置 launch 命令（在 games.json 里加 `launch`）");
-  }
-
-  const tokens = splitCommand(substitute(game.launch, romAbs));
+/** 由一条启动命令生成启动计划。 */
+export function buildLaunchPlan(launchCmd: string, romAbs: string, baseDirAbs?: string): LaunchPlan {
+  if (!launchCmd || launchCmd.trim() === "") throw new Error("没有配置 launch 命令。");
+  const tokens = splitCommand(substitute(launchCmd, romAbs));
   if (tokens.length === 0) throw new Error("launch 命令为空。");
 
   let exe = tokens[0];
   if (!isAbsolute(exe) && baseDirAbs) exe = joinPath(baseDirAbs, exe);
-  const args = tokens.slice(1);
-
-  return { exe, args, workdir: dirname(exe) };
+  return { exe, args: tokens.slice(1), workdir: dirname(exe) };
 }
 
-/** 确保 ROM 在本地：本地源直接返回绝对路径；远程源按需下载到缓存。 */
-export async function ensureLocalRom(
-  game: Game,
-  provider: StorageProvider,
-  source: SourceConfig,
-  onStatus?: (s: string) => void,
-): Promise<string> {
-  const romRel = game.files[0];
-  if (!romRel) throw new Error("该游戏没有指定 ROM 文件。");
-
-  // 本地源：直接用绝对路径
-  const local = provider.absolute?.(romRel);
-  if (local) return local;
-
-  // 远程源：按需下载到缓存
-  if (!provider.downloadTo) throw new Error("该存储源不支持按需下载。");
-
-  const cache = await tauri.cacheDir();
-  const dest = joinPath(cache, source.id, romRel);
-  if (await tauri.fileExists(dest)) {
-    onStatus?.("已命中本地缓存");
-    return dest;
-  }
-
-  onStatus?.(`下载中… ${basename(romRel)}`);
-  await provider.downloadTo(romRel, dest);
-  onStatus?.("下载完成");
-  return dest;
-}
-
-/** 启动游戏：必要时先按需下载，再拉起模拟器。 */
+/** 启动游戏：先确保 ROM 在本地，再按 Roms 优先 / Emulators 配置拉起模拟器。 */
 export async function launchGame(
   game: Game,
   provider: StorageProvider,
   source: SourceConfig,
   onStatus?: (s: string) => void,
 ): Promise<void> {
-  const romAbs = await ensureLocalRom(game, provider, source, onStatus);
-  const baseDirAbs = game._baseDir ? provider.absolute?.(game._baseDir) : undefined;
-  const plan = buildLaunchPlan(game, romAbs, baseDirAbs);
-  await tauri.launchEmulator(plan.exe, plan.args, plan.workdir);
+  const romAbs = await ensureRom(provider, source, game, onStatus);
+
+  // 1) Roms 的 launch 优先
+  if (game.launch && game.launch.trim() !== "") {
+    const plan = buildLaunchPlan(game.launch, romAbs);
+    onStatus?.("启动中…");
+    await tauri.launchEmulator(plan.exe, plan.args, plan.workdir);
+    return;
+  }
+
+  // 2) 否则用 Emulators/<平台>/config.json
+  const { dir, config } = await ensureEmulator(provider, source, game.collection, onStatus);
+  const exe = isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe);
+  const args = (config.args ?? []).map((a) => substitute(a, romAbs));
+  const workdir = config.workdir ? joinPath(dir, config.workdir) : dirname(exe);
+  onStatus?.("启动中…");
+  await tauri.launchEmulator(exe, args, workdir);
 }
