@@ -63,6 +63,46 @@ async function mediaIndex(
   return index;
 }
 
+function normalizeKey(s: string): string {
+  return s
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/** 在 media 索引里为游戏找匹配目录：精确 → 去括号/规整 → 前缀匹配。 */
+function matchMediaDir(index: Map<string, string>, candidates: string[]): string | undefined {
+  for (const c of candidates) {
+    const hit = index.get(c.toLowerCase());
+    if (hit) return hit;
+  }
+  const norm = candidates.map(normalizeKey).filter((s) => s !== "");
+  for (const n of norm) {
+    const hit = index.get(n);
+    if (hit) return hit;
+  }
+  // 前缀匹配：标题带后缀、文件夹是基础名（或反之），取最长匹配
+  let best: string | undefined;
+  let bestLen = 0;
+  for (const [key, name] of index) {
+    const k = normalizeKey(key);
+    if (k.length < 4) continue;
+    for (const n of norm) {
+      if (n.length < 4) continue;
+      if (n.startsWith(k) || k.startsWith(n)) {
+        const len = Math.min(k.length, n.length);
+        if (len > bestLen) {
+          best = name;
+          bestLen = len;
+        }
+      }
+    }
+  }
+  return best;
+}
+
 /** 扫描资源服务器，构建游戏库。romsPath 默认 "Roms"。 */
 export async function scanLibrary(
   provider: StorageProvider,
@@ -116,15 +156,10 @@ export async function scanLibrary(
 
       // 懒加载：只记录 media 子目录，不在这里列目录
       if (!game.coverPath) {
-        const candidates = [game.title.toLowerCase()];
-        if (file) candidates.push(stripExt(basename(file)).toLowerCase());
-        for (const key of candidates) {
-          const sub = index.get(key);
-          if (sub) {
-            game.mediaDir = joinPath(baseDir, "media", sub);
-            break;
-          }
-        }
+        const candidates = [game.title];
+        if (file) candidates.push(stripExt(basename(file)));
+        const sub = matchMediaDir(index, candidates);
+        if (sub) game.mediaDir = joinPath(baseDir, "media", sub);
       }
 
       games.push(game);
