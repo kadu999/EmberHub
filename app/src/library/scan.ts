@@ -67,30 +67,35 @@ function normalizeKey(s: string): string {
   return s
     .replace(/\[[^\]]*\]/g, "")
     .replace(/\([^)]*\)/g, "")
+    .replace(/[·・．。:：]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
 }
 
-/** 在 media 索引里为游戏找匹配目录：精确 → 去括号/规整 → 前缀匹配。 */
+/** 在 media 索引里为游戏找匹配目录：精确 → 规整 → 前缀 → 包含。 */
 function matchMediaDir(index: Map<string, string>, candidates: string[]): string | undefined {
-  for (const c of candidates) {
-    const hit = index.get(c.toLowerCase());
+  const raw = candidates.map((c) => c.toLowerCase()).filter((c) => c !== "");
+  for (const c of raw) {
+    const hit = index.get(c);
     if (hit) return hit;
   }
-  const norm = candidates.map(normalizeKey).filter((s) => s !== "");
+
+  const norm = [...new Set(candidates.map(normalizeKey).filter((s) => s.length >= 2))];
   for (const n of norm) {
     const hit = index.get(n);
     if (hit) return hit;
   }
-  // 前缀匹配：标题带后缀、文件夹是基础名（或反之），取最长匹配
+
   let best: string | undefined;
   let bestLen = 0;
+
+  // 前缀匹配（标题带后缀、文件夹是基础名，或反之），取最长
   for (const [key, name] of index) {
     const k = normalizeKey(key);
-    if (k.length < 4) continue;
+    if (k.length < 3) continue;
     for (const n of norm) {
-      if (n.length < 4) continue;
+      if (n.length < 3) continue;
       if (n.startsWith(k) || k.startsWith(n)) {
         const len = Math.min(k.length, n.length);
         if (len > bestLen) {
@@ -100,7 +105,48 @@ function matchMediaDir(index: Map<string, string>, candidates: string[]): string
       }
     }
   }
-  return best;
+  if (best) return best;
+
+  // 包含匹配（更宽松）
+  for (const [key, name] of index) {
+    const k = normalizeKey(key);
+    if (k.length < 5) continue;
+    for (const n of norm) {
+      if (n.length < 5) continue;
+      if (n.includes(k) || k.includes(n)) {
+        const len = Math.min(k.length, n.length);
+        if (len > bestLen) {
+          best = name;
+          bestLen = len;
+        }
+      }
+    }
+  }
+  if (best) return best;
+
+  // 词元重叠匹配（处理「…迷宫战记1+2 汉化版」vs「…迷宫战记 汉化版」这类）
+  let bestScore = 0;
+  let bestName: string | undefined;
+  for (const [key, name] of index) {
+    const kt = normalizeKey(key).split(" ").filter(Boolean);
+    if (kt.length === 0) continue;
+    for (const n of norm) {
+      const nt = n.split(" ").filter(Boolean);
+      if (nt.length === 0) continue;
+      let ov = 0;
+      for (const a of kt) {
+        if (nt.some((b) => a === b || a.startsWith(b) || b.startsWith(a))) ov++;
+      }
+      const score = ov / Math.max(kt.length, nt.length);
+      if (ov >= 2 && score > bestScore) {
+        bestScore = score;
+        bestName = name;
+      }
+    }
+  }
+  if (bestName && bestScore >= 0.6) return bestName;
+
+  return undefined;
 }
 
 /** 扫描资源服务器，构建游戏库。romsPath 默认 "Roms"。 */
@@ -157,7 +203,12 @@ export async function scanLibrary(
       // 懒加载：只记录 media 子目录，不在这里列目录
       if (!game.coverPath) {
         const candidates = [game.title];
-        if (file) candidates.push(stripExt(basename(file)));
+        if (file) {
+          const f = file.replace(/\\/g, "/");
+          candidates.push(stripExt(basename(f)));
+          const first = f.split("/")[0];
+          if (first && first !== f) candidates.push(first);
+        }
         const sub = matchMediaDir(index, candidates);
         if (sub) game.mediaDir = joinPath(baseDir, "media", sub);
       }

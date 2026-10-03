@@ -568,9 +568,10 @@ fn ftp_download_sync<F: Fn(u64, Option<u64>)>(
 ) -> Result<u64, String> {
     let mut ftp = ftp_connect(host, port, username, password)?;
     let full = ftp_join(base, path);
+    let part = format!("{}.part", dest);
 
-    let existing: u64 = std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0);
-    if let Some(parent) = std::path::Path::new(dest).parent() {
+    let existing: u64 = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
+    if let Some(parent) = std::path::Path::new(&part).parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
 
@@ -586,10 +587,10 @@ fn ftp_download_sync<F: Fn(u64, Option<u64>)>(
     let mut file = if existing > 0 {
         std::fs::OpenOptions::new()
             .append(true)
-            .open(dest)
-            .map_err(|e| format!("无法打开文件 {}：{}", dest, e))?
+            .open(&part)
+            .map_err(|e| format!("无法打开文件 {}：{}", part, e))?
     } else {
-        std::fs::File::create(dest).map_err(|e| format!("无法创建文件 {}：{}", dest, e))?
+        std::fs::File::create(&part).map_err(|e| format!("无法创建文件 {}：{}", part, e))?
     };
 
     let mut total = existing;
@@ -610,6 +611,8 @@ fn ftp_download_sync<F: Fn(u64, Option<u64>)>(
     stream
         .finish()
         .map_err(|e| format!("FTP 传输收尾失败：{}", e))?;
+    drop(file);
+    std::fs::rename(&part, dest).map_err(|e| format!("重命名失败：{}", e))?;
     on_progress(total, total_size);
     let _ = ftp.quit();
     Ok(total)
@@ -760,7 +763,7 @@ fn extract_archive(path: String, dest_dir: String) -> Result<(), String> {
 }
 
 /// 从 WebDAV 下载文件到本地，支持**断点续传**（若目标已存在则用 Range 续传），返回字节数。
-/// 下载过程中通过 `download://progress` 事件上报进度。
+/// 先写入 `dest.part`，成功后改名，避免残缺文件被当作完整缓存。
 #[tauri::command]
 async fn webdav_download(
     app: tauri::AppHandle,
@@ -772,8 +775,9 @@ async fn webdav_download(
 ) -> Result<u64, String> {
     let url = dav_join(&root, &path)?;
     let client = reqwest::Client::new();
+    let part = format!("{}.part", dest);
 
-    let mut existing: u64 = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
+    let mut existing: u64 = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
     let mut req = client.get(&url).basic_auth(&username, Some(&password));
     if existing > 0 {
         req = req.header("Range", format!("bytes={}-", existing));
@@ -783,6 +787,7 @@ async fn webdav_download(
 
     if status.as_u16() == 416 {
         // 已下载完整
+        let _ = std::fs::rename(&part, &dest);
         emit_download_progress(&app, &dest, existing, Some(existing));
         return Ok(existing);
     }
@@ -790,14 +795,13 @@ async fn webdav_download(
         return Err(format!("WebDAV 返回 HTTP {}：{}", status, url));
     }
 
-    // 服务器是否接受了 Range（206）；否则从头下载
     let append = existing > 0 && status.as_u16() == 206;
     if !append {
         existing = 0;
     }
     let total_size = resp.content_length().map(|c| c + existing);
 
-    if let Some(parent) = std::path::Path::new(&dest).parent() {
+    if let Some(parent) = std::path::Path::new(&part).parent() {
         tokio::fs::create_dir_all(parent)
             .await
             .map_err(|e| e.to_string())?;
@@ -805,13 +809,13 @@ async fn webdav_download(
     let mut file = if append {
         tokio::fs::OpenOptions::new()
             .append(true)
-            .open(&dest)
+            .open(&part)
             .await
-            .map_err(|e| format!("无法打开文件 {}: {}", dest, e))?
+            .map_err(|e| format!("无法打开文件 {}: {}", part, e))?
     } else {
-        tokio::fs::File::create(&dest)
+        tokio::fs::File::create(&part)
             .await
-            .map_err(|e| format!("无法创建文件 {}: {}", dest, e))?
+            .map_err(|e| format!("无法创建文件 {}: {}", part, e))?
     };
 
     let mut total: u64 = existing;
@@ -827,6 +831,8 @@ async fn webdav_download(
         }
     }
     file.flush().await.map_err(|e| e.to_string())?;
+    drop(file);
+    std::fs::rename(&part, &dest).map_err(|e| format!("重命名失败: {}", e))?;
     emit_download_progress(&app, &dest, total, total_size);
     Ok(total)
 }
