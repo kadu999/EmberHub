@@ -18,7 +18,13 @@
 
 ## 🚧 项目状态
 
-**Early Development** — 目前处于早期规划阶段，欢迎关注和参与。
+**Early Development** — 已实现：
+
+- ✅ Tauri 2 桌面应用骨架（Windows）
+- ✅ 存储源配置（本地文件夹 / WebDAV）
+- ✅ Pegasus / 天马G 元数据解析与游戏库浏览（封面、筛选、详情）
+
+规划中：模拟器配置与启动、按需下载、刮削、手柄导航、Android 端。
 
 ## 🛠️ 技术选型
 
@@ -28,6 +34,7 @@
 - **存储**：适配器架构，**直连优先**（Local / 阿里云盘 / OneDrive / …），WebDAV / S3 作为兜底
 
 > 详细的模块划分、存储接口与路线图见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+> 网盘接入（OpenList / WebDAV）与天马G 元数据格式见 [`docs/CLOUD_DRIVE.md`](docs/CLOUD_DRIVE.md)。
 
 ## 🚀 快速开始
 
