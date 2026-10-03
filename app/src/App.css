@@ -13,12 +13,24 @@
   box-sizing: border-box;
 }
 
-/* 隐藏滚动条（仍可用滚轮/手柄滚动） */
+/* 滚动条样式（可见、主题化） */
 * {
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 *::-webkit-scrollbar {
-  display: none;
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ember);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 html,
@@ -263,6 +275,20 @@ code {
   overflow-y: auto;
   min-height: 0;
   padding-right: 4px;
+}
+
+/* 虚拟网格滚动容器 */
+.vgrid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.vgrid .game-card {
+  width: 100%;
+  height: 100%;
 }
 
 .game-card {

@@ -8,6 +8,7 @@ import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { scanLibrary, type Game, type ScanResult } from "../../library/scan";
 import { Cover } from "../../components/Cover";
+import { VirtualGrid } from "../../components/VirtualGrid";
 import { launchGame } from "../../library/launch";
 import { ensureLocalMedia } from "../../library/ensure";
 
@@ -202,10 +203,14 @@ export function LibraryPage({ onOpenSettings }: Props) {
             </details>
           )}
 
-          <div className="grid">
-            {filtered.map((g) => (
+          <VirtualGrid
+            items={filtered}
+            minColWidth={150}
+            aspect={4 / 3}
+            extraHeight={46}
+            gap={18}
+            renderItem={(g) => (
               <button
-                key={g.id}
                 className={g.id === selected?.id ? "game-card active" : "game-card"}
                 onClick={() => {
                   setLaunchMsg(null);
@@ -218,8 +223,8 @@ export function LibraryPage({ onOpenSettings }: Props) {
                   {g.title}
                 </span>
               </button>
-            ))}
-          </div>
+            )}
+          />
         </main>
       </div>
 
