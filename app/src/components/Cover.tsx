@@ -48,8 +48,8 @@ export function Cover({ provider, path, dir, title }: Props) {
     }
 
     (async () => {
+      let target = path;
       try {
-        let target = path;
         if (!target && dir) {
           const names = (await provider.list(dir))
             .filter((e) => !e.isDir)
@@ -64,7 +64,8 @@ export function Cover({ provider, path, dir, title }: Props) {
         const local = await ensureLocalMedia(provider, target);
         remember(key, local);
         if (alive) setSrc(convertFileSrc(local));
-      } catch {
+      } catch (e) {
+        console.warn("[EmberHub] 封面加载失败:", target ?? dir, e);
         if (alive) setFailed(true);
       }
     })();

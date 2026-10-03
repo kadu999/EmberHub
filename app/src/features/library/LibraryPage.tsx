@@ -93,8 +93,8 @@ export function LibraryPage({ onOpenSettings }: Props) {
         if (!videoRel) return;
         const p = await ensureLocalMedia(provider, videoRel);
         if (alive) setVideoSrc(convertFileSrc(p));
-      } catch {
-        // 忽略
+      } catch (e) {
+        console.warn("[EmberHub] 视频加载失败:", e);
       }
     })();
     return () => {
