@@ -1,0 +1,40 @@
+{
+  "platform": "gba",
+  "name": "Game Boy Advance",
+  "launch": "explorer.exe /select,\"{file.path}\"",
+  "games": [
+    {
+      "title": "Advance Wars",
+      "file": "Advance Wars (USA).gba",
+      "developer": "Intelligent Systems",
+      "publisher": "Nintendo",
+      "genre": "Strategy",
+      "players": 4,
+      "release": "2001-09-10",
+      "rating": 92,
+      "description": "经典的回合制策略游戏，指挥部队在战场上攻城略地。"
+    },
+    {
+      "title": "Metroid Fusion",
+      "file": "Metroid Fusion (USA).gba",
+      "developer": "Nintendo R&D1",
+      "publisher": "Nintendo",
+      "genre": "Action, Adventure",
+      "players": 1,
+      "release": "2002-11-17",
+      "rating": 90,
+      "description": "萨姆斯前往被 X 寄生虫占据的研究站展开调查。"
+    },
+    {
+      "title": "Golden Sun",
+      "file": "Golden Sun (USA).gba",
+      "developer": "Camelot Software Planning",
+      "publisher": "Nintendo",
+      "genre": "Role-playing",
+      "players": 1,
+      "release": "2001-11-11",
+      "rating": 91,
+      "description": "以精神力（Psynergy）系统为特色的经典回合制 RPG。"
+    }
+  ]
+}

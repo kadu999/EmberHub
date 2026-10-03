@@ -36,7 +36,7 @@ function fileUri(abs: string): string {
   return "file://" + encodeURI(p).replace(/#/g, "%23");
 }
 
-/** 替换 Pegasus 支持的启动占位符。 */
+/** 替换启动命令占位符。 */
 export function substitute(cmd: string, abs: string): string {
   return cmd
     .replace(/\{file\.path\}/g, abs)
@@ -55,7 +55,7 @@ export interface LaunchPlan {
 /** 根据 ROM 的本地绝对路径生成启动计划。 */
 export function buildLaunchPlan(game: Game, romAbs: string, baseDirAbs?: string): LaunchPlan {
   if (!game.launch || game.launch.trim() === "") {
-    throw new Error("该游戏/集合没有配置 launch 命令（在 metadata.pegasus.txt 里加 `launch:`）");
+    throw new Error("该游戏/平台没有配置 launch 命令（在 games.json 里加 `launch`）");
   }
 
   const tokens = splitCommand(substitute(game.launch, romAbs));
@@ -65,15 +65,7 @@ export function buildLaunchPlan(game: Game, romAbs: string, baseDirAbs?: string)
   if (!isAbsolute(exe) && baseDirAbs) exe = joinPath(baseDirAbs, exe);
   const args = tokens.slice(1);
 
-  let workdir: string | undefined;
-  if (game.workdir && game.workdir.trim() !== "") {
-    const wd = substitute(game.workdir, romAbs);
-    workdir = isAbsolute(wd) ? wd : baseDirAbs ? joinPath(baseDirAbs, wd) : undefined;
-  } else {
-    workdir = dirname(exe);
-  }
-
-  return { exe, args, workdir };
+  return { exe, args, workdir: dirname(exe) };
 }
 
 /** 确保 ROM 在本地：本地源直接返回绝对路径；远程源按需下载到缓存。 */

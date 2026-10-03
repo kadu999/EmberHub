@@ -1,4 +1,4 @@
-// 游戏库页（默认首页）：从当前存储源的 Roms/ 目录扫描 Pegasus 元数据并展示。
+// 游戏库页（默认首页）：从当前存储源的 Roms/ 目录扫描自定义 JSON 资源并展示。
 import { useMemo, useState } from "react";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
@@ -131,8 +131,8 @@ export function LibraryPage({ onOpenSettings }: Props) {
 
       {!result && !loading && !error && (
         <p className="hint">
-          点击「扫描游戏库」，EmberHub 会在 <code>{scanRoot || "（根目录）"}</code> 下查找
-          metadata.pegasus.txt 并列出游戏。
+          点击「扫描游戏库」，EmberHub 会在 <code>{scanRoot || "（根目录）"}</code> 下读取
+          games.json 并列出游戏。
         </p>
       )}
 

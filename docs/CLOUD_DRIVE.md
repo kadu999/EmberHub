@@ -92,51 +92,57 @@ OpenList 是 AList 的官方继任者，一个绿色小程序，无需数据库�
 
 ---
 
-## 四、游戏库目录约定（Pegasus / 天马G 格式）
+## 四、资源目录约定（自定义 JSON）
 
-游戏库放在存储源的「游戏目录」下（**默认 `Roms`**），按平台分子文件夹：
-
-```
-Roms/
-├─ GBA/
-│  ├─ metadata.pegasus.txt
-│  ├─ Advance Wars (USA).gba
-│  └─ media/
-│     └─ Advance Wars (USA)/
-│        └─ boxFront.png
-└─ NES/
-   └─ metadata.pegasus.txt
-```
-
-EmberHub 会在 `Roms/` 下递归查找元数据文件（最多 3 层），文件名需为以下之一：
-
-- `metadata.pegasus.txt`
-- `metadata.txt`
-- `*.metadata.pegasus.txt` / `*.metadata.txt`
-
-元数据文件示例：
+资源服务器根目录：
 
 ```
-collection: Game Boy Advance
-shortname: gba
-launch: retroarch.exe -L cores/mgba_libretro.dll "{file.path}"
-extensions: gba, gbc, gb
-
-game: Advance Wars
-file: Advance Wars (USA).gba
-developer: Intelligent Systems
-genre: Strategy
-players: 4
-release: 2001-09-10
-rating: 92%
-description: 经典的回合制策略游戏。
+<服务器根>/
+├─ manifest.json            # 只列平台
+├─ Roms/
+│  └─ GBA/
+│     ├─ games.json         # 该平台游戏列表
+│     ├─ Advance Wars (USA).gba
+│     └─ media/             # 封面/视频（天马G 目录约定）
+│        └─ Advance Wars (USA)/boxFront.png
+└─ Emulators/
+   ├─ platforms.json        # 平台映射（Roms 文件夹 → Emulators 文件夹）
+   └─ GBA/
+      ├─ config.json        # 模拟器配置（含 version）
+      └─ GBA.zip            # 模拟器压缩包
 ```
 
-封面查找顺序：
+`manifest.json`：
 
-1. 元数据里的 `assets.box_front:` 等显式路径
-2. `media/<游戏标题>/boxFront.*`
-3. `media/<ROM 文件名>/boxFront.*`
+```json
+{ "platforms": ["GBA", "NES"] }
+```
+
+`Roms/GBA/games.json`：
+
+```json
+{
+  "platform": "GBA",
+  "name": "Game Boy Advance",
+  "launch": "retroarch.exe -L cores/mgba_libretro.dll \"{file.path}\"",
+  "games": [
+    {
+      "title": "Advance Wars",
+      "file": "Advance Wars (USA).gba",
+      "developer": "Intelligent Systems",
+      "genre": "Strategy",
+      "players": 4,
+      "release": "2001-09-10",
+      "rating": 92,
+      "description": "经典的回合制策略游戏。"
+    }
+  ]
+}
+```
+
+封面：`Roms/<平台>/media/<游戏名>/boxFront.*`（也可在游戏对象里写 `cover` 指定）。
+
+完整格式见 [`REQUIREMENTS.md`](REQUIREMENTS.md) 第 3 节。
 
 ---
 
@@ -146,7 +152,7 @@ description: 经典的回合制策略游戏。
 A：用户名/密码错误。OpenList 默认用 `admin` 账号。
 
 **Q：能连上但扫不到游戏？**
-A：确认网盘里存在 `metadata.pegasus.txt`，且其所在目录深度不超过 3 层。
+A：确认服务器根目录有 `manifest.json`，且 `Roms/<平台>/games.json` 存在、格式正确。
 
 **Q：夸克/115 下载很慢？**
 A：这些驱动走本地代理，需 OpenList 所在机器带宽足够；优先用支持 302 的驱动。
