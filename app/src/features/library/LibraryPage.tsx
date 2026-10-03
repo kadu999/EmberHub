@@ -1,6 +1,7 @@
 // 游戏库页（默认首页）：左侧信息面板 + 右侧游戏网格。
 // 点击右侧游戏卡片即启动；左侧面板仅作信息展示。
 import { useMemo, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { scanLibrary, type Game, type ScanResult } from "../../library/scan";
@@ -60,13 +61,13 @@ export function LibraryPage({ onOpenSettings }: Props) {
     );
   }
 
-  // 启动（点击卡片即调用）
+  // 启动（双击卡片调用）：成功后关闭 EmberHub，交给模拟器
   async function launch(g: Game) {
     setSelected(g);
     setLaunchMsg(null);
     try {
       await launchGame(g, provider!, source!, (s) => setLaunchMsg({ ok: true, text: s }));
-      setLaunchMsg({ ok: true, text: "已启动" });
+      await getCurrentWindow().close();
     } catch (e) {
       setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
     }
