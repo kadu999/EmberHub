@@ -39,6 +39,8 @@ export interface EmulatorConfig {
   exe: string;
   args?: string[];
   workdir?: string;
+  /** 是否解压 ROM 压缩包（默认 true）。模拟器能直接读压缩包时设为 false。 */
+  extract?: boolean;
 }
 
 /** Emulators/platforms.json：Roms 平台文件夹 → Emulators 平台文件夹 */

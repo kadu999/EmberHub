@@ -71,18 +71,18 @@ export async function launchGame(
   source: SourceConfig,
   onStatus?: (s: string) => void,
 ): Promise<void> {
-  const romAbs = await ensureRom(provider, source, game, onStatus);
-
-  // 1) Roms 的 launch 优先
+  // 1) Roms 的 launch 优先（自定义命令，默认解压压缩包）
   if (game.launch && game.launch.trim() !== "") {
+    const romAbs = await ensureRom(provider, source, game, onStatus, true);
     const plan = buildLaunchPlan(game.launch, romAbs);
     onStatus?.("启动中…");
     await tauri.launchEmulator(plan.exe, plan.args, plan.workdir);
     return;
   }
 
-  // 2) 否则用 Emulators/<平台>/config.json
+  // 2) 否则用 Emulators/<平台>/config.json；是否解压由 config.extract 决定（默认解压）
   const { dir, config } = await ensureEmulator(provider, source, game.collection, onStatus);
+  const romAbs = await ensureRom(provider, source, game, onStatus, config.extract !== false);
   const exe = isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe);
   const args = (config.args ?? []).map((a) => substitute(a, romAbs));
   const workdir = config.workdir ? joinPath(dir, config.workdir) : dirname(exe);

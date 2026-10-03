@@ -84,5 +84,6 @@ export function parseEmulatorConfig(text: string): EmulatorConfig {
     exe,
     args: Array.isArray(o.args) ? (o.args.filter((a) => typeof a === "string") as string[]) : undefined,
     workdir: str(o.workdir),
+    extract: typeof o.extract === "boolean" ? o.extract : undefined,
   };
 }

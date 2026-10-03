@@ -92,6 +92,7 @@ export async function ensureRom(
   source: SourceConfig,
   game: Game,
   onStatus?: (s: string) => void,
+  extract = true,
 ): Promise<string> {
   const romRel = game.files[0];
   if (!romRel) throw new Error("该游戏没有指定文件。");
@@ -115,7 +116,7 @@ export async function ensureRom(
     onStatus?.("下载完成");
   }
 
-  return maybeExtract(dest, onStatus);
+  return extract ? maybeExtract(dest, onStatus) : dest;
 }
 
 /** 若文件是压缩包则解压，返回内部 ROM 路径。 */
