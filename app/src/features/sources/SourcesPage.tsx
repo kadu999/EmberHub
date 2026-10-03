@@ -1,19 +1,25 @@
-// 存储源配置页：添加/管理本地文件夹或 WebDAV（OpenList）。
+// 设置页：存储源配置（本地文件夹 / WebDAV）。
+// 默认隐藏，按 F1 打开。
 import { useState } from "react";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import type { SourceConfig, StorageKind } from "../../storage/types";
+
+interface Props {
+  onClose?: () => void;
+}
 
 function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export function SourcesPage() {
+export function SourcesPage({ onClose }: Props) {
   const { sources, activeSourceId, addSource, removeSource, setActiveSource } = useStore();
 
   const [kind, setKind] = useState<StorageKind>("webdav");
   const [name, setName] = useState("");
+  const [romsPath, setRomsPath] = useState("Roms");
   const [root, setRoot] = useState("");
   const [url, setUrl] = useState("");
   const [username, setUsername] = useState("");
@@ -24,13 +30,20 @@ export function SourcesPage() {
   function buildConfig(): SourceConfig | null {
     if (kind === "local") {
       if (!root.trim()) return null;
-      return { id: uid(), name: name.trim() || "本地文件夹", kind, root: root.trim() };
+      return {
+        id: uid(),
+        name: name.trim() || "本地文件夹",
+        kind,
+        romsPath: romsPath.trim(),
+        root: root.trim(),
+      };
     }
     if (!url.trim()) return null;
     return {
       id: uid(),
       name: name.trim() || "WebDAV",
       kind,
+      romsPath: romsPath.trim(),
       url: url.trim(),
       username: username.trim(),
       password,
@@ -42,8 +55,8 @@ export function SourcesPage() {
     setMessage(null);
     try {
       const provider = createProvider(cfg);
-      const entries = await provider.list("");
-      setMessage({ ok: true, text: `连接成功，根目录下有 ${entries.length} 项` });
+      const entries = await provider.list(cfg.romsPath ?? "");
+      setMessage({ ok: true, text: `连接成功，游戏目录下有 ${entries.length} 项` });
     } catch (e) {
       setMessage({ ok: false, text: `连接失败：${String(e)}` });
     } finally {
@@ -67,24 +80,26 @@ export function SourcesPage() {
   }
 
   return (
-    <div className="page">
-      <h2>存储源</h2>
+    <div className="settings">
+      <div className="settings-head">
+        <h2>设置 · 存储源</h2>
+        {onClose && (
+          <button className="ghost small" onClick={onClose}>
+            关闭（Esc）
+          </button>
+        )}
+      </div>
       <p className="hint">
         推荐用 OpenList 把阿里云盘/百度/115 等挂载为 WebDAV，再在这里填入地址即可。
+        游戏库放在「游戏目录」下，按平台分子文件夹。
       </p>
 
       <div className="card">
         <div className="segmented">
-          <button
-            className={kind === "webdav" ? "active" : ""}
-            onClick={() => setKind("webdav")}
-          >
+          <button className={kind === "webdav" ? "active" : ""} onClick={() => setKind("webdav")}>
             WebDAV
           </button>
-          <button
-            className={kind === "local" ? "active" : ""}
-            onClick={() => setKind("local")}
-          >
+          <button className={kind === "local" ? "active" : ""} onClick={() => setKind("local")}>
             本地文件夹
           </button>
         </div>
@@ -94,6 +109,11 @@ export function SourcesPage() {
           <input value={name} onChange={(e) => setName(e.currentTarget.value)} placeholder="例如：我的游戏库" />
         </div>
 
+        <div className="field">
+          <label>游戏目录（相对存储源根，默认 Roms）</label>
+          <input value={romsPath} onChange={(e) => setRomsPath(e.currentTarget.value)} placeholder="Roms" />
+        </div>
+
         {kind === "webdav" ? (
           <>
             <div className="field">
@@ -101,7 +121,7 @@ export function SourcesPage() {
               <input
                 value={url}
                 onChange={(e) => setUrl(e.currentTarget.value)}
-                placeholder="http://127.0.0.1:5244/dav/游戏库"
+                placeholder="http://127.0.0.1:5244/dav"
               />
             </div>
             <div className="field">
@@ -110,11 +130,7 @@ export function SourcesPage() {
             </div>
             <div className="field">
               <label>密码</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.currentTarget.value)}
-              />
+              <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
             </div>
           </>
         ) : (
@@ -123,7 +139,7 @@ export function SourcesPage() {
             <input
               value={root}
               onChange={(e) => setRoot(e.currentTarget.value)}
-              placeholder="E:\\Games\\天马G"
+              placeholder="E:\\Games"
             />
           </div>
         )}
@@ -143,9 +159,7 @@ export function SourcesPage() {
           </button>
         </div>
 
-        {message && (
-          <p className={message.ok ? "ok" : "error"}>{message.text}</p>
-        )}
+        {message && <p className={message.ok ? "ok" : "error"}>{message.text}</p>}
       </div>
 
       <h3>已配置（{sources.length}）</h3>
@@ -162,6 +176,7 @@ export function SourcesPage() {
             </label>
             <span className="src-detail">
               {s.kind === "webdav" ? s.url : s.root}
+              {s.romsPath ? `  ·  ${s.romsPath}` : ""}
             </span>
             <button className="ghost small" onClick={() => removeSource(s.id)}>
               删除

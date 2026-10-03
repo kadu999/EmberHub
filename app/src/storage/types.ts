@@ -9,6 +9,8 @@ export interface SourceConfig {
   id: string;
   name: string;
   kind: StorageKind;
+  /** 游戏库根目录（相对存储源根，默认 Roms） */
+  romsPath?: string;
   /** local: 根目录绝对路径 */
   root?: string;
   /** webdav: 服务地址 */

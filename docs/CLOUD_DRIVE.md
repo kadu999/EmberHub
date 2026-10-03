@@ -94,22 +94,25 @@ OpenList 是 AList 的官方继任者，一个绿色小程序，无需数据库�
 
 ## 四、游戏库目录约定（Pegasus / 天马G 格式）
 
-EmberHub 递归查找元数据文件，文件名需为以下之一：
+游戏库放在存储源的「游戏目录」下（**默认 `Roms`**），按平台分子文件夹：
+
+```
+Roms/
+├─ GBA/
+│  ├─ metadata.pegasus.txt
+│  ├─ Advance Wars (USA).gba
+│  └─ media/
+│     └─ Advance Wars (USA)/
+│        └─ boxFront.png
+└─ NES/
+   └─ metadata.pegasus.txt
+```
+
+EmberHub 会在 `Roms/` 下递归查找元数据文件（最多 3 层），文件名需为以下之一：
 
 - `metadata.pegasus.txt`
 - `metadata.txt`
 - `*.metadata.pegasus.txt` / `*.metadata.txt`
-
-每个游戏目录结构示例：
-
-```
-gba/
-├─ metadata.pegasus.txt
-├─ Advance Wars (USA).gba
-└─ media/
-   └─ Advance Wars (USA)/
-      └─ boxFront.png
-```
 
 元数据文件示例：
 

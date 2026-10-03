@@ -21,34 +21,49 @@ body,
 }
 
 body {
-  background: var(--bg);
+  background: radial-gradient(circle at 50% 0%, #2a1d15 0%, var(--bg) 55%);
   color: var(--text);
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 14px;
 }
 
 .app {
-  display: flex;
   height: 100vh;
+  overflow-y: auto;
 }
 
-/* ---------- 侧边栏 ---------- */
-.sidebar {
-  width: 190px;
-  flex-shrink: 0;
-  background: radial-gradient(circle at 50% 0%, #2a1d15 0%, var(--bg-soft) 60%);
-  border-right: 1px solid var(--border);
+.page {
+  padding: 32px 40px 72px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.page.centered {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 20px 14px;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
 }
 
+/* ---------- 品牌 ---------- */
 .brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 28px;
-  padding: 0 6px;
+}
+
+.brand.big {
+  gap: 12px;
+}
+
+.brand.big .flame {
+  font-size: 40px;
+}
+
+.brand.big .brand-name {
+  font-size: 34px;
 }
 
 .flame {
@@ -66,59 +81,13 @@ body {
   color: var(--ember);
 }
 
-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.nav {
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.nav:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text);
-}
-
-.nav.active {
-  background: rgba(255, 107, 44, 0.14);
-  color: var(--ember-soft);
-  font-weight: 600;
-}
-
-.sidebar-foot {
-  margin-top: auto;
-  color: var(--muted);
-  font-size: 12px;
-  padding: 0 6px;
-}
-
-/* ---------- 内容区 ---------- */
-.content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.page {
-  padding: 32px 36px 64px;
-  max-width: 1100px;
-}
-
 h2 {
   margin: 0 0 4px;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 h3 {
-  margin: 28px 0 12px;
+  margin: 24px 0 12px;
   font-size: 15px;
   color: var(--muted);
   font-weight: 600;
@@ -128,6 +97,25 @@ h3 {
   color: var(--muted);
   font-size: 13px;
   margin: 6px 0 18px;
+}
+
+.key-hint {
+  position: fixed;
+  right: 18px;
+  bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+code {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 12px;
+  color: var(--ember-soft);
 }
 
 .error {
@@ -143,165 +131,13 @@ h3 {
   margin: 12px 0;
 }
 
-/* ---------- 表单 ---------- */
-.card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
-}
-
-.segmented {
-  display: inline-flex;
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px;
-  margin-bottom: 18px;
-}
-
-.segmented button {
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  padding: 7px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.segmented button.active {
-  background: var(--ember);
-  color: #1a0f08;
-  font-weight: 600;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.field label {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-input {
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 9px 11px;
-  color: var(--text);
-  font-size: 14px;
-  outline: none;
-}
-
-input:focus {
-  border-color: var(--ember);
-}
-
-.actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-button {
-  background: var(--ember);
-  border: none;
-  border-radius: 8px;
-  color: #1a0f08;
-  font-weight: 600;
-  padding: 9px 18px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-button:hover {
-  background: var(--ember-soft);
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-button.ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-}
-
-button.ghost:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-button.small {
-  padding: 5px 12px;
-  font-size: 12px;
-}
-
-/* ---------- 存储源列表 ---------- */
-.source-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.source-list li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-
-.source-list li.active {
-  border-color: var(--ember);
-}
-
-.source-list .radio {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.src-name {
-  font-weight: 600;
-}
-
-.src-detail {
-  flex: 1;
-  color: var(--muted);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.source-list .empty {
-  justify-content: center;
-  color: var(--muted);
-  background: transparent;
-  border: none;
-}
-
 /* ---------- 游戏库 ---------- */
 .library-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  margin-bottom: 8px;
 }
 
 .library-actions {
@@ -364,7 +200,7 @@ button.small {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .game-card {
@@ -417,7 +253,189 @@ button.small {
   font-weight: 700;
 }
 
-/* ---------- 详情 ---------- */
+/* ---------- 按钮 / 表单 ---------- */
+button {
+  background: var(--ember);
+  border: none;
+  border-radius: 8px;
+  color: #1a0f08;
+  font-weight: 600;
+  padding: 9px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+button:hover {
+  background: var(--ember-soft);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+button.ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+button.small {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+input {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--ember);
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.segmented {
+  display: inline-flex;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 18px;
+}
+
+.segmented button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.segmented button.active {
+  background: var(--ember);
+  color: #1a0f08;
+  font-weight: 600;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.field label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ---------- 存储源列表 ---------- */
+.source-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.source-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.source-list li.active {
+  border-color: var(--ember);
+}
+
+.source-list .radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.src-name {
+  font-weight: 600;
+}
+
+.src-detail {
+  flex: 1;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-list .empty {
+  justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+}
+
+/* ---------- 设置弹层 ---------- */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  z-index: 20;
+}
+
+.settings-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 32px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---------- 详情弹层 ---------- */
 .detail-overlay {
   position: fixed;
   inset: 0;

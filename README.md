@@ -26,6 +26,17 @@
 
 规划中：模拟器配置与启动、按需下载、刮削、手柄导航、Android 端。
 
+## 🎮 使用
+
+- 打开即进入**游戏库**（主机前端式交互）
+- 游戏库放在存储源的「游戏目录」下（默认 `Roms/`），按平台分子文件夹，例如：
+  ```
+  Roms/GBA/metadata.pegasus.txt
+  Roms/NES/metadata.pegasus.txt
+  ```
+- **按 `F1`** 打开设置（配置存储源 / 游戏目录），`Esc` 关闭
+- 存储源支持本地文件夹与 WebDAV（对接 OpenList）
+
 ## 🛠️ 技术选型
 
 - **应用壳**：Tauri 2（产物仅几 MB，复用系统 WebView2，Windows 优先、Android 后续）

@@ -1,47 +1,36 @@
 import { useEffect, useState } from "react";
-import { tauri, type AppInfo } from "./lib/tauri";
-import { SourcesPage } from "./features/sources/SourcesPage";
 import { LibraryPage } from "./features/library/LibraryPage";
+import { SourcesPage } from "./features/sources/SourcesPage";
 import "./App.css";
 
-type Tab = "library" | "sources";
-
 function App() {
-  const [tab, setTab] = useState<Tab>("library");
-  const [info, setInfo] = useState<AppInfo | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
+  // 默认进入游戏库；按 F1 打开设置，Esc 关闭
   useEffect(() => {
-    tauri.appInfo().then(setInfo).catch(() => undefined);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F1") {
+        e.preventDefault();
+        setShowSettings((v) => !v);
+      } else if (e.key === "Escape") {
+        setShowSettings(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
     <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="flame">🔥</span>
-          <span className="brand-name">
-            Ember<b>Hub</b>
-          </span>
+      <LibraryPage onOpenSettings={() => setShowSettings(true)} />
+
+      {showSettings && (
+        <div className="settings-overlay" onClick={() => setShowSettings(false)}>
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <SourcesPage onClose={() => setShowSettings(false)} />
+          </div>
         </div>
-        <nav>
-          <button
-            className={tab === "library" ? "nav active" : "nav"}
-            onClick={() => setTab("library")}
-          >
-            🎮 游戏库
-          </button>
-          <button
-            className={tab === "sources" ? "nav active" : "nav"}
-            onClick={() => setTab("sources")}
-          >
-            ☁️ 存储源
-          </button>
-        </nav>
-        <div className="sidebar-foot">{info ? `v${info.version}` : ""}</div>
-      </aside>
-      <main className="content">
-        {tab === "library" ? <LibraryPage /> : <SourcesPage />}
-      </main>
+      )}
     </div>
   );
 }
