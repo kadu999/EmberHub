@@ -30,6 +30,7 @@ export function SourcesPage({ onClose }: Props) {
     setActiveSource,
     downloadDir,
     setDownloadDir,
+    requestScan,
   } = useStore();
 
   const [defaultDir, setDefaultDir] = useState("");
@@ -122,12 +123,23 @@ export function SourcesPage({ onClose }: Props) {
   return (
     <div className="settings">
       <div className="settings-head">
-        <h2>设置 · 存储源</h2>
-        {onClose && (
-          <button className="ghost small" onClick={onClose}>
-            关闭（Esc）
+        <h2>设置</h2>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            className="ghost small"
+            onClick={() => {
+              requestScan();
+              onClose?.();
+            }}
+          >
+            扫描游戏库
           </button>
-        )}
+          {onClose && (
+            <button className="ghost small" onClick={onClose}>
+              关闭（Esc）
+            </button>
+          )}
+        </div>
       </div>
       <p className="hint">
         资源服务器支持：FTP（默认）、WebDAV（OpenList）、本地文件夹。游戏库放在「游戏目录」下，按平台分子文件夹。

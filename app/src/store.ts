@@ -8,10 +8,13 @@ interface AppStore {
   activeSourceId: string | null;
   /** 下载目录（空 = 使用程序目录） */
   downloadDir: string;
+  /** 扫描信号：自增以请求游戏库重新扫描 */
+  scanToken: number;
   addSource: (s: SourceConfig) => void;
   removeSource: (id: string) => void;
   setActiveSource: (id: string | null) => void;
   setDownloadDir: (dir: string) => void;
+  requestScan: () => void;
 }
 
 export const useStore = create<AppStore>()(
@@ -20,6 +23,7 @@ export const useStore = create<AppStore>()(
       sources: [],
       activeSourceId: null,
       downloadDir: "",
+      scanToken: 0,
       addSource: (s) =>
         set((st) => ({
           sources: [...st.sources, s],
@@ -32,6 +36,7 @@ export const useStore = create<AppStore>()(
         })),
       setActiveSource: (id) => set({ activeSourceId: id }),
       setDownloadDir: (dir) => set({ downloadDir: dir }),
+      requestScan: () => set((st) => ({ scanToken: st.scanToken + 1 })),
     }),
     { name: "emberhub" },
   ),
