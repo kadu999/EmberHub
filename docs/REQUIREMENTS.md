@@ -1,15 +1,14 @@
 # EmberHub 需求文档
 
-> 状态：**讨论稿 v0.2（待评审）** ｜ 最后更新：2026-10-03
-> 标记 ❓ 的条目为**待确认**，需要你补充后才能开工。
-> 本文档是开发基线；与代码冲突时以本文档为准。
+> 状态：**讨论稿 v0.3（待评审）** ｜ 最后更新：2026-10-03
+> 标记 ❓ 的条目为**待确认**。
+> **全部使用自定义 JSON 格式，不使用天马G / Pegasus 的 txt 格式。**
 
 ---
 
 ## 1. 概述
 
-EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资源组织方式。
-它本身**不实现模拟功能**，只做两件事：
+EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能，只做两件事：
 
 1. **按需下载**：从资源服务器下载玩家选中的游戏 ROM，以及该平台所需的模拟器
 2. **启动游戏**：用下载好的模拟器打开对应 ROM
@@ -23,7 +22,7 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 | 术语 | 含义 |
 |---|---|
 | 资源服务器 | 存放 `Roms` 与 `Emulators` 的服务器，**仅支持：FTP、OpenList(WebDAV)** |
-| Roms | 游戏资源，天马G / Pegasus 格式，按平台分文件夹 |
+| Roms | 游戏资源，按平台分文件夹，自定义 JSON |
 | Emulators | 模拟器资源，按平台打包，含单独配置文件与压缩包 |
 | 平台 | 游戏机种，如 GBA、NES、PS1、街机等 |
 | 按需下载 | 只下载玩家当前要玩的游戏及其平台模拟器 |
@@ -43,33 +42,76 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 
 ```
 <资源服务器根>/
-├─ Roms/                     # 游戏资源（天马G 格式）
+├─ manifest.json             # 只表明有几个平台
+├─ Roms/
 │  ├─ GBA/
-│  │  ├─ metadata.pegasus.txt
-│  │  ├─ xxx.gba
-│  │  └─ media/...
+│  │  ├─ games.json          # 该平台的游戏列表
+│  │  ├─ xxx.gba             # ROM 文件
+│  │  └─ media/              # 封面/视频等（天马G 目录约定）
+│  │     └─ <游戏名>/
+│  │        ├─ boxFront.png
+│  │        └─ video.mp4
 │  └─ NES/...
-└─ Emulators/                # 模拟器资源（按平台）
+└─ Emulators/
    ├─ platforms.json         # 平台映射表（Roms 文件夹 → Emulators 文件夹）
    ├─ GBA/
-   │  ├─ config.json         # 该平台模拟器的单独配置文件
+   │  ├─ config.json         # 模拟器配置文件（含版本）
    │  └─ GBA.zip             # 模拟器压缩包
    └─ NES/...
 ```
 
-### 3.3 Roms 结构（天马G / Pegasus 格式）
+### 3.3 根清单 `manifest.json`
 
-- 每个平台一个文件夹，内含 `metadata.pegasus.txt`
-- 字段参考 Pegasus：`collection` / `game` / `file` / `developer` / `genre` /
-  `players` / `release` / `rating` / `description` / `assets.*`
-- 封面素材：`media/<游戏名>/boxFront.*`
-- 已在 EmberHub 实现解析与展示 ✅
+只表明有几个平台：
 
-### 3.4 Emulators 结构
+```json
+{
+  "platforms": ["GBA", "NES", "PS"]
+}
+```
 
-每个平台一个文件夹，含**单独配置文件** + **模拟器压缩包**。
+### 3.4 Roms 平台游戏列表 `Roms/<平台>/games.json`
 
-`Emulators/<平台>/config.json`（候选字段，❓待你确认增减）：
+```json
+{
+  "platform": "GBA",
+  "name": "Game Boy Advance",
+  "launch": "retroarch.exe -L cores/mgba_libretro.dll \"{file.path}\"",
+  "games": [
+    {
+      "title": "Advance Wars",
+      "file": "Advance Wars (USA).gba",
+      "cover": "media/Advance Wars (USA)/boxFront.png",
+      "developer": "Intelligent Systems",
+      "publisher": "Nintendo",
+      "genre": "Strategy",
+      "players": 4,
+      "release": "2001-09-10",
+      "rating": 92,
+      "description": "……"
+    }
+  ]
+}
+```
+
+| 字段 | 说明 |
+|---|---|
+| `platform` | 平台标识 |
+| `name` | 平台显示名（可选） |
+| `launch` | 平台级启动命令（可选，含 `{file.path}` 占位符） |
+| `games[].title` | 游戏标题 |
+| `games[].file` | ROM 文件名（相对本平台目录） |
+| `games[].cover` | 封面路径（可选；不写则按 §3.5 自动查找） |
+| `games[].launch` | 游戏级启动命令（可选，覆盖平台级） |
+| 其余 | `developer` / `publisher` / `genre` / `players` / `release` / `rating` / `description` 均为可选 |
+
+### 3.5 封面/素材（沿用天马G 目录约定，自动查找）
+
+- 目录：`Roms/<平台>/media/<游戏名>/`
+- 约定文件名：`boxFront.*`（封面）、`logo.*`、`video.*`（视频）等，支持 png/jpg/jpeg/webp、mp4/webm
+- 查找顺序：① `games.json` 里显式写的 `cover` → ② `media/<title>/` → ③ `media/<文件名(去扩展名)>/`
+
+### 3.6 Emulators 配置 `Emulators/<平台>/config.json`
 
 ```json
 {
@@ -85,15 +127,15 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 | 字段 | 含义 |
 |---|---|
 | `platform` | 平台标识 |
-| `version` | 版本号（用于判断是否需要更新模拟器） |
+| `version` | 版本号（判断是否需要更新） |
 | `archive` | 压缩包文件名（相对该平台目录） |
-| `exe` | 解压后的可执行文件路径（相对解压根） |
+| `exe` | 解压后可执行文件路径（相对解压根） |
 | `args` | 启动参数数组，支持 `{file.path}` 等占位符 |
 | `workdir` | 工作目录（相对解压根，可选） |
 
-### 3.5 平台映射表 `Emulators/platforms.json`（服务器侧，JSON）
+### 3.7 平台映射 `Emulators/platforms.json`
 
-键 = Roms 下的平台文件夹名，值 = Emulators 下的平台文件夹名：
+键 = Roms 下平台文件夹名，值 = Emulators 下平台文件夹名：
 
 ```json
 {
@@ -109,27 +151,26 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 
 ### 4.1 下载 ROM
 
-- 玩家点开游戏 → 若本地没有该 ROM → 从资源服务器下载 → 交给模拟器启动
+- 玩家点开游戏 → 本地没有该 ROM → 从资源服务器下载 → 交给模拟器启动
 
 ### 4.2 下载模拟器（按平台）
 
-- 玩家点游戏 → 通过 `platforms.json` 得到平台 → 查 `Emulators/<平台>/config.json`
-- 若该平台模拟器**未下载** → 下载压缩包并解压
-- 若已下载 → 比对 `version`，不同则更新
-- 解压后按 `exe` / `args` / `workdir` 启动
+- 点游戏 → 经 `platforms.json` 得到平台 → 读 `Emulators/<平台>/config.json`
+- 未下载 → 下载压缩包并解压
+- 已下载 → 比对 `version`，不同则更新
 
 ### 4.3 下载目录
 
 - 有**默认目录**，**允许用户修改**
-- ❓ 默认目录具体位置？（如程序数据目录 `EmberHub/data/`？）
-- ❓ 下载/解压后的目录结构（是否镜像服务器结构？ROM 与模拟器是否分开放？）
+- ❓ 默认目录位置？
+- ❓ 下载/解压后的目录结构？
 
 ### 4.4 其他
 
-- ❓ 下载进度显示？断点续传？多线程？
-- ❓ 完整性校验（大小/哈希）？
-- ❓ 缓存清理策略（手动？容量上限？）
-- ❓ ROM 若为压缩包（zip/7z），是否自动解压？
+- ❓ 下载进度？断点续传？
+- ❓ 完整性校验？
+- ❓ 缓存清理策略？
+- ❓ ROM 若为压缩包，是否自动解压？
 
 ---
 
@@ -137,14 +178,15 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 
 ### 5.1 启动命令来源（**Roms 优先**）
 
-1. 先看 `Roms/<平台>/metadata.pegasus.txt` 里对应游戏的 `launch`
-2. 没有 → 再看 `Emulators/<平台>/config.json` 的 `exe` + `args`
+1. `Roms/<平台>/games.json` 里该游戏的 `launch`（游戏级）
+2. 否则 `games.json` 的平台级 `launch`
+3. 否则 `Emulators/<平台>/config.json` 的 `exe` + `args`
 
 ### 5.2 生命周期
 
 - EmberHub **不管理模拟器生命周期**：拉起进程后即放手
-- 不主动关闭、不重启模拟器
-- ❓ 是否需要复用同一模拟器实例（不重复开窗）？
+- 不主动关闭、不重启
+- ❓ 是否需要复用同一实例？
 
 ---
 
@@ -152,7 +194,7 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 
 - 打开即**游戏库**（全屏，按平台分类）
 - **F1** 打开设置（存储源 / 下载目录等），**Esc** 关闭
-- ❓ 下载中的界面表现（进度条？提示？）
+- ❓ 下载中的界面表现
 - ❓ 是否需要手柄导航
 
 ---
@@ -161,7 +203,7 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 
 - **PC（Windows）优先**
 - **Android 以后**
-- ❓ Android 端模拟器是 APK（需安装）还是压缩包？平台标识如何区分 PC / Android？
+- ❓ Android 端模拟器是 APK 还是压缩包？平台如何区分？
 
 ---
 
@@ -169,17 +211,19 @@ EmberHub 是一个**模拟器游戏启动器**，参考天马G / Pegasus 的资�
 
 | # | 问题 | 状态 |
 |---|---|---|
-| 1 | Emulators 目录结构 | ✅ 已定（§3.4） |
-| 2 | 配置形式（单独 config.json） | ✅ 已定 |
-| 3 | 启动命令来源（Roms 优先） | ✅ 已定 |
-| 4 | 平台映射（服务器 platforms.json） | ✅ 已定 |
-| 5 | FTP 登录（账号密码） | ✅ 已定 |
-| 6 | **config.json 字段是否合适** | ❓ 待确认 |
-| 7 | 默认下载目录与目录结构 | ❓ |
-| 8 | ROM 是否自动解压 | ❓ |
-| 9 | 缓存清理策略 | ❓ |
-| 10 | 下载进度 / 断点续传 | ❓ |
-| 11 | PC / Android 模拟器形式差异 | ❓ |
+| 1 | 全部改用自定义 JSON | ✅ 已定 |
+| 2 | Roms `games.json` 结构 | ✅ 已定 |
+| 3 | 根 `manifest.json`（只列平台） | ✅ 已定 |
+| 4 | Emulators `config.json` | ✅ 已定 |
+| 5 | 平台映射 `platforms.json` | ✅ 已定 |
+| 6 | 封面沿用天马G 目录约定 | ✅ 已定 |
+| 7 | 启动命令 Roms 优先 | ✅ 已定 |
+| 8 | FTP 账号密码 | ✅ 已定 |
+| 9 | 默认下载目录与结构 | ❓ |
+| 10 | ROM 是否自动解压 | ❓ |
+| 11 | 下载进度 / 断点续传 | ❓ |
+| 12 | 缓存清理策略 | ❓ |
+| 13 | PC / Android 模拟器差异 | ❓ |
 
 ---
 
