@@ -1,8 +1,0 @@
-{
-  "platform": "gba",
-  "version": "1.0.0",
-  "archive": "gba.zip",
-  "exe": "C:\\Windows\\explorer.exe",
-  "args": ["/select,{file.path}"],
-  "workdir": "."
-}

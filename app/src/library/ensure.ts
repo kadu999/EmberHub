@@ -78,7 +78,7 @@ export async function ensureEmulator(
   onStatus?.("解压模拟器…");
   await tauri.removePath(localDir);
   await tauri.ensureDir(localDir);
-  await tauri.extractZip(localArchive, localDir);
+  await tauri.extractArchive(localArchive, localDir);
   await tauri.writeTextFile(stampPath, JSON.stringify({ version: config.version }));
   return { dir: localDir, config };
 }
@@ -119,15 +119,11 @@ export async function ensureRom(
 async function maybeExtract(file: string, onStatus?: (s: string) => void): Promise<string> {
   const ext = extname(file);
   if (!ARCHIVE_EXTS.includes(ext)) return file;
-  if (ext !== "zip") {
-    onStatus?.(`暂不支持解压 .${ext}，直接使用压缩包`);
-    return file;
-  }
   const dir = joinPath(dirname(file), stripExt(basename(file)));
   onStatus?.("解压中…");
   await tauri.removePath(dir);
   await tauri.ensureDir(dir);
-  await tauri.extractZip(file, dir);
+  await tauri.extractArchive(file, dir);
   return (await firstRomFile(dir)) ?? file;
 }
 

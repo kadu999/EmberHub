@@ -713,17 +713,15 @@ fn remove_path(path: String) -> Result<(), String> {
     }
 }
 
-/// 解压 zip 到目标目录。
-#[tauri::command]
-fn extract_zip(zip_path: String, dest_dir: String) -> Result<(), String> {
-    let file = std::fs::File::open(&zip_path).map_err(|e| format!("打开压缩包失败: {}", e))?;
+fn extract_zip_impl(zip_path: &str, dest_dir: &str) -> Result<(), String> {
+    let file = std::fs::File::open(zip_path).map_err(|e| format!("打开压缩包失败: {}", e))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("读取压缩包失败: {}", e))?;
-    std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(dest_dir).map_err(|e| e.to_string())?;
 
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
         let outpath = match entry.enclosed_name() {
-            Some(p) => std::path::Path::new(&dest_dir).join(p),
+            Some(p) => std::path::Path::new(dest_dir).join(p),
             None => continue, // 防目录穿越
         };
         if entry.name().ends_with('/') {
@@ -737,6 +735,28 @@ fn extract_zip(zip_path: String, dest_dir: String) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// 解压 zip 到目标目录。
+#[tauri::command]
+fn extract_zip(zip_path: String, dest_dir: String) -> Result<(), String> {
+    extract_zip_impl(&zip_path, &dest_dir)
+}
+
+/// 按扩展名解压压缩包（支持 zip / 7z）。
+#[tauri::command]
+fn extract_archive(path: String, dest_dir: String) -> Result<(), String> {
+    std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    let lower = path.to_ascii_lowercase();
+    if lower.ends_with(".7z") {
+        sevenz_rust::decompress_file(&path, &dest_dir)
+            .map_err(|e| format!("解压 7z 失败：{}", e))?;
+        Ok(())
+    } else if lower.ends_with(".zip") {
+        extract_zip_impl(&path, &dest_dir)
+    } else {
+        Err(format!("不支持的压缩格式：{}", path))
+    }
 }
 
 /// 从 WebDAV 下载文件到本地，支持**断点续传**（若目标已存在则用 Range 续传），返回字节数。
@@ -850,6 +870,7 @@ pub fn run() {
             write_text_file,
             remove_path,
             extract_zip,
+            extract_archive,
             app_info
         ])
         .run(tauri::generate_context!())

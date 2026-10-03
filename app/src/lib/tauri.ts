@@ -83,6 +83,8 @@ export const tauri = {
   removePath: (path: string) => invoke<void>("remove_path", { path }),
   extractZip: (zipPath: string, destDir: string) =>
     invoke<void>("extract_zip", { zipPath, destDir }),
+  extractArchive: (path: string, destDir: string) =>
+    invoke<void>("extract_archive", { path, destDir }),
 
   /** 启动外部模拟器，返回进程 PID */
   launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>

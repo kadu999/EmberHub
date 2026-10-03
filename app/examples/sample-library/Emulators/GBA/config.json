@@ -1,0 +1,8 @@
+{
+  "platform": "GBA",
+  "version": "0.10.5",
+  "archive": "mGBA-0.10.5-win64.7z",
+  "exe": "mGBA-0.10.5-win64/mGBA.exe",
+  "args": ["{file.path}"],
+  "workdir": "mGBA-0.10.5-win64"
+}

@@ -3,38 +3,36 @@
   "name": "Game Boy Advance",
   "games": [
     {
-      "title": "Advance Wars",
-      "file": "Advance Wars (USA).gba",
-      "developer": "Intelligent Systems",
-      "publisher": "Nintendo",
-      "genre": "Strategy",
-      "players": 4,
-      "release": "2001-09-10",
-      "rating": 92,
-      "description": "经典的回合制策略游戏，指挥部队在战场上攻城略地。",
-      "launch": "explorer.exe /select,\"{file.path}\""
-    },
-    {
-      "title": "Metroid Fusion",
-      "file": "Metroid Fusion (USA).gba",
-      "developer": "Nintendo R&D1",
-      "publisher": "Nintendo",
-      "genre": "Action, Adventure",
-      "players": 1,
-      "release": "2002-11-17",
-      "rating": 90,
-      "description": "萨姆斯前往被 X 寄生虫占据的研究站展开调查。"
-    },
-    {
-      "title": "Golden Sun",
-      "file": "Golden Sun (USA).gba",
-      "developer": "Camelot Software Planning",
-      "publisher": "Nintendo",
+      "title": "最终幻想1+2",
+      "file": "最终幻想1+2.zip",
       "genre": "Role-playing",
       "players": 1,
-      "release": "2001-11-11",
-      "rating": 91,
-      "description": "以精神力（Psynergy）系统为特色的经典回合制 RPG。"
+      "release": "2004",
+      "description": "收录《最终幻想 I》与《最终幻想 II》的 GBA 复刻合集（Dawn of Souls）。"
+    },
+    {
+      "title": "最终幻想4",
+      "file": "最终幻想4.zip",
+      "genre": "Role-playing",
+      "players": 1,
+      "release": "2005",
+      "description": "《最终幻想 IV Advance》，经典的剧情驱动型 RPG。"
+    },
+    {
+      "title": "最终幻想5",
+      "file": "最终幻想5.zip",
+      "genre": "Role-playing",
+      "players": 1,
+      "release": "2006",
+      "description": "《最终幻想 V Advance》，以职业系统（Job System）著称。"
+    },
+    {
+      "title": "最终幻想6",
+      "file": "最终幻想6.zip",
+      "genre": "Role-playing",
+      "players": 1,
+      "release": "2006",
+      "description": "《最终幻想 VI Advance》，系列巅峰之作之一。"
     }
   ]
 }

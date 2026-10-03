@@ -1,10 +1,15 @@
 # 中转站（OpenList）：只提交脚本，不提交程序与数据
 /openlist/
 
-# 压缩包
+# 压缩包 / 存档
 *.zip
-# 但示例资源里的演示包要提交
-!app/examples/**/*.zip
+*.7z
+*.sav
+
+# 示例库中的真实测试资源（ROM / 模拟器 / 素材）不入库，只提交 JSON 结构
+/app/examples/sample-library/Roms/*/media/
+/app/examples/sample-library/Emulators/**/*.zip
+/app/examples/sample-library/Emulators/**/*.7z
 
 # 系统文件
 .DS_Store
