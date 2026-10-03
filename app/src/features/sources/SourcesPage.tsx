@@ -38,7 +38,7 @@ export function SourcesPage({ onClose }: Props) {
     tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
   }, []);
 
-  const [kind, setKind] = useState<StorageKind>("ftp");
+  const [kind, setKind] = useState<StorageKind>("webdav");
   const [name, setName] = useState("");
   const [romsPath, setRomsPath] = useState("Roms");
   const [root, setRoot] = useState("");
@@ -142,7 +142,7 @@ export function SourcesPage({ onClose }: Props) {
         </div>
       </div>
       <p className="hint">
-        资源服务器支持：FTP（默认）、WebDAV（OpenList）、本地文件夹。游戏库放在「游戏目录」下，按平台分子文件夹。
+        资源服务器推荐用 WebDAV（OpenList）。游戏库放在「游戏目录」下，按平台分子文件夹。
       </p>
 
       <div className="card">
@@ -170,11 +170,11 @@ export function SourcesPage({ onClose }: Props) {
 
       <div className="card">
         <div className="segmented">
-          <button className={kind === "ftp" ? "active" : ""} onClick={() => setKind("ftp")}>
-            FTP
-          </button>
           <button className={kind === "webdav" ? "active" : ""} onClick={() => setKind("webdav")}>
             WebDAV
+          </button>
+          <button className={kind === "ftp" ? "active" : ""} onClick={() => setKind("ftp")}>
+            FTP
           </button>
           <button className={kind === "local" ? "active" : ""} onClick={() => setKind("local")}>
             本地文件夹
