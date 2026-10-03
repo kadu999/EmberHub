@@ -3,6 +3,8 @@
 
 # 压缩包
 *.zip
+# 但示例资源里的演示包要提交
+!app/examples/**/*.zip
 
 # 系统文件
 .DS_Store
