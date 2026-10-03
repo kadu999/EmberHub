@@ -52,13 +52,14 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 │  │        └─ video.mp4
 │  └─ NES/...
 └─ Emulators/                # 模拟器按「运行平台」分（客户端只下自己系统的）
-   ├─ platforms.json         # 平台映射表（Roms 文件夹 → Emulators 游戏平台文件夹）
    ├─ Windows/
+   │  ├─ platforms.json      # 平台映射表（Roms 文件夹 → Emulators 游戏平台文件夹）
    │  ├─ GBA/
    │  │  ├─ config.json      # 模拟器配置文件（含版本）
    │  │  └─ GBA.zip          # 模拟器压缩包
    │  └─ NES/...
    └─ Android/
+      ├─ platforms.json
       └─ GBA/...
 ```
 
@@ -137,9 +138,9 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 | `workdir` | 工作目录（相对解压根，可选） |
 | `extract` | 是否解压 ROM 压缩包（默认 `true`）。模拟器能直接读压缩包时设为 `false`（如 mGBA 读 zip） |
 
-### 3.7 平台映射 `Emulators/platforms.json`
+### 3.7 平台映射 `Emulators/<运行平台>/platforms.json`
 
-全局一份（不分运行平台）。键 = Roms 下平台文件夹名，值 = Emulators 下游戏平台文件夹名：
+每个运行平台一份。键 = Roms 下平台文件夹名，值 = Emulators 下游戏平台文件夹名：
 
 ```json
 {

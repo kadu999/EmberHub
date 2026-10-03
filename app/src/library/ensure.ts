@@ -50,18 +50,19 @@ export async function ensureEmulator(
 ): Promise<EmulatorInstall> {
   const emuRoot = (source.emulatorsPath ?? "Emulators").trim() || "Emulators";
   const hostOs = osFolder(await tauri.hostOs());
+  const osRoot = joinPath(emuRoot, hostOs);
 
-  // 平台映射（无映射表则同名）
+  // 平台映射（该运行平台目录下的 platforms.json；无则同名）
   let emuPlatform = platform;
   try {
-    const map = parsePlatformMap(await provider.readText(joinPath(emuRoot, "platforms.json")));
+    const map = parsePlatformMap(await provider.readText(joinPath(osRoot, "platforms.json")));
     emuPlatform = map[platform] ?? platform;
   } catch {
     // 忽略
   }
 
   // 服务器结构：Emulators/<运行平台>/<游戏平台>/
-  const emuBase = joinPath(emuRoot, hostOs, emuPlatform);
+  const emuBase = joinPath(osRoot, emuPlatform);
   const config = parseEmulatorConfig(await provider.readText(joinPath(emuBase, "config.json")));
 
   const dl = await getDownloadDir(source);
