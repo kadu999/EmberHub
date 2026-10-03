@@ -1,4 +1,4 @@
-// 设置页：存储源配置（本地文件夹 / WebDAV）。
+// 设置页：存储源配置（本地文件夹 / WebDAV / FTP）。
 // 默认隐藏，按 F1 打开。
 import { useState } from "react";
 import { useStore } from "../../store";
@@ -14,6 +14,12 @@ function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+function describe(s: SourceConfig): string {
+  if (s.kind === "webdav") return s.url ?? "";
+  if (s.kind === "ftp") return `ftp://${s.host ?? ""}:${s.port ?? 21}${s.basePath ?? ""}`;
+  return s.root ?? "";
+}
+
 export function SourcesPage({ onClose }: Props) {
   const { sources, activeSourceId, addSource, removeSource, setActiveSource } = useStore();
 
@@ -22,6 +28,9 @@ export function SourcesPage({ onClose }: Props) {
   const [romsPath, setRomsPath] = useState("Roms");
   const [root, setRoot] = useState("");
   const [url, setUrl] = useState("");
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("21");
+  const [basePath, setBasePath] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -36,6 +45,20 @@ export function SourcesPage({ onClose }: Props) {
         kind,
         romsPath: romsPath.trim(),
         root: root.trim(),
+      };
+    }
+    if (kind === "ftp") {
+      if (!host.trim()) return null;
+      return {
+        id: uid(),
+        name: name.trim() || "FTP",
+        kind,
+        romsPath: romsPath.trim(),
+        host: host.trim(),
+        port: Number(port) || 21,
+        basePath: basePath.trim(),
+        username: username.trim(),
+        password,
       };
     }
     if (!url.trim()) return null;
@@ -74,6 +97,9 @@ export function SourcesPage({ onClose }: Props) {
     setName("");
     setRoot("");
     setUrl("");
+    setHost("");
+    setPort("21");
+    setBasePath("");
     setUsername("");
     setPassword("");
     setMessage({ ok: true, text: "已添加存储源" });
@@ -90,14 +116,16 @@ export function SourcesPage({ onClose }: Props) {
         )}
       </div>
       <p className="hint">
-        推荐用 OpenList 把阿里云盘/百度/115 等挂载为 WebDAV，再在这里填入地址即可。
-        游戏库放在「游戏目录」下，按平台分子文件夹。
+        资源服务器支持三种：本地文件夹、WebDAV（OpenList）、FTP。游戏库放在「游戏目录」下，按平台分子文件夹。
       </p>
 
       <div className="card">
         <div className="segmented">
           <button className={kind === "webdav" ? "active" : ""} onClick={() => setKind("webdav")}>
             WebDAV
+          </button>
+          <button className={kind === "ftp" ? "active" : ""} onClick={() => setKind("ftp")}>
+            FTP
           </button>
           <button className={kind === "local" ? "active" : ""} onClick={() => setKind("local")}>
             本地文件夹
@@ -114,7 +142,7 @@ export function SourcesPage({ onClose }: Props) {
           <input value={romsPath} onChange={(e) => setRomsPath(e.currentTarget.value)} placeholder="Roms" />
         </div>
 
-        {kind === "webdav" ? (
+        {kind === "webdav" && (
           <>
             <div className="field">
               <label>WebDAV 地址</label>
@@ -133,14 +161,37 @@ export function SourcesPage({ onClose }: Props) {
               <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
             </div>
           </>
-        ) : (
+        )}
+
+        {kind === "ftp" && (
+          <>
+            <div className="field">
+              <label>主机</label>
+              <input value={host} onChange={(e) => setHost(e.currentTarget.value)} placeholder="192.168.1.10" />
+            </div>
+            <div className="field">
+              <label>端口</label>
+              <input value={port} onChange={(e) => setPort(e.currentTarget.value)} placeholder="21" />
+            </div>
+            <div className="field">
+              <label>根路径（可选，如 /games）</label>
+              <input value={basePath} onChange={(e) => setBasePath(e.currentTarget.value)} placeholder="/games" />
+            </div>
+            <div className="field">
+              <label>用户名</label>
+              <input value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
+            </div>
+            <div className="field">
+              <label>密码</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
+            </div>
+          </>
+        )}
+
+        {kind === "local" && (
           <div className="field">
             <label>根目录</label>
-            <input
-              value={root}
-              onChange={(e) => setRoot(e.currentTarget.value)}
-              placeholder="E:\\Games"
-            />
+            <input value={root} onChange={(e) => setRoot(e.currentTarget.value)} placeholder="E:\\Games" />
           </div>
         )}
 
@@ -175,7 +226,7 @@ export function SourcesPage({ onClose }: Props) {
               <span className="src-name">{s.name}</span>
             </label>
             <span className="src-detail">
-              {s.kind === "webdav" ? s.url : s.root}
+              {describe(s)}
               {s.romsPath ? `  ·  ${s.romsPath}` : ""}
             </span>
             <button className="ghost small" onClick={() => removeSource(s.id)}>

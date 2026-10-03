@@ -30,6 +30,7 @@ percent-encoding = "2"
 futures-util = "0.3"
 tokio = { version = "1", features = ["fs", "io-util"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+suppaftp = "12"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

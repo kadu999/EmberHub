@@ -285,6 +285,336 @@ async fn webdav_read_base64(
 }
 
 // ---------------------------------------------------------------------------
+// FTP（资源服务器：自建 FTP，账号密码）
+// ---------------------------------------------------------------------------
+
+/// FTP 文件/目录条目，`path` 为相对根路径。
+#[derive(Serialize)]
+pub struct FtpEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+}
+
+fn ftp_join(base: &str, path: &str) -> String {
+    let b = base.trim().trim_end_matches('/');
+    let p = path.trim().trim_start_matches('/');
+    if b.is_empty() {
+        if p.is_empty() {
+            "/".to_string()
+        } else {
+            format!("/{}", p)
+        }
+    } else if p.is_empty() {
+        b.to_string()
+    } else {
+        format!("{}/{}", b, p)
+    }
+}
+
+fn ftp_connect(
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+) -> Result<suppaftp::FtpStream, String> {
+    let addr = format!("{}:{}", host, port);
+    let mut ftp =
+        suppaftp::FtpStream::connect(&addr).map_err(|e| format!("连接 FTP 失败：{}", e))?;
+    ftp.login(username, password)
+        .map_err(|e| format!("FTP 登录失败：{}", e))?;
+    Ok(ftp)
+}
+
+fn ftp_child(base_rel: &str, name: &str) -> String {
+    if base_rel.is_empty() {
+        name.to_string()
+    } else {
+        format!("{}/{}", base_rel.trim_end_matches('/'), name)
+    }
+}
+
+/// 返回跳过前 n 个空白分隔字段后的剩余字符串（保留文件名中的空格）。
+fn nth_field_rest(line: &str, n: usize) -> Option<String> {
+    let mut count = 0;
+    let mut in_field = false;
+    let mut start = 0usize;
+    for (i, c) in line.char_indices() {
+        if c.is_whitespace() {
+            if in_field {
+                count += 1;
+                in_field = false;
+                if count == n {
+                    start = i;
+                }
+            }
+        } else {
+            in_field = true;
+        }
+    }
+    if in_field {
+        count += 1;
+    }
+    if count <= n {
+        return None;
+    }
+    let rest = line[start..].trim_start();
+    if rest.is_empty() {
+        None
+    } else {
+        Some(rest.to_string())
+    }
+}
+
+/// 解析 LIST 返回的一行（Unix ls 或 Windows DOS 格式）。
+fn parse_list_line(line: &str, base_rel: &str) -> Option<FtpEntry> {
+    let line = line.trim_end_matches(['\r', '\n']);
+    if line.trim().is_empty() {
+        return None;
+    }
+
+    // Windows DOS 格式：... <DIR> name
+    if let Some(pos) = line.find("<DIR>") {
+        let name = line[pos + 5..].trim();
+        if name.is_empty() || name == "." || name == ".." {
+            return None;
+        }
+        return Some(FtpEntry {
+            name: name.to_string(),
+            path: ftp_child(base_rel, name),
+            is_dir: true,
+            size: 0,
+        });
+    }
+
+    // Unix ls：perms links owner group size month day time name
+    let perms = line.split_whitespace().next()?;
+    if !(perms.starts_with('-') || perms.starts_with('d') || perms.starts_with('l')) {
+        return None;
+    }
+
+    let mut it = line.split_whitespace();
+    let _ = it.next(); // perms
+    let _ = it.next(); // links
+    let _ = it.next(); // owner
+    let _ = it.next(); // group
+    let size = it.next().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+    let _ = it.next(); // month
+    let _ = it.next(); // day
+    let _ = it.next(); // time
+
+    let name = nth_field_rest(line, 8)?;
+    if name == "." || name == ".." {
+        return None;
+    }
+    let path = ftp_child(base_rel, &name);
+    Some(FtpEntry {
+        name,
+        path,
+        is_dir: perms.starts_with('d'),
+        size,
+    })
+}
+
+/// 解析 MLSD 返回的一行：`type=file;size=123; name`
+fn parse_mlsd_line(line: &str, base_rel: &str) -> Option<FtpEntry> {
+    let line = line.trim_end_matches(['\r', '\n']);
+    let idx = line.find(' ')?;
+    let facts = &line[..idx];
+    let name = line[idx + 1..].trim();
+    if name.is_empty() || name == "." || name == ".." {
+        return None;
+    }
+    let mut is_dir = false;
+    let mut size: u64 = 0;
+    for fact in facts.split(';') {
+        if let Some(v) = fact.strip_prefix("type=") {
+            is_dir = v.eq_ignore_ascii_case("dir")
+                || v.eq_ignore_ascii_case("cdir")
+                || v.eq_ignore_ascii_case("pdir");
+        } else if let Some(v) = fact.strip_prefix("size=") {
+            size = v.parse().unwrap_or(0);
+        }
+    }
+    Some(FtpEntry {
+        name: name.to_string(),
+        path: ftp_child(base_rel, name),
+        is_dir,
+        size,
+    })
+}
+
+fn ftp_list_sync(
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+    base: &str,
+    path: &str,
+) -> Result<Vec<FtpEntry>, String> {
+    let mut ftp = ftp_connect(host, port, username, password)?;
+    let full = ftp_join(base, path);
+
+    // 优先 MLSD（结构化），失败则回退 LIST
+    let mut out = Vec::new();
+    match ftp.mlsd(Some(full.as_str())) {
+        Ok(lines) if !lines.is_empty() => {
+            for l in &lines {
+                if let Some(e) = parse_mlsd_line(l, path) {
+                    out.push(e);
+                }
+            }
+        }
+        _ => {
+            let lines = ftp
+                .list(Some(full.as_str()))
+                .map_err(|e| format!("FTP 列目录失败：{}", e))?;
+            for l in &lines {
+                if let Some(e) = parse_list_line(l, path) {
+                    out.push(e);
+                }
+            }
+        }
+    }
+    let _ = ftp.quit();
+    Ok(out)
+}
+
+/// 列出 FTP 目录。
+#[tauri::command]
+async fn ftp_list(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    base: String,
+    path: String,
+) -> Result<Vec<FtpEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        ftp_list_sync(&host, port, &username, &password, &base, &path)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn ftp_read_text_sync(
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+    base: &str,
+    path: &str,
+) -> Result<String, String> {
+    let mut ftp = ftp_connect(host, port, username, password)?;
+    let full = ftp_join(base, path);
+    let buf = ftp
+        .retr_as_buffer(full.as_str())
+        .map_err(|e| format!("FTP 读取失败：{}", e))?;
+    let _ = ftp.quit();
+    String::from_utf8(buf.into_inner()).map_err(|e| format!("FTP 内容非 UTF-8：{}", e))
+}
+
+/// 读取 FTP 文本文件。
+#[tauri::command]
+async fn ftp_read_text(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    base: String,
+    path: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        ftp_read_text_sync(&host, port, &username, &password, &base, &path)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// 读取 FTP 图片，返回 data URL。
+#[tauri::command]
+async fn ftp_read_base64(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    base: String,
+    path: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+        let mut ftp = ftp_connect(&host, port, &username, &password)?;
+        let full = ftp_join(&base, &path);
+        let buf = ftp
+            .retr_as_buffer(full.as_str())
+            .map_err(|e| format!("FTP 读取失败：{}", e))?;
+        let _ = ftp.quit();
+        Ok(to_data_url(&path, &buf.into_inner()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn ftp_download_sync(
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+    base: &str,
+    path: &str,
+    dest: &str,
+) -> Result<u64, String> {
+    let mut ftp = ftp_connect(host, port, username, password)?;
+    let full = ftp_join(base, path);
+
+    let existing: u64 = std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0);
+    if let Some(parent) = std::path::Path::new(dest).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    if existing > 0 {
+        ftp.resume_transfer(existing as usize)
+            .map_err(|e| format!("FTP 续传失败：{}", e))?;
+    }
+    let mut stream = ftp
+        .retr_as_stream(full.as_str())
+        .map_err(|e| format!("FTP 下载失败：{}", e))?;
+    let mut file = if existing > 0 {
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(dest)
+            .map_err(|e| format!("无法打开文件 {}：{}", dest, e))?
+    } else {
+        std::fs::File::create(dest).map_err(|e| format!("无法创建文件 {}：{}", dest, e))?
+    };
+
+    let n = std::io::copy(&mut stream, &mut file).map_err(|e| e.to_string())?;
+    stream
+        .finish()
+        .map_err(|e| format!("FTP 传输收尾失败：{}", e))?;
+    let _ = ftp.quit();
+    Ok(existing + n)
+}
+
+/// 从 FTP 下载文件到本地，支持断点续传（REST），返回字节数。
+#[tauri::command]
+async fn ftp_download(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    base: String,
+    path: String,
+    dest: String,
+) -> Result<u64, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        ftp_download_sync(&host, port, &username, &password, &base, &path, &dest)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+// ---------------------------------------------------------------------------
 // 下载 / 解压 / 本地文件操作
 // ---------------------------------------------------------------------------
 
@@ -460,6 +790,10 @@ pub fn run() {
             webdav_read_text,
             webdav_read_base64,
             webdav_download,
+            ftp_list,
+            ftp_read_text,
+            ftp_read_base64,
+            ftp_download,
             default_download_dir,
             path_exists,
             file_exists,
@@ -472,4 +806,46 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod ftp_tests {
+    use super::*;
+
+    // 需要本地 FTP：127.0.0.1:2121 test/test → 示例库。
+    // 运行：cargo test -- --ignored
+    #[test]
+    #[ignore]
+    fn ftp_list_and_read() {
+        let entries =
+            ftp_list_sync("127.0.0.1", 2121, "test", "test", "", "").expect("list 失败");
+        let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
+        assert!(names.contains(&"manifest.json"), "entries: {:?}", names);
+        assert!(names.contains(&"Roms"), "entries: {:?}", names);
+
+        let text = ftp_read_text_sync("127.0.0.1", 2121, "test", "test", "", "manifest.json")
+            .expect("read 失败");
+        assert!(text.contains("platforms"), "content: {}", text);
+
+        let roms =
+            ftp_list_sync("127.0.0.1", 2121, "test", "test", "", "Roms").expect("list Roms 失败");
+        let rn: Vec<&str> = roms.iter().map(|e| e.name.as_str()).collect();
+        assert!(rn.contains(&"gba"), "Roms entries: {:?}", rn);
+
+        // 下载（含断点续传）
+        let tmp = std::env::temp_dir().join("emberhub_ftp_test_manifest.json");
+        let tmp_s = tmp.to_string_lossy().to_string();
+        let _ = std::fs::remove_file(&tmp);
+        let n = ftp_download_sync("127.0.0.1", 2121, "test", "test", "", "manifest.json", &tmp_s)
+            .expect("download 失败");
+        assert!(n > 0, "downloaded {} bytes", n);
+        let dl = std::fs::read_to_string(&tmp).expect("read downloaded 失败");
+        assert!(dl.contains("platforms"), "downloaded content: {}", dl);
+
+        // 再次下载：文件已存在，应走 REST 续传且不报错
+        let n2 = ftp_download_sync("127.0.0.1", 2121, "test", "test", "", "manifest.json", &tmp_s)
+            .expect("resume 失败");
+        assert!(n2 >= n, "resume n2={} n={}", n2, n);
+        let _ = std::fs::remove_file(&tmp);
+    }
 }

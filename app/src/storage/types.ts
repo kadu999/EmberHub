@@ -2,7 +2,7 @@
 // 直连优先，想加哪个 Provider 就实现这个接口即可。
 // 详见 docs/ARCHITECTURE.md 第 5 节
 
-export type StorageKind = "local" | "webdav";
+export type StorageKind = "local" | "webdav" | "ftp";
 
 /** 用户配置的一个存储源 */
 export interface SourceConfig {
@@ -19,6 +19,10 @@ export interface SourceConfig {
   root?: string;
   /** webdav: 服务地址 */
   url?: string;
+  /** ftp: 主机 / 端口 / 根路径 */
+  host?: string;
+  port?: number;
+  basePath?: string;
   username?: string;
   password?: string;
 }
