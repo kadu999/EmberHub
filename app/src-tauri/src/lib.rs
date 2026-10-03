@@ -5,8 +5,11 @@
 use std::process::Command;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
+use tauri::Manager;
+use tokio::io::AsyncWriteExt;
 use url::Url;
 
 // ---------------------------------------------------------------------------
@@ -282,6 +285,68 @@ async fn webdav_read_base64(
 }
 
 // ---------------------------------------------------------------------------
+// 按需下载 / 缓存
+// ---------------------------------------------------------------------------
+
+/// 应用缓存目录（用于按需下载的 ROM）。
+#[tauri::command]
+fn cache_dir(app: tauri::AppHandle) -> Result<String, String> {
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("无法获取缓存目录: {}", e))?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.to_string_lossy().to_string())
+}
+
+/// 本地文件是否存在。
+#[tauri::command]
+fn file_exists(path: String) -> bool {
+    std::path::Path::new(&path).is_file()
+}
+
+/// 从 WebDAV 流式下载文件到本地，返回字节数。
+#[tauri::command]
+async fn webdav_download(
+    root: String,
+    username: String,
+    password: String,
+    path: String,
+    dest: String,
+) -> Result<u64, String> {
+    let url = dav_join(&root, &path)?;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(&url)
+        .basic_auth(&username, Some(&password))
+        .send()
+        .await
+        .map_err(|e| format!("WebDAV 请求失败: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("WebDAV 返回 HTTP {}", resp.status()));
+    }
+
+    if let Some(parent) = std::path::Path::new(&dest).parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    let mut file = tokio::fs::File::create(&dest)
+        .await
+        .map_err(|e| format!("无法创建文件 {}: {}", dest, e))?;
+
+    let mut total: u64 = 0;
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("下载中断: {}", e))?;
+        file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        total += chunk.len() as u64;
+    }
+    file.flush().await.map_err(|e| e.to_string())?;
+    Ok(total)
+}
+
+// ---------------------------------------------------------------------------
 // 应用信息
 // ---------------------------------------------------------------------------
 
@@ -307,6 +372,9 @@ pub fn run() {
             webdav_list,
             webdav_read_text,
             webdav_read_base64,
+            webdav_download,
+            cache_dir,
+            file_exists,
             app_info
         ])
         .run(tauri::generate_context!())

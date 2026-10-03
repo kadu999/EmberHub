@@ -47,6 +47,12 @@ export const tauri = {
   webdavReadBase64: (auth: DavAuth, path: string) =>
     invoke<string>("webdav_read_base64", { ...auth, path }),
 
+  // ---- 缓存 / 按需下载 ----
+  cacheDir: () => invoke<string>("cache_dir"),
+  fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
+  webdavDownload: (auth: DavAuth, path: string, dest: string) =>
+    invoke<number>("webdav_download", { ...auth, path, dest }),
+
   /** 启动外部模拟器，返回进程 PID */
   launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>
     invoke<number>("launch_emulator", { exePath, args, workdir }),

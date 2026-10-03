@@ -38,4 +38,6 @@ export interface StorageProvider {
   readFileDataUrl(path: string): Promise<string>;
   /** 把相对路径解析为本地绝对路径（仅本地源支持；远程源返回 undefined） */
   absolute?(path: string): string | undefined;
+  /** 把远端文件下载到本地 dest（远程源实现；本地源无需） */
+  downloadTo?(path: string, dest: string): Promise<number>;
 }

@@ -29,4 +29,8 @@ export class WebDavProvider implements StorageProvider {
   readFileDataUrl(path: string): Promise<string> {
     return tauri.webdavReadBase64(this.auth, path);
   }
+
+  downloadTo(path: string, dest: string): Promise<number> {
+    return tauri.webdavDownload(this.auth, path, dest);
+  }
 }

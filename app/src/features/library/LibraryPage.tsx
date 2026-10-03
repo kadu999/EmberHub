@@ -188,8 +188,10 @@ export function LibraryPage({ onOpenSettings }: Props) {
                   onClick={async () => {
                     setLaunchMsg(null);
                     try {
-                      await launchGame(selected, provider);
-                      setLaunchMsg({ ok: true, text: "已启动模拟器" });
+                      await launchGame(selected, provider, source, (s) =>
+                        setLaunchMsg({ ok: true, text: s }),
+                      );
+                      setLaunchMsg({ ok: true, text: "已启动" });
                     } catch (e) {
                       setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
                     }
