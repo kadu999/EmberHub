@@ -20,7 +20,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [collection, setCollection] = useState("全部");
+  const [collection, setCollection] = useState("");
   const [selected, setSelected] = useState<Game | null>(null);
   const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -32,11 +32,12 @@ export function LibraryPage({ onOpenSettings }: Props) {
     setError(null);
     setResult(null);
     setSelected(null);
-    setCollection("全部");
+    setCollection("");
     try {
       const r = await scanLibrary(provider, scanRoot);
       setResult(r);
       setSelected(r.games[0] ?? null);
+      setCollection(r.collections[0] ?? "");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -74,7 +75,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
   }
 
   const games = result?.games ?? [];
-  const filtered = collection === "全部" ? games : games.filter((g) => g.collection === collection);
+  const filtered = games.filter((g) => g.collection === collection);
 
   return (
     <div className="page">
@@ -159,19 +160,13 @@ export function LibraryPage({ onOpenSettings }: Props) {
           {/* 右侧：游戏选择 */}
           <main className="library-main">
             <div className="filters">
-              <button
-                className={collection === "全部" ? "chip active" : "chip"}
-                onClick={() => setCollection("全部")}
-              >
-                全部 {games.length}
-              </button>
               {result.collections.map((c) => (
                 <button
                   key={c}
                   className={collection === c ? "chip active" : "chip"}
                   onClick={() => setCollection(c)}
                 >
-                  {c} {games.filter((g) => g.collection === c).length}
+                  {c}
                 </button>
               ))}
             </div>
