@@ -9,13 +9,13 @@
 #   双击 scripts\openlist.bat            （菜单）
 #   powershell -ExecutionPolicy Bypass -File scripts\openlist.ps1 -Action update
 #   -Action: menu | setup | update | start | stop | restart | open | status
-#   -Password: 初始管理员密码（默认 EmberHub@2026）
+#   -Password: 初始管理员密码（默认 12345）
 #   -Force: 强制重新下载（忽略版本比较）
 
 param(
   [ValidateSet('menu', 'setup', 'update', 'start', 'stop', 'restart', 'open', 'status')]
   [string]$Action = 'menu',
-  [string]$Password = 'EmberHub@2026',
+  [string]$Password = '12345',
   [switch]$Force
 )
 

@@ -30,7 +30,7 @@ EmberHub\                 ← 仓库根（项目）
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\openlist.ps1 -Action setup
 # -Action: menu | setup | update | start | stop | restart | open | status
-# -Password: 初始管理员密码（默认 EmberHub@2026）
+# -Password: 初始管理员密码（默认 12345）
 # -Force: 强制重新下载
 ```
 
