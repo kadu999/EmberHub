@@ -61,11 +61,10 @@ function App() {
       {showMenu && !showSettings && (
         <div className="menu-overlay" onClick={() => setShowMenu(false)}>
           <div className="menu-panel" onClick={(e) => e.stopPropagation()}>
-            <h2>菜单</h2>
+            <button onClick={() => void getCurrentWindow().close()}>退出</button>
             <button autoFocus onClick={openSettings}>
               设置
             </button>
-            <button onClick={() => void getCurrentWindow().close()}>退出</button>
           </div>
         </div>
       )}

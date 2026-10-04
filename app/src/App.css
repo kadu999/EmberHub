@@ -603,12 +603,9 @@ select:focus {
   padding: 32px 28px;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end; /* 按钮贴底、从下往上排列 */
   gap: 12px;
   animation: menu-slide 0.18s ease;
-}
-
-.menu-panel h2 {
-  margin: 0 0 12px;
 }
 
 .menu-panel button {
