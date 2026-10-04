@@ -38,8 +38,6 @@ export function LibraryPage({ onOpenSettings }: Props) {
     total: number | null;
   } | null>(null);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
-  // 首次进入只加载封面；用户点击某个游戏后才加载视频预览，避免一进来就抢占带宽
-  const [videoArmed, setVideoArmed] = useState(false);
   // 是否正在启动（下载/解压/拉起模拟器）
   const [launching, setLaunching] = useState(false);
 
@@ -88,7 +86,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
   useEffect(() => {
     let alive = true;
     setVideoSrc(null);
-    if (!selected || !provider || !source || !selected.mediaDir || !videoArmed) return;
+    if (!selected || !provider || !source || !selected.mediaDir) return;
 
     const dir = selected.mediaDir;
     const timer = setTimeout(() => {
@@ -109,7 +107,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
       alive = false;
       clearTimeout(timer);
     };
-  }, [selected, provider, source, videoArmed]);
+  }, [selected, provider, source]);
 
   const games = result?.games;
   const filtered = useMemo(
@@ -171,48 +169,63 @@ export function LibraryPage({ onOpenSettings }: Props) {
         <aside className="detail-panel">
           {selected && (
             <>
-              {videoSrc ? (
-                <video className="preview-video" src={videoSrc} autoPlay muted loop playsInline />
-              ) : (
-                <Cover provider={provider} path={selected.coverPath} dir={selected.mediaDir} title={selected.title} />
-              )}
-              <h3 className="detail-title">{selected.title}</h3>
-              <p className="detail-sub">{selected.collection}</p>
+              <div className="detail-media">
+                {videoSrc ? (
+                  <video
+                    key={videoSrc}
+                    className="preview-video"
+                    src={videoSrc}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    onCanPlay={(e) => void e.currentTarget.play().catch(() => undefined)}
+                    onError={() => setVideoSrc(null)}
+                  />
+                ) : (
+                  <Cover provider={provider} path={selected.coverPath} dir={selected.mediaDir} title={selected.title} />
+                )}
+              </div>
 
-              <dl>
-                {selected.developer && (
-                  <>
-                    <dt>开发商</dt>
-                    <dd>{selected.developer}</dd>
-                  </>
-                )}
-                {selected.genre && (
-                  <>
-                    <dt>类型</dt>
-                    <dd>{selected.genre}</dd>
-                  </>
-                )}
-                {selected.players && (
-                  <>
-                    <dt>玩家人数</dt>
-                    <dd>{selected.players}</dd>
-                  </>
-                )}
-                {selected.release && (
-                  <>
-                    <dt>发行日期</dt>
-                    <dd>{selected.release}</dd>
-                  </>
-                )}
-                {selected.rating !== undefined && (
-                  <>
-                    <dt>评分</dt>
-                    <dd>{Math.round(selected.rating * 100)}%</dd>
-                  </>
-                )}
-              </dl>
+              <div className="detail-scroll">
+                <h3 className="detail-title">{selected.title}</h3>
+                <p className="detail-sub">{selected.collection}</p>
 
-              {selected.description && <p className="desc">{selected.description}</p>}
+                <dl>
+                  {selected.developer && (
+                    <>
+                      <dt>开发商</dt>
+                      <dd>{selected.developer}</dd>
+                    </>
+                  )}
+                  {selected.genre && (
+                    <>
+                      <dt>类型</dt>
+                      <dd>{selected.genre}</dd>
+                    </>
+                  )}
+                  {selected.players && (
+                    <>
+                      <dt>玩家人数</dt>
+                      <dd>{selected.players}</dd>
+                    </>
+                  )}
+                  {selected.release && (
+                    <>
+                      <dt>发行日期</dt>
+                      <dd>{selected.release}</dd>
+                    </>
+                  )}
+                  {selected.rating !== undefined && (
+                    <>
+                      <dt>评分</dt>
+                      <dd>{Math.round(selected.rating * 100)}%</dd>
+                    </>
+                  )}
+                </dl>
+
+                {selected.description && <p className="desc">{selected.description}</p>}
+              </div>
             </>
           )}
         </aside>
@@ -255,7 +268,6 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 onClick={() => {
                   setLaunchMsg(null);
                   setSelected(g);
-                  setVideoArmed(true);
                 }}
                 onDoubleClick={() => launch(g)}
               >
