@@ -2,7 +2,7 @@
 // 封面/视频不在扫描阶段解析（避免大量目录请求），改为显示时懒加载。
 import type { StorageProvider } from "../storage/types";
 import { basename, isAbsolute, joinPath, stripExt } from "../lib/path";
-import { parseManifest, parsePlatformGames } from "./parse";
+import { parseManifest, parseMediaMap, parsePlatformGames } from "./parse";
 
 export interface Game {
   id: string;
@@ -73,16 +73,40 @@ function normalizeKey(s: string): string {
     .toLowerCase();
 }
 
-/** 变体后缀：匹配媒体时去掉，让 HACK / 汉化版 等变体复用基础版封面。 */
-const VARIANT_SUFFIX =
-  /\s*(部分汉化版|汉化贴图|复刻限定版|汉化版|英文版|日文版|震动版|平衡版|RIP版|重制版|改版|HACK)\s*$/i;
+/** 默认的媒体变体后缀（可在 manifest.json 的 mediaVariants 里覆盖）。 */
+export const DEFAULT_MEDIA_VARIANTS = [
+  "部分汉化版",
+  "汉化贴图",
+  "复刻限定版",
+  "汉化版",
+  "英文版",
+  "日文版",
+  "震动版",
+  "平衡版",
+  "RIP版",
+  "重制版",
+  "导剪版",
+  "改版",
+  "HACK",
+];
+
+/** 由变体后缀列表生成匹配正则（长的优先，避免短后缀抢先匹配）。 */
+function buildVariantRegex(variants: string[]): RegExp | null {
+  const esc = variants
+    .filter((v) => v && v.trim() !== "")
+    .map((v) => v.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .sort((a, b) => b.length - a.length);
+  if (esc.length === 0) return null;
+  return new RegExp(`\\s*(${esc.join("|")})\\s*$`, "i");
+}
 
 /** 逐层剥掉变体后缀，返回所有中间形态（如「恶魔城X 平衡版 HACK」→「恶魔城X 平衡版」「恶魔城X」）。 */
-function stripVariantSuffixes(s: string): string[] {
+function stripVariantSuffixes(s: string, re: RegExp | null): string[] {
+  if (!re) return [];
   const out: string[] = [];
   let cur = s.trim();
   for (let i = 0; i < 3; i++) {
-    const next = cur.replace(VARIANT_SUFFIX, "").trim();
+    const next = cur.replace(re, "").trim();
     if (!next || next === cur) break;
     out.push(next);
     cur = next;
@@ -91,10 +115,14 @@ function stripVariantSuffixes(s: string): string[] {
 }
 
 /** 在 media 索引里为游戏找匹配目录：精确 → 规整 → 前缀 → 包含。 */
-function matchMediaDir(index: Map<string, string>, candidates: string[]): string | undefined {
+function matchMediaDir(
+  index: Map<string, string>,
+  candidates: string[],
+  variantRe: RegExp | null,
+): string | undefined {
   // 展开变体：去掉后缀的基础名也参与匹配，让 HACK 等变体复用基础版封面
   const expanded = new Set(candidates);
-  for (const c of candidates) for (const s of stripVariantSuffixes(c)) expanded.add(s);
+  for (const c of candidates) for (const s of stripVariantSuffixes(c, variantRe)) expanded.add(s);
   candidates = [...expanded];
 
   const raw = candidates.map((c) => c.toLowerCase()).filter((c) => c !== "");
@@ -181,6 +209,7 @@ export async function scanLibrary(
 
   const manifestText = await provider.readText("manifest.json");
   const manifest = parseManifest(manifestText);
+  const variantRe = buildVariantRegex(manifest.mediaVariants ?? DEFAULT_MEDIA_VARIANTS);
   const mediaCache = new Map<string, Map<string, string>>();
 
   for (const platform of manifest.platforms) {
@@ -203,6 +232,14 @@ export async function scanLibrary(
 
     const index = await mediaIndex(provider, baseDir, mediaCache);
 
+    // 媒体映射（可选）：标题 → media 目录；手改不会因重新生成 games.json 而丢失
+    let mediaMap: Record<string, string> = {};
+    try {
+      mediaMap = parseMediaMap(await provider.readText(joinPath(baseDir, "media-map.json")));
+    } catch {
+      // 没有映射文件
+    }
+
     for (const gm of pg.games) {
       const file = normalizeRel(baseDir, gm.file);
       const game: Game = {
@@ -222,9 +259,10 @@ export async function scanLibrary(
         _baseDir: baseDir,
       };
 
-      // media 目录：显式指定优先（校验目录确实存在），否则按标题模糊匹配
-      const explicit = gm.media ? gm.media.replace(/^media\//i, "").replace(/\/+$/, "") : "";
-      const explicitHit = explicit ? index.get(explicit.toLowerCase()) : undefined;
+      // media 目录：games.json 的 media > media-map.json > 模糊匹配（都校验目录确实存在）
+      const explicit = gm.media ?? mediaMap[gm.title] ?? "";
+      const explicitDir = explicit.replace(/^media\//i, "").replace(/\/+$/, "");
+      const explicitHit = explicitDir ? index.get(explicitDir.toLowerCase()) : undefined;
       if (explicitHit) {
         game.mediaDir = joinPath(baseDir, "media", explicitHit);
       } else if (!game.coverPath) {
@@ -235,7 +273,7 @@ export async function scanLibrary(
           const first = f.split("/")[0];
           if (first && first !== f) candidates.push(first);
         }
-        const sub = matchMediaDir(index, candidates);
+        const sub = matchMediaDir(index, candidates, variantRe);
         if (sub) game.mediaDir = joinPath(baseDir, "media", sub);
       }
 

@@ -3,7 +3,7 @@ import { tauri } from "../lib/tauri";
 import { basename, dirname, extname, joinPath, stripExt } from "../lib/path";
 import { useStore } from "../store";
 import type { SourceConfig, StorageProvider } from "../storage/types";
-import { parseEmulatorConfig, parsePlatformMap } from "./parse";
+import { parseEmulatorConfig, parseManifest, parsePlatformMap } from "./parse";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
 
@@ -17,22 +17,19 @@ export async function getDownloadDir(source?: SourceConfig): Promise<string> {
   return tauri.defaultDownloadDir();
 }
 
-/** 运行平台 → 服务器上的文件夹名（Windows / Android / Linux / MacOS / iOS）。 */
-function osFolder(os: string): string {
-  switch (os) {
-    case "windows":
-      return "Windows";
-    case "android":
-      return "Android";
-    case "linux":
-      return "Linux";
-    case "macos":
-      return "MacOS";
-    case "ios":
-      return "iOS";
-    default:
-      return os ? os[0].toUpperCase() + os.slice(1) : "Windows";
-  }
+/** 默认运行平台 → 文件夹名（可在 manifest.json 的 osFolders 里覆盖）。 */
+const DEFAULT_OS_FOLDERS: Record<string, string> = {
+  windows: "Windows",
+  android: "Android",
+  linux: "Linux",
+  macos: "MacOS",
+  ios: "iOS",
+};
+
+function osFolder(os: string, map?: Record<string, string>): string {
+  const m = map ?? DEFAULT_OS_FOLDERS;
+  if (m[os]) return m[os];
+  return os ? os[0].toUpperCase() + os.slice(1) : "Windows";
 }
 
 export interface EmulatorInstall {
@@ -49,7 +46,14 @@ export async function ensureEmulator(
   onStatus?: (s: string) => void,
 ): Promise<EmulatorInstall> {
   const emuRoot = (source.emulatorsPath ?? "Emulators").trim() || "Emulators";
-  const hostOs = osFolder(await tauri.hostOs());
+  // 运行平台文件夹名：manifest.json 的 osFolders 可覆盖
+  let osFolders: Record<string, string> | undefined;
+  try {
+    osFolders = parseManifest(await provider.readText("manifest.json")).osFolders;
+  } catch {
+    // 忽略
+  }
+  const hostOs = osFolder(await tauri.hostOs(), osFolders);
   const osRoot = joinPath(emuRoot, hostOs);
 
   // 平台映射（该运行平台目录下的 platforms.json；无则同名）

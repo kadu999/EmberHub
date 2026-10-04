@@ -21,7 +21,27 @@ export function parseManifest(text: string): Manifest {
   if (!Array.isArray(o.platforms) || o.platforms.some((p) => typeof p !== "string")) {
     throw new Error("manifest.json 的 platforms 应为字符串数组");
   }
-  return { platforms: o.platforms as string[] };
+  const mediaVariants = Array.isArray(o.mediaVariants)
+    ? (o.mediaVariants.filter((v) => typeof v === "string") as string[])
+    : undefined;
+  let osFolders: Record<string, string> | undefined;
+  if (o.osFolders && typeof o.osFolders === "object" && !Array.isArray(o.osFolders)) {
+    osFolders = {};
+    for (const [k, v] of Object.entries(o.osFolders as Record<string, unknown>)) {
+      if (typeof v === "string") osFolders[k] = v;
+    }
+  }
+  return { platforms: o.platforms as string[], mediaVariants, osFolders };
+}
+
+/** Roms/<平台>/media-map.json：{ 游戏标题: "media/目录" }，标题与目录名对不上时用 */
+export function parseMediaMap(text: string): Record<string, string> {
+  const o = asObject(text, "media-map.json");
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (typeof v === "string" && v.trim() !== "") out[k] = v.trim();
+  }
+  return out;
 }
 
 export function parsePlatformGames(text: string, fallbackPlatform: string): PlatformGames {

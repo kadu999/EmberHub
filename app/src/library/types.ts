@@ -1,9 +1,13 @@
 // 自定义资源格式的类型定义（全部 JSON）。
 // 详见 docs/REQUIREMENTS.md 第 3 节。
 
-/** 服务器根目录 manifest.json：只表明有几个平台 */
+/** 服务器根目录 manifest.json */
 export interface Manifest {
   platforms: string[];
+  /** 媒体变体后缀（可选）：匹配媒体时去掉，让 HACK/汉化版 等变体复用基础版封面 */
+  mediaVariants?: string[];
+  /** 运行平台 → 服务器文件夹名（可选），如 { "windows": "Windows" } */
+  osFolders?: Record<string, string>;
 }
 
 /** Roms/<平台>/games.json 里的单个游戏 */
