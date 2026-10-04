@@ -189,7 +189,6 @@ export function LibraryPage({ onOpenSettings }: Props) {
 
               <div className="detail-scroll">
                 <h3 className="detail-title">{selected.title}</h3>
-                <p className="detail-sub">{selected.collection}</p>
 
                 <dl>
                   {selected.developer && (
