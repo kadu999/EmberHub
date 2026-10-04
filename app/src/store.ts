@@ -34,11 +34,15 @@ interface AppStore {
   scanToken: number;
   /** 是否全屏（持久化，启动时应用） */
   fullscreen: boolean;
+  /** 上次选中的游戏（file 路径）与所在平台，启动时定位 */
+  lastGameId: string;
+  lastCollection: string;
   setSource: (s: SourceConfig | null) => void;
   setDownloadDir: (dir: string) => void;
   requestScan: () => void;
   setFullscreen: (v: boolean) => void;
   toggleFullscreen: () => void;
+  setLastSelection: (id: string, collection: string) => void;
 }
 
 export const useStore = create<AppStore>()(
@@ -48,11 +52,14 @@ export const useStore = create<AppStore>()(
       downloadDir: "",
       scanToken: 0,
       fullscreen: false,
+      lastGameId: "",
+      lastCollection: "",
       setSource: (s) => set({ source: s }),
       setDownloadDir: (dir) => set({ downloadDir: dir }),
       requestScan: () => set((st) => ({ scanToken: st.scanToken + 1 })),
       setFullscreen: (v) => set({ fullscreen: v }),
       toggleFullscreen: () => set((st) => ({ fullscreen: !st.fullscreen })),
+      setLastSelection: (id, collection) => set({ lastGameId: id, lastCollection: collection }),
     }),
     {
       name: "emberhub",
@@ -72,6 +79,8 @@ export const useStore = create<AppStore>()(
           downloadDir: typeof p.downloadDir === "string" ? p.downloadDir : current.downloadDir,
           scanToken: typeof p.scanToken === "number" ? p.scanToken : current.scanToken,
           fullscreen: typeof p.fullscreen === "boolean" ? p.fullscreen : current.fullscreen,
+          lastGameId: typeof p.lastGameId === "string" ? p.lastGameId : current.lastGameId,
+          lastCollection: typeof p.lastCollection === "string" ? p.lastCollection : current.lastCollection,
         };
       },
     },

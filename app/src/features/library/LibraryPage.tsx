@@ -64,6 +64,8 @@ export function LibraryPage({
   const { source, scanToken } = useStore();
   const provider = useMemo(() => (source ? createProvider(source) : null), [source]);
   const gridRef = useRef<VirtualGridHandle | null>(null);
+  // 扫描完成后待滚动的游戏 id（恢复上次位置）
+  const pendingScrollId = useRef<string | null>(null);
 
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -89,10 +91,17 @@ export function LibraryPage({
     try {
       const r = await scanLibrary(provider, scanRoot);
       setResult(r);
-      setCollection((prev) => (r.collections.includes(prev) ? prev : (r.collections[0] ?? "")));
-      setSelected((prev) =>
-        prev && r.games.some((g) => g.id === prev.id) ? prev : (r.games[0] ?? null),
-      );
+      // 恢复上次选中的游戏/平台；找不到则回退到该平台第一个或全局第一个
+      const { lastGameId, lastCollection } = useStore.getState();
+      const remembered = lastGameId ? r.games.find((g) => g.id === lastGameId) : undefined;
+      const sel =
+        remembered ??
+        (lastCollection ? r.games.find((g) => g.collection === lastCollection) : undefined) ??
+        r.games[0] ??
+        null;
+      if (remembered) pendingScrollId.current = remembered.id;
+      setSelected(sel);
+      setCollection(sel ? sel.collection : (r.collections[0] ?? ""));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -153,6 +162,22 @@ export function LibraryPage({
     () => (games ?? []).filter((g) => g.collection === collection),
     [games, collection],
   );
+
+  // 记住上次选中（下次打开定位）
+  useEffect(() => {
+    if (selected) useStore.getState().setLastSelection(selected.id, selected.collection);
+  }, [selected]);
+
+  // 恢复上次位置：扫描完成后滚动到选中项
+  useEffect(() => {
+    const id = pendingScrollId.current;
+    if (!id) return;
+    const idx = filtered.findIndex((g) => g.id === id);
+    if (idx < 0) return;
+    pendingScrollId.current = null;
+    const t = setTimeout(() => gridRef.current?.scrollToIndex(idx), 120);
+    return () => clearTimeout(t);
+  }, [filtered]);
 
   // 启动中（下载/解压）或启动失败时，显示居中的进度/状态面板
   const showLaunchPanel = launching || progress !== null || (launchMsg !== null && !launchMsg.ok);
