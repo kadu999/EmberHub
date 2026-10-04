@@ -1,17 +1,19 @@
 #!/usr/bin/env node
-// 检测资源服务器上各平台的 ROM 文件情况：
+// 检测 / 对齐资源服务器上各平台的 ROM 文件与 games.json：
 //   - games.json 引用了、但服务器上没有的文件（启动会 404）
-//   - 服务器上有、但 games.json 没引用的文件（孤儿 ROM，传了却玩不到）
-//   - 可自动修复的引用错误（扩展名不同，如 238.iso -> 238.chd）
+//   - 服务器上有、但 games.json 没引用的文件（孤儿 ROM）
+//   - 可自动修复的引用错误（扩展名/命名差异，如 238.iso -> 238.chd）
 //
 // 用法：
-//   node scripts/check-resources.mjs all               # 只检测，写报告
-//   node scripts/check-resources.mjs all --fix         # 修复可修复项 + 收录孤儿 ROM
-//   node scripts/check-resources.mjs PS2 --fix
+//   node scripts/check-resources.mjs all                    # 只检测，写报告
+//   node scripts/check-resources.mjs all --fix              # 修正可修复的引用
+//   node scripts/check-resources.mjs all --add              # 收录孤儿 ROM
+//   node scripts/check-resources.mjs all --prune            # 移除服务器上不存在的条目
+//   node scripts/check-resources.mjs all --reconcile        # = --fix + --add + --prune（完全对齐）
 //   node scripts/check-resources.mjs all --server http://127.0.0.1:5244 --user admin --pass 12345 --mount /EmberHub_Baidu
 //
 // 报告写到 resource-report-<平台>.txt（UTF-8）。
-// --fix 会先把原 games.json 备份为 games.json.bak。
+// 任何写操作都会先把原 games.json 备份为 games.json.bak。
 
 import fs from "node:fs";
 
@@ -23,11 +25,14 @@ function getArg(name, def) {
 const target = process.argv[2];
 if (!target || target.startsWith("--")) {
   console.error(
-    "用法: node scripts/check-resources.mjs <平台|all> [--fix] [--server URL] [--user U] [--pass P] [--mount /path]",
+    "用法: node scripts/check-resources.mjs <平台|all> [--fix|--add|--prune|--reconcile] [--server URL] [--user U] [--pass P] [--mount /path]",
   );
   process.exit(1);
 }
-const FIX = process.argv.includes("--fix");
+const RECONCILE = process.argv.includes("--reconcile");
+const FIX = process.argv.includes("--fix") || RECONCILE;
+const ADD = process.argv.includes("--add") || RECONCILE;
+const PRUNE = process.argv.includes("--prune") || RECONCILE;
 
 const SERVER = getArg("--server", "http://127.0.0.1:5244").replace(/\/+$/, "");
 const USER = getArg("--user", "admin");
@@ -40,10 +45,8 @@ const ROM_EXTS = [
   "gba", "gbc", "gb", "nds", "3ds", "cia", "cso", "rvz", "wbfs", "wad", "nsp", "xci",
   "n64", "z64", "sfc", "smc", "md", "gen", "nes", "pce", "gg", "sms",
 ];
-// 明确不是 ROM 的文件名片段
+// 明确不是 ROM 的文件名片段（贴图/纹理/元数据）
 const NON_ROM = /贴图|纹理|metadata|\.txt$|\.json$/i;
-// 多盘游戏的后续盘（不单独收录）
-const LATER_DISC = /disc\s*[b-z]/i;
 
 // ---------- OpenList API ----------
 const login = await (await fetch(`${SERVER}/api/auth/login`, {
@@ -89,7 +92,7 @@ async function listFiles(path) {
 // ---------- 工具 ----------
 const baseName = (p) => String(p ?? "").replace(/\\/g, "/").split("/").pop() ?? "";
 const extOf = (n) => (n.includes(".") ? n.slice(n.lastIndexOf(".") + 1).toLowerCase() : "");
-const isRom = (n) => ROM_EXTS.includes(extOf(n)) && !NON_ROM.test(n) && !LATER_DISC.test(n);
+const isRom = (n) => ROM_EXTS.includes(extOf(n)) && !NON_ROM.test(n);
 
 /** 归一化文件名用于近似匹配：去扩展名/盘号/非字母数字 */
 function normFile(s) {
@@ -101,7 +104,7 @@ function normFile(s) {
     .replace(/[^a-z0-9\u4e00-\u9fff]/g, "");
 }
 
-/** 给孤儿 ROM 起个标题：数字开头的 PS 游戏借用同号游戏的标题 */
+/** 给孤儿 ROM 起标题：数字开头的 PS 游戏借用同号游戏的标题 */
 function titleFor(name, games) {
   const base = name.replace(/\.[^.]+$/, "");
   const m = base.match(/^(\d+)/);
@@ -116,7 +119,7 @@ function titleFor(name, games) {
 }
 
 // ---------- 处理单个平台 ----------
-async function processPlatform(platform, fix) {
+async function processPlatform(platform) {
   const baseRel = `Roms/${platform}`;
   const baseAbs = `${MOUNT}/${baseRel}`;
 
@@ -132,7 +135,9 @@ async function processPlatform(platform, fix) {
     if (!fileSet.has(f.toLowerCase())) missing.push({ game: g, file: f });
   }
   const referenced = new Set(games.map((g) => baseName(g.file).toLowerCase()));
-  const orphans = files.filter((f) => !referenced.has(f.toLowerCase()) && !/^games\.json$/i.test(f) && !/^media-map\.json$/i.test(f));
+  const orphans = files.filter(
+    (f) => !referenced.has(f.toLowerCase()) && !/^games\.json$/i.test(f) && !/^media-map\.json$/i.test(f),
+  );
 
   // 近似修复：缺失文件 ↔ 孤儿（扩展名不同等）
   const orphanByNorm = new Map();
@@ -145,7 +150,7 @@ async function processPlatform(platform, fix) {
   const trulyMissing = [];
   const fixedOrphans = new Set();
   for (const m of missing) {
-    const cand = (orphanByNorm.get(normFile(m.file)) ?? []).find((o) => isRom(o) || ROM_EXTS.includes(extOf(o)));
+    const cand = (orphanByNorm.get(normFile(m.file)) ?? []).find((o) => isRom(o));
     if (cand) {
       fixes.push({ from: m.file, to: cand });
       fixedOrphans.add(cand);
@@ -157,23 +162,48 @@ async function processPlatform(platform, fix) {
   // 剩余可收录的孤儿 ROM
   const toAdd = orphans.filter((o) => isRom(o) && !fixedOrphans.has(o));
 
-  const result = { platform, games: games.length, files: files.length, fixes, trulyMissing, toAdd, changed: false };
+  const result = {
+    platform,
+    games: games.length,
+    files: files.length,
+    fixes,
+    trulyMissing,
+    toAdd,
+    removed: 0,
+    added: 0,
+    changed: false,
+  };
 
-  if (fix && (fixes.length || toAdd.length)) {
+  if (FIX && (fixes.length || (PRUNE && trulyMissing.length) || (ADD && toAdd.length))) {
     await writeText(`${baseAbs}/games.json.bak`, gamesJsonText);
+
+    // 1) 修正引用
     for (const fx of fixes) {
       for (const g of games) {
         if (baseName(g.file).toLowerCase() === fx.from.toLowerCase()) g.file = fx.to;
       }
     }
-    const existingTitles = new Set(games.map((g) => g.title));
-    for (const name of toAdd) {
-      const title = titleFor(name, games);
-      if (existingTitles.has(title)) continue;
-      existingTitles.add(title);
-      games.push({ title, file: name });
+
+    // 2) 移除服务器上不存在的条目
+    let kept = games;
+    if (PRUNE) {
+      kept = games.filter((g) => fileSet.has(baseName(g.file).toLowerCase()));
+      result.removed = games.length - kept.length;
     }
-    gamesJson.games = games;
+
+    // 3) 收录孤儿 ROM
+    if (ADD) {
+      const existingTitles = new Set(kept.map((g) => g.title));
+      for (const name of toAdd) {
+        const title = titleFor(name, kept);
+        if (existingTitles.has(title)) continue;
+        existingTitles.add(title);
+        kept.push({ title, file: name });
+        result.added++;
+      }
+    }
+
+    gamesJson.games = kept;
     await writeText(`${baseAbs}/games.json`, JSON.stringify(gamesJson, null, 2));
     result.changed = true;
   }
@@ -186,7 +216,7 @@ const platforms = target === "all" ? manifest.platforms ?? [] : [target];
 
 const lines = [];
 for (const platform of platforms) {
-  const r = await processPlatform(platform, FIX);
+  const r = await processPlatform(platform);
   lines.push(`================ ${platform} ================`);
   lines.push(`游戏数: ${r.games} | 服务器文件数: ${r.files}`);
   lines.push(`缺失文件（会 404）: ${r.trulyMissing.length}`);
@@ -195,10 +225,14 @@ for (const platform of platforms) {
   for (const fx of r.fixes) lines.push(`  ~ ${fx.from}  ->  ${fx.to}`);
   lines.push(`可收录的孤儿 ROM: ${r.toAdd.length}`);
   for (const o of r.toAdd) lines.push(`  + ${o}`);
-  if (FIX) lines.push(`已写入 games.json: ${r.changed ? "是" : "无改动"}`);
+  if (FIX) {
+    lines.push(`已写入 games.json: ${r.changed ? "是" : "无改动"}`);
+    if (r.changed) lines.push(`  移除 ${r.removed} 条 | 新增 ${r.added} 条`);
+  }
   lines.push("");
   console.log(
-    `${platform}: 缺失 ${r.trulyMissing.length} | 可修复 ${r.fixes.length} | 可收录 ${r.toAdd.length}${FIX ? (r.changed ? " [已修复]" : " [无改动]") : ""}`,
+    `${platform}: 缺失 ${r.trulyMissing.length} | 可修复 ${r.fixes.length} | 可收录 ${r.toAdd.length}` +
+      (FIX ? ` [${r.changed ? `已对齐：-${r.removed} +${r.added}` : "无改动"}]` : ""),
   );
 }
 
