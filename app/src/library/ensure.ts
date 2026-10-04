@@ -9,12 +9,38 @@ import type { Game } from "./scan";
 
 const ARCHIVE_EXTS = ["zip", "7z"];
 
-/** 下载目录：全局设置优先，其次存储源设置，最后程序数据目录。 */
+/** 默认下载目录只解析一次（Rust 侧也会缓存，这里避免重复 invoke）。 */
+let defaultDirPromise: Promise<string> | null = null;
+function defaultDownloadDir(): Promise<string> {
+  if (!defaultDirPromise) {
+    defaultDirPromise = tauri.defaultDownloadDir().catch((e) => {
+      defaultDirPromise = null;
+      throw e;
+    });
+  }
+  return defaultDirPromise;
+}
+
+/** 下载目录：全局设置优先，其次存储源设置，最后程序/用户数据目录。 */
 export async function getDownloadDir(source?: SourceConfig): Promise<string> {
   const global = useStore.getState().downloadDir;
   if (global && global.trim() !== "") return global.trim();
   if (source?.downloadDir && source.downloadDir.trim() !== "") return source.downloadDir.trim();
-  return tauri.defaultDownloadDir();
+  return defaultDownloadDir();
+}
+
+/** 资源源的短标识（隔离各源的媒体缓存，避免切换资源源时串源）。 */
+function sourceSlug(provider: StorageProvider): string {
+  let h = 5381;
+  for (let i = 0; i < provider.key.length; i++) {
+    h = ((h << 5) + h + provider.key.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(16);
+}
+
+/** 媒体缓存根目录（所有资源源共用这一层，下面按源标识分目录）。 */
+export async function mediaCacheRoot(): Promise<string> {
+  return joinPath(await getDownloadDir(), ".cache", "media");
 }
 
 /** 默认运行平台 → 文件夹名（可在 manifest.json 的 osFolders 里覆盖）。 */
@@ -174,7 +200,7 @@ async function firstRomFile(dir: string): Promise<string | undefined> {
 /** 在途下载去重：同一目标只下载一次 */
 const inFlight = new Map<string, Promise<string>>();
 
-/** 确保媒体文件（封面/视频）在本地；返回本地绝对路径（远程则按资源结构镜像下载）。 */
+/** 确保媒体文件（封面/视频）在本地；返回本地绝对路径。 */
 export async function ensureLocalMedia(
   provider: StorageProvider,
   relPath: string,
@@ -184,8 +210,9 @@ export async function ensureLocalMedia(
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
   const dl = await getDownloadDir();
-  // 与下载资源一致：镜像服务器结构，如 <下载目录>/Roms/GBA/media/<游戏>/video.mp4
-  const dest = joinPath(dl, relPath);
+  // 媒体缓存：<下载目录>/.cache/media/<源标识>/<镜像路径>
+  // 带上源标识，切换到另一个资源源时不会命中旧源的缓存。
+  const dest = joinPath(dl, ".cache", "media", sourceSlug(provider), relPath);
   if (await tauri.fileExists(dest)) return dest;
 
   const running = inFlight.get(dest);

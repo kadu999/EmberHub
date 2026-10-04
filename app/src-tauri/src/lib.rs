@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 use url::Url;
 
@@ -255,14 +255,74 @@ fn emit_download_progress(app: &tauri::AppHandle, path: &str, downloaded: u64, t
     );
 }
 
-/// 默认下载目录：程序所在目录（其下包含 Roms/ 与 Emulators/）。
+/// 目录是否可写（用探针文件判断，用于选择便携下载目录）。
+fn is_writable(dir: &std::path::Path) -> bool {
+    let probe = dir.join(".emberhub-write-test");
+    let ok = std::fs::write(&probe, b"").is_ok();
+    if ok {
+        let _ = std::fs::remove_file(&probe);
+    }
+    ok
+}
+
+/// 默认下载目录：优先程序目录（便携）；不可写（如装在 Program Files）时回退到用户数据目录。
 #[tauri::command]
-fn default_download_dir() -> Result<String, String> {
-    let exe = std::env::current_exe().map_err(|e| format!("无法获取程序路径: {}", e))?;
-    let dir = exe
-        .parent()
-        .ok_or_else(|| "无法获取程序目录".to_string())?;
-    Ok(dir.to_string_lossy().to_string())
+fn default_download_dir(app: tauri::AppHandle) -> Result<String, String> {
+    static CACHE: OnceLock<String> = OnceLock::new();
+    if let Some(dir) = CACHE.get() {
+        return Ok(dir.clone());
+    }
+
+    let resolved: Result<String, String> = (|| {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                if is_writable(dir) {
+                    return Ok(dir.to_string_lossy().to_string());
+                }
+            }
+        }
+        app.path()
+            .app_local_data_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .map_err(|e| format!("无法获取用户数据目录: {}", e))
+    })();
+
+    if let Ok(dir) = &resolved {
+        let _ = CACHE.set(dir.clone());
+    }
+    resolved
+}
+
+/// 递归计算文件/目录大小（字节），用于展示缓存占用。
+#[tauri::command]
+fn path_size(path: String) -> Result<u64, String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Ok(0);
+    }
+    if p.is_file() {
+        return Ok(std::fs::metadata(p).map(|m| m.len()).unwrap_or(0));
+    }
+    let mut total: u64 = 0;
+    let mut stack = vec![p.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let rd = match std::fs::read_dir(&dir) {
+            Ok(rd) => rd,
+            Err(_) => continue,
+        };
+        for entry in rd.flatten() {
+            let meta = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if meta.is_dir() {
+                stack.push(entry.path());
+            } else {
+                total += meta.len();
+            }
+        }
+    }
+    Ok(total)
 }
 
 /// 路径是否存在（文件或目录）。
@@ -452,6 +512,7 @@ pub fn run() {
             webdav_read_text,
             webdav_download,
             default_download_dir,
+            path_size,
             path_exists,
             file_exists,
             ensure_dir,

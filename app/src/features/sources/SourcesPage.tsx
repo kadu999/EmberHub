@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { tauri } from "../../lib/tauri";
+import { mediaCacheRoot } from "../../library/ensure";
 import type { SourceConfig, StorageKind } from "../../storage/types";
 
 interface Props {
@@ -18,6 +19,14 @@ const DEFAULT_PASS = "12345";
 interface Mount {
   path: string;
   name: string;
+}
+
+function formatSize(n: number | null): string {
+  if (n === null) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 ** 3).toFixed(2)} GB`;
 }
 
 export function SourcesPage({ onClose }: Props) {
@@ -44,6 +53,35 @@ export function SourcesPage({ onClose }: Props) {
   const [password, setPassword] = useState(initial?.password ?? DEFAULT_PASS);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
+  const [cacheSize, setCacheSize] = useState<number | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  async function refreshCacheSize() {
+    try {
+      setCacheSize(await tauri.pathSize(await mediaCacheRoot()));
+    } catch {
+      setCacheSize(null);
+    }
+  }
+
+  // 下载目录变化时刷新缓存占用
+  useEffect(() => {
+    void refreshCacheSize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downloadDir]);
+
+  async function clearMediaCache() {
+    setClearing(true);
+    try {
+      await tauri.removePath(await mediaCacheRoot());
+      await refreshCacheSize();
+      setMessage({ ok: true, text: "媒体缓存已清理" });
+    } catch (e) {
+      setMessage({ ok: false, text: `清理失败：${String(e)}` });
+    } finally {
+      setClearing(false);
+    }
+  }
 
   /** 只填 IP:端口 也能用，自动补 http:// 并去掉结尾斜杠。 */
   function normalizeServer(v: string): string {
@@ -171,6 +209,22 @@ export function SourcesPage({ onClose }: Props) {
         <p className="hint">
           当前默认：<code>{defaultDir || "程序所在目录"}</code>
         </p>
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>媒体缓存</h3>
+        <p className="hint">
+          看过的封面/视频会缓存到本地，下次直接读取。当前占用：
+          <code>{formatSize(cacheSize)}</code>
+        </p>
+        <div className="actions">
+          <button className="ghost small" onClick={() => void refreshCacheSize()}>
+            刷新
+          </button>
+          <button className="ghost small" disabled={clearing} onClick={() => void clearMediaCache()}>
+            {clearing ? "清理中…" : "清理媒体缓存"}
+          </button>
+        </div>
       </div>
 
       <div className="card">

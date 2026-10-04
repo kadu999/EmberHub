@@ -42,6 +42,7 @@ export const tauri = {
   webdavDownload: (auth: DavAuth, path: string, dest: string) =>
     invoke<number>("webdav_download", { ...auth, path, dest }),
   defaultDownloadDir: () => invoke<string>("default_download_dir"),
+  pathSize: (path: string) => invoke<number>("path_size", { path }),
   pathExists: (path: string) => invoke<boolean>("path_exists", { path }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
   ensureDir: (path: string) => invoke<void>("ensure_dir", { path }),
