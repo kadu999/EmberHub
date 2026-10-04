@@ -34,16 +34,6 @@ export function parseManifest(text: string): Manifest {
   return { platforms: o.platforms as string[], mediaVariants, osFolders };
 }
 
-/** Roms/<平台>/media-map.json：{ 游戏标题: "media/目录" }，标题与目录名对不上时用 */
-export function parseMediaMap(text: string): Record<string, string> {
-  const o = asObject(text, "media-map.json");
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(o)) {
-    if (typeof v === "string" && v.trim() !== "") out[k] = v.trim();
-  }
-  return out;
-}
-
 export function parsePlatformGames(text: string, fallbackPlatform: string): PlatformGames {
   const o = asObject(text, "games.json");
   if (!Array.isArray(o.games)) throw new Error("games.json 的 games 应为数组");

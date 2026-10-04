@@ -5,7 +5,7 @@
 //   - 哪些 media 目录被多个游戏共用（可能是模糊匹配过宽）
 //
 // 匹配逻辑与 app/src/library/scan.ts 一致：
-//   games.json 的 media 字段 > Roms/<平台>/media-map.json > 按标题自动匹配（含去掉 mediaVariants 后缀）
+//   games.json 的 media 字段 > 按标题自动匹配（含去掉 mediaVariants 后缀）
 //
 // 用法：
 //   node scripts/check-media.mjs PS1
@@ -162,8 +162,6 @@ async function checkPlatform(platform, variantRe) {
   } catch (e) {
     return { platform, error: `读取 games.json 失败: ${e.message}` };
   }
-  let mediaMap = {};
-  try { mediaMap = JSON.parse(await readText(`${baseAbs}/media-map.json`)); } catch { /* 无 */ }
 
   const media = await listDirs(`${baseAbs}/media`);
   const index = new Map(media.map((n) => [n.toLowerCase(), n]));
@@ -172,7 +170,7 @@ async function checkPlatform(platform, variantRe) {
   const unmatched = [];
   for (const g of games) {
     const file = `${baseRel}/${(g.file ?? "").replace(/\\/g, "/")}`;
-    const explicit = g.media ?? mediaMap[g.title] ?? "";
+    const explicit = g.media ?? "";
     const dir = explicit.replace(/^media\//i, "").replace(/\/+$/, "");
     let matched = dir ? index.get(dir.toLowerCase()) : undefined;
     if (!matched) {

@@ -2,7 +2,7 @@
 // 封面/视频不在扫描阶段解析（避免大量目录请求），改为显示时懒加载并缓存。
 import type { StorageProvider } from "../storage/types";
 import { basename, isAbsolute, joinPath, stripExt } from "../lib/path";
-import { parseManifest, parseMediaMap, parsePlatformGames } from "./parse";
+import { parseManifest, parsePlatformGames } from "./parse";
 import { DEFAULT_MEDIA_VARIANTS, buildVariantRegex, matchMediaDir } from "./media-match";
 import { clearMediaCache } from "./media-cache";
 
@@ -121,21 +121,11 @@ async function scanPlatform(
     return { games: [], warnings };
   }
 
-  // media 目录索引 + 可选的 media-map.json + 平台文件列表并行请求
-  const [index, mediaMapText, fileSet] = await Promise.all([
+  // media 目录索引 + 平台文件列表并行请求
+  const [index, fileSet] = await Promise.all([
     mediaIndex(provider, baseDir, mediaCache),
-    provider.readText(joinPath(baseDir, "media-map.json")).catch(() => ""),
     listPlatformFiles(provider, baseDir),
   ]);
-
-  let mediaMap: Record<string, string> = {};
-  if (mediaMapText) {
-    try {
-      mediaMap = parseMediaMap(mediaMapText);
-    } catch {
-      // 映射文件损坏时忽略
-    }
-  }
 
   const games: Game[] = [];
   for (const gm of pg.games) {
@@ -157,8 +147,8 @@ async function scanPlatform(
       available: fileSet ? fileSet.has(basename(file).toLowerCase()) : undefined,
     };
 
-    // media 目录：games.json 的 media > media-map.json > 模糊匹配（都校验目录确实存在）
-    const explicit = gm.media ?? mediaMap[gm.title] ?? "";
+    // media 目录：games.json 的 media 字段 > 按标题模糊匹配（都校验目录确实存在）
+    const explicit = gm.media ?? "";
     const explicitDir = explicit.replace(/^media\//i, "").replace(/\/+$/, "");
     const explicitHit = explicitDir ? index.get(explicitDir.toLowerCase()) : undefined;
     if (explicitHit) {

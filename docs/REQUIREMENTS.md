@@ -120,17 +120,15 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 - 目录：`Roms/<平台>/media/<游戏名>/`
 - 约定文件名：`boxFront.*`（封面）、`logo.*`、`video.*`（视频）等，支持 png/jpg/jpeg/webp、mp4/webm
-- 媒体目录匹配优先级：① `games.json` 的 `media` 字段 → ② `Roms/<平台>/media-map.json` → ③ 按标题自动匹配（会先去掉 `mediaVariants` 后缀再匹配）
+- 媒体目录匹配优先级：① `games.json` 的 `media` 字段 → ② 按标题自动匹配（会先去掉 `mediaVariants` 后缀再匹配）
 
-**显式指定媒体目录**（标题与目录名对不上时用）：
-
-- `games.json` 单个游戏里写 `"media": "media/目录名"`（重新生成 games.json 会丢）
-- 或写进 `Roms/<平台>/media-map.json`（推荐，重新生成 games.json 不影响）：
+**显式指定媒体目录**（标题与目录名对不上时用）：在 `games.json` 的单个游戏里写 `"media": "media/目录名"`：
 
 ```json
 {
-  "恶魔城历代记 HACK": "media/恶魔城年代记 汉化版",
-  "生化危机1 重制版 HACK": "media/生化危机 导演剪辑震动版 汉化版"
+  "title": "恶魔城历代记 HACK",
+  "file": "恶魔城历代记 HACK.chd",
+  "media": "media/恶魔城年代记 汉化版"
 }
 ```
 
