@@ -1,6 +1,6 @@
 // 确保资源就位：模拟器（按平台，带版本比对）与 ROM（断点续传 + 自动解压）。
 import { tauri } from "../lib/tauri";
-import { basename, dirname, extname, joinPath, stripExt } from "../lib/path";
+import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../lib/path";
 import { useStore } from "../store";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { parseEmulatorConfig, parseManifest, parsePlatformMap } from "./parse";
@@ -64,23 +64,87 @@ export interface EmulatorInstall {
   config: EmulatorConfig;
 }
 
-/** 确保某平台的模拟器已下载并解压；版本不同则更新。 */
-export async function ensureEmulator(
-  provider: StorageProvider,
-  source: SourceConfig,
-  platform: string,
-  onStatus?: (s: string) => void,
-): Promise<EmulatorInstall> {
+/** Emulators/<运行平台> 目录（相对存储源根）。 */
+async function emulatorOsRoot(provider: StorageProvider, source: SourceConfig): Promise<string> {
   const emuRoot = (source.emulatorsPath ?? "Emulators").trim() || "Emulators";
-  // 运行平台文件夹名：manifest.json 的 osFolders 可覆盖
   let osFolders: Record<string, string> | undefined;
   try {
     osFolders = parseManifest(await provider.readText("manifest.json")).osFolders;
   } catch {
     // 忽略
   }
-  const hostOs = osFolder(await tauri.hostOs(), osFolders);
-  const osRoot = joinPath(emuRoot, hostOs);
+  return joinPath(emuRoot, osFolder(await tauri.hostOs(), osFolders));
+}
+
+/** 本地模拟器安装目录 + 版本戳路径。 */
+async function emulatorLocal(source: SourceConfig, platform: string) {
+  const dl = await getDownloadDir(source);
+  const dir = joinPath(dl, "Emulators", platform);
+  return { dir, stampPath: joinPath(dir, ".installed.json") };
+}
+
+async function installedVersion(stampPath: string): Promise<string | undefined> {
+  if (!(await tauri.pathExists(stampPath))) return undefined;
+  try {
+    return (JSON.parse(await tauri.readTextFile(stampPath)) as { version?: string }).version;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 模拟器信息（服务器配置 + 本地安装状态）。 */
+export interface EmulatorInfo {
+  /** 模拟器平台（Emulators/<OS>/ 下的文件夹名） */
+  platform: string;
+  version: string;
+  archive: string;
+  exe: string;
+  installed: boolean;
+  installedVersion?: string;
+}
+
+/** 列出该运行平台下的所有模拟器及其安装状态。 */
+export async function listEmulators(
+  provider: StorageProvider,
+  source: SourceConfig,
+): Promise<EmulatorInfo[]> {
+  const osRoot = await emulatorOsRoot(provider, source);
+  let dirs: string[];
+  try {
+    dirs = (await provider.list(osRoot)).filter((e) => e.isDir).map((e) => e.name);
+  } catch {
+    return [];
+  }
+  const out: EmulatorInfo[] = [];
+  for (const platform of dirs) {
+    try {
+      const config = parseEmulatorConfig(await provider.readText(joinPath(osRoot, platform, "config.json")));
+      const { stampPath } = await emulatorLocal(source, platform);
+      const ver = await installedVersion(stampPath);
+      out.push({
+        platform,
+        version: config.version,
+        archive: config.archive,
+        exe: config.exe,
+        installed: ver !== undefined,
+        installedVersion: ver,
+      });
+    } catch {
+      // 没有 config.json 的目录跳过
+    }
+  }
+  return out.sort((a, b) => a.platform.localeCompare(b.platform));
+}
+
+/** 确保某平台的模拟器已下载并解压；force=true 时强制重新下载（更新）。 */
+export async function ensureEmulator(
+  provider: StorageProvider,
+  source: SourceConfig,
+  platform: string,
+  onStatus?: (s: string) => void,
+  force = false,
+): Promise<EmulatorInstall> {
+  const osRoot = await emulatorOsRoot(provider, source);
 
   // 平台映射（该运行平台目录下的 platforms.json；无则同名）
   let emuPlatform = platform;
@@ -100,15 +164,11 @@ export async function ensureEmulator(
   const stampPath = joinPath(localDir, ".installed.json");
 
   // 版本比对：已安装且版本一致则直接用
-  if (await tauri.pathExists(stampPath)) {
-    try {
-      const stamp = JSON.parse(await tauri.readTextFile(stampPath)) as { version?: string };
-      if (stamp.version === config.version) {
-        onStatus?.(`模拟器已就绪（${config.version}）`);
-        return { dir: localDir, config };
-      }
-    } catch {
-      // 记录损坏，重新安装
+  if (!force) {
+    const ver = await installedVersion(stampPath);
+    if (ver === config.version) {
+      onStatus?.(`模拟器已就绪（${config.version}）`);
+      return { dir: localDir, config };
     }
   }
 
@@ -127,6 +187,27 @@ export async function ensureEmulator(
   await tauri.extractArchive(localArchive, localDir);
   await tauri.writeTextFile(stampPath, JSON.stringify({ version: config.version }));
   return { dir: localDir, config };
+}
+
+/** 删除本地模拟器（安装目录 + 压缩包缓存）。 */
+export async function removeEmulator(source: SourceConfig, platform: string): Promise<void> {
+  const dl = await getDownloadDir(source);
+  await tauri.removePath(joinPath(dl, "Emulators", platform));
+  await tauri.removePath(joinPath(dl, ".cache", "Emulators", platform));
+}
+
+/** 直接打开模拟器（不启动游戏，用于进模拟器设置）。会先确保已安装。 */
+export async function openEmulator(
+  provider: StorageProvider,
+  source: SourceConfig,
+  platform: string,
+  onStatus?: (s: string) => void,
+): Promise<void> {
+  const { dir, config } = await ensureEmulator(provider, source, platform, onStatus);
+  const exe = nativePath(isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe));
+  const workdir = nativePath(config.workdir ? joinPath(dir, config.workdir) : dirname(exe));
+  onStatus?.("打开模拟器…");
+  await tauri.launchEmulator(exe, [], workdir);
 }
 
 /** 确保 ROM 在本地；返回本地绝对路径（压缩包会自动解压）。 */

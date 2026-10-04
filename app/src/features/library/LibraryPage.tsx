@@ -20,6 +20,8 @@ interface Props {
   onOpenSettings: () => void;
   settingsOpen: boolean;
   onCloseSettings: () => void;
+  emulatorsOpen: boolean;
+  onCloseEmulators: () => void;
   menuOpen: boolean;
   onOpenMenu: () => void;
   onCloseMenu: () => void;
@@ -57,6 +59,8 @@ export function LibraryPage({
   onOpenSettings,
   settingsOpen,
   onCloseSettings,
+  emulatorsOpen,
+  onCloseEmulators,
   menuOpen,
   onOpenMenu,
   onCloseMenu,
@@ -190,6 +194,13 @@ export function LibraryPage({
     }
     if (settingsOpen) {
       if (action === "menu" || action === "back") onCloseSettings();
+      else if (action === "up") moveFocus(".settings-panel", -1);
+      else if (action === "down") moveFocus(".settings-panel", 1);
+      else if (action === "confirm") activateFocused();
+      return;
+    }
+    if (emulatorsOpen) {
+      if (action === "menu" || action === "back") onCloseEmulators();
       else if (action === "up") moveFocus(".settings-panel", -1);
       else if (action === "down") moveFocus(".settings-panel", 1);
       else if (action === "confirm") activateFocused();

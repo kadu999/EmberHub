@@ -41,3 +41,9 @@ export function stripExt(p: string): string {
 export function isAbsolute(p: string): boolean {
   return /^[a-zA-Z]:[\\/]/.test(p) || /^[\\/]/.test(p) || /^[a-z]+:\/\//i.test(p);
 }
+
+/** Windows 上部分模拟器（如 PCSX2）不认正斜杠路径，需要转成反斜杠。 */
+const IS_WINDOWS = typeof navigator !== "undefined" && /windows/i.test(navigator.userAgent);
+export function nativePath(p: string): string {
+  return IS_WINDOWS ? p.replace(/\//g, "\\") : p;
+}

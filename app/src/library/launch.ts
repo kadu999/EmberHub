@@ -2,7 +2,7 @@
 // 启动命令来源：Roms 的 launch 优先 → 否则用 Emulators 的 config.json。
 // 不配置模拟器、不管理模拟器生命周期（不关闭、不重启）。
 import { tauri } from "../lib/tauri";
-import { basename, dirname, isAbsolute, joinPath, stripExt } from "../lib/path";
+import { basename, dirname, isAbsolute, joinPath, nativePath, stripExt } from "../lib/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { ensureEmulator, ensureRom } from "./ensure";
 import type { Game } from "./scan";
@@ -45,12 +45,6 @@ export function substitute(cmd: string, abs: string): string {
     .replace(/\{file\.name\}/g, basename(abs))
     .replace(/\{file\.basename\}/g, stripExt(basename(abs)))
     .replace(/\{file\.dir\}/g, dirname(abs));
-}
-
-/** Windows 上部分模拟器（如 PCSX2）不认正斜杠路径，需要转成反斜杠。 */
-const IS_WINDOWS = typeof navigator !== "undefined" && /windows/i.test(navigator.userAgent);
-function nativePath(p: string): string {
-  return IS_WINDOWS ? p.replace(/\//g, "\\") : p;
 }
 
 export interface LaunchPlan {
