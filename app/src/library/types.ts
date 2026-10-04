@@ -11,6 +11,8 @@ export interface GameMeta {
   title: string;
   file: string;
   cover?: string;
+  /** 显式指定媒体目录（相对平台目录，如 media/xxx）；缺省则按标题自动匹配 */
+  media?: string;
   developer?: string;
   publisher?: string;
   genre?: string;

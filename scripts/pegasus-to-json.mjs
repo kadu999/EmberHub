@@ -64,6 +64,9 @@ function convert(text, platform) {
       case "files":
         cur.files.push(...e.values);
         break;
+      case "assets.box_front":
+        cur.boxFront = e.values[0] ?? "";
+        break;
       case "developer":
       case "developers":
         cur.developers.push(...e.values);
@@ -89,6 +92,10 @@ function convert(text, platform) {
   const outGames = games
     .map((g) => {
       const o = { title: g.title, file: g.files[0] ?? "" };
+      if (g.boxFront) {
+        const i = g.boxFront.lastIndexOf("/");
+        if (i > 0) o.media = g.boxFront.slice(0, i);
+      }
       if (g.developers.length) o.developer = g.developers.join(", ");
       if (g.genres.length) o.genre = g.genres.join(", ");
       if (g.players) o.players = /^\d+$/.test(g.players) ? Number(g.players) : g.players;

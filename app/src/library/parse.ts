@@ -41,6 +41,7 @@ export function parsePlatformGames(text: string, fallbackPlatform: string): Plat
       title,
       file,
       cover: str(gg.cover),
+      media: str(gg.media),
       developer: str(gg.developer),
       publisher: str(gg.publisher),
       genre: str(gg.genre),

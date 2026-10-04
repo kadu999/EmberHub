@@ -222,8 +222,12 @@ export async function scanLibrary(
         _baseDir: baseDir,
       };
 
-      // 懒加载：只记录 media 子目录，不在这里列目录
-      if (!game.coverPath) {
+      // media 目录：显式指定优先（校验目录确实存在），否则按标题模糊匹配
+      const explicit = gm.media ? gm.media.replace(/^media\//i, "").replace(/\/+$/, "") : "";
+      const explicitHit = explicit ? index.get(explicit.toLowerCase()) : undefined;
+      if (explicitHit) {
+        game.mediaDir = joinPath(baseDir, "media", explicitHit);
+      } else if (!game.coverPath) {
         const candidates = [game.title];
         if (file) {
           const f = file.replace(/\\/g, "/");
