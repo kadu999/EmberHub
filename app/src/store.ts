@@ -1,4 +1,4 @@
-// 全局状态：存储源与当前选中源（持久化到 localStorage）。
+// 全局状态：唯一资源源（OpenList 或 本地，二选一）与下载目录（持久化到 localStorage）。
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SourceConfig } from "./storage/types";
@@ -25,21 +25,14 @@ function migrateSource(s: unknown): SourceConfig | null {
   return null;
 }
 
-function sanitizeSources(sources: unknown): SourceConfig[] {
-  if (!Array.isArray(sources)) return [];
-  return sources.map(migrateSource).filter((s): s is SourceConfig => s !== null);
-}
-
 interface AppStore {
-  sources: SourceConfig[];
-  activeSourceId: string | null;
+  /** 唯一资源源（OpenList 或 本地） */
+  source: SourceConfig | null;
   /** 下载目录（空 = 使用程序目录） */
   downloadDir: string;
   /** 扫描信号：自增以请求游戏库重新扫描 */
   scanToken: number;
-  addSource: (s: SourceConfig) => void;
-  removeSource: (id: string) => void;
-  setActiveSource: (id: string | null) => void;
+  setSource: (s: SourceConfig | null) => void;
   setDownloadDir: (dir: string) => void;
   requestScan: () => void;
 }
@@ -47,35 +40,31 @@ interface AppStore {
 export const useStore = create<AppStore>()(
   persist(
     (set) => ({
-      sources: [],
-      activeSourceId: null,
+      source: null,
       downloadDir: "",
       scanToken: 0,
-      addSource: (s) =>
-        set((st) => ({
-          sources: [...st.sources, s],
-          activeSourceId: st.activeSourceId ?? s.id,
-        })),
-      removeSource: (id) =>
-        set((st) => ({
-          sources: st.sources.filter((x) => x.id !== id),
-          activeSourceId: st.activeSourceId === id ? null : st.activeSourceId,
-        })),
-      setActiveSource: (id) => set({ activeSourceId: id }),
+      setSource: (s) => set({ source: s }),
       setDownloadDir: (dir) => set({ downloadDir: dir }),
       requestScan: () => set((st) => ({ scanToken: st.scanToken + 1 })),
     }),
     {
       name: "emberhub",
-      // 合并时过滤掉不支持的存储源，避免旧数据（如已移除的 FTP）导致渲染崩溃
+      // 兼容旧数据：sources[] + activeSourceId → 单个 source
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<AppStore>;
-        const sources = sanitizeSources(p.sources);
-        const activeSourceId =
-          p.activeSourceId && sources.some((s) => s.id === p.activeSourceId)
-            ? p.activeSourceId
-            : null;
-        return { ...current, ...p, sources, activeSourceId };
+        const p = (persisted ?? {}) as Record<string, unknown>;
+        let src = migrateSource(p.source);
+        if (!src) {
+          const arr = Array.isArray(p.sources) ? p.sources : [];
+          const active =
+            arr.find((s) => (s as { id?: string })?.id === p.activeSourceId) ?? arr[0];
+          src = migrateSource(active);
+        }
+        return {
+          ...current,
+          source: src,
+          downloadDir: typeof p.downloadDir === "string" ? p.downloadDir : current.downloadDir,
+          scanToken: typeof p.scanToken === "number" ? p.scanToken : current.scanToken,
+        };
       },
     },
   ),

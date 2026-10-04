@@ -1,4 +1,4 @@
-// 设置页：存储源配置（OpenList / 本地文件夹）。
+// 设置页：唯一资源源配置（OpenList / 本地文件夹，二选一）。
 // 默认隐藏，按 F1 打开。
 import { useEffect, useState } from "react";
 import { useStore } from "../../store";
@@ -10,17 +10,7 @@ interface Props {
   onClose?: () => void;
 }
 
-function uid(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function describe(s: SourceConfig): string {
-  if (s.kind === "openlist") return `${s.server ?? ""}${s.mountPath ?? ""}`;
-  return s.root ?? "";
-}
-
-// OpenList 表单默认值：预填，可直接修改后再添加
+// OpenList 表单默认值：预填，可直接修改
 const DEFAULT_SERVER = "127.0.0.1:5244";
 const DEFAULT_USER = "admin";
 const DEFAULT_PASS = "12345";
@@ -31,30 +21,27 @@ interface Mount {
 }
 
 export function SourcesPage({ onClose }: Props) {
-  const {
-    sources,
-    activeSourceId,
-    addSource,
-    removeSource,
-    setActiveSource,
-    downloadDir,
-    setDownloadDir,
-    requestScan,
-  } = useStore();
+  const setSource = useStore((s) => s.setSource);
+  const downloadDir = useStore((s) => s.downloadDir);
+  const setDownloadDir = useStore((s) => s.setDownloadDir);
+  const requestScan = useStore((s) => s.requestScan);
+
+  // 打开设置时用当前资源源初始化表单（面板每次 F1 都会重新挂载）
+  const initial = useStore.getState().source;
 
   const [defaultDir, setDefaultDir] = useState("");
   useEffect(() => {
     tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
   }, []);
 
-  const [kind, setKind] = useState<StorageKind>("openlist");
-  const [root, setRoot] = useState("");
-  const [server, setServer] = useState(DEFAULT_SERVER);
-  const [mountPath, setMountPath] = useState("");
+  const [kind, setKind] = useState<StorageKind>(initial?.kind ?? "openlist");
+  const [root, setRoot] = useState(initial?.kind === "local" ? initial.root ?? "" : "");
+  const [server, setServer] = useState(initial?.server ?? DEFAULT_SERVER);
+  const [mountPath, setMountPath] = useState(initial?.mountPath ?? "");
   const [mounts, setMounts] = useState<Mount[]>([]);
   const [loadingMounts, setLoadingMounts] = useState(false);
-  const [username, setUsername] = useState(DEFAULT_USER);
-  const [password, setPassword] = useState(DEFAULT_PASS);
+  const [username, setUsername] = useState(initial?.username ?? DEFAULT_USER);
+  const [password, setPassword] = useState(initial?.password ?? DEFAULT_PASS);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
@@ -100,17 +87,11 @@ export function SourcesPage({ onClose }: Props) {
   function buildConfig(): SourceConfig | null {
     if (kind === "local") {
       if (!root.trim()) return null;
-      return {
-        id: uid(),
-        name: "本地文件夹",
-        kind,
-        romsPath: "Roms",
-        root: root.trim(),
-      };
+      return { id: "main", name: "本地文件夹", kind, romsPath: "Roms", root: root.trim() };
     }
     if (!normalizeServer(server) || !mountPath) return null;
     return {
-      id: uid(),
+      id: "main",
       name: mountPath.replace(/^\//, "") || "OpenList",
       kind,
       romsPath: "Roms",
@@ -135,20 +116,15 @@ export function SourcesPage({ onClose }: Props) {
     }
   }
 
-  async function add() {
+  function save() {
     const cfg = buildConfig();
     if (!cfg) {
       setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
       return;
     }
-    addSource(cfg);
-    setRoot("");
-    setServer(DEFAULT_SERVER);
-    setMountPath("");
-    setMounts([]);
-    setUsername(DEFAULT_USER);
-    setPassword(DEFAULT_PASS);
-    setMessage({ ok: true, text: "已添加存储源" });
+    setSource(cfg);
+    requestScan();
+    setMessage({ ok: true, text: "已保存" });
   }
 
   return (
@@ -172,9 +148,7 @@ export function SourcesPage({ onClose }: Props) {
           )}
         </div>
       </div>
-      <p className="hint">
-        资源服务器用 OpenList。填地址（IP:端口）后获取资源源列表，选一个即可。游戏库放在「游戏目录」下。
-      </p>
+      <p className="hint">资源服务器二选一：OpenList 或 本地文件夹。游戏库放在「游戏目录」（默认 Roms）下。</p>
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>下载目录</h3>
@@ -266,7 +240,7 @@ export function SourcesPage({ onClose }: Props) {
         )}
 
         <div className="actions">
-          <button onClick={add}>添加</button>
+          <button onClick={save}>保存</button>
           <button
             className="ghost"
             disabled={testing}
@@ -282,27 +256,6 @@ export function SourcesPage({ onClose }: Props) {
 
         {message && <p className={message.ok ? "ok" : "error"}>{message.text}</p>}
       </div>
-
-      <h3>已配置（{sources.length}）</h3>
-      <ul className="source-list">
-        {sources.map((s) => (
-          <li key={s.id} className={s.id === activeSourceId ? "active" : ""}>
-            <label className="radio">
-              <input
-                type="radio"
-                checked={s.id === activeSourceId}
-                onChange={() => setActiveSource(s.id)}
-              />
-              <span className="src-name">{s.name}</span>
-            </label>
-            <span className="src-detail">{describe(s)}</span>
-            <button className="ghost small" onClick={() => removeSource(s.id)}>
-              删除
-            </button>
-          </li>
-        ))}
-        {sources.length === 0 && <li className="empty">还没有存储源</li>}
-      </ul>
     </div>
   );
 }

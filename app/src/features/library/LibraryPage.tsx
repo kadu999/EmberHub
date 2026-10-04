@@ -19,8 +19,7 @@ interface Props {
 }
 
 export function LibraryPage({ onOpenSettings }: Props) {
-  const { sources, activeSourceId, scanToken } = useStore();
-  const source = sources.find((s) => s.id === activeSourceId) ?? null;
+  const { source, scanToken } = useStore();
   const provider = useMemo(() => (source ? createProvider(source) : null), [source]);
 
   const [result, setResult] = useState<ScanResult | null>(null);
