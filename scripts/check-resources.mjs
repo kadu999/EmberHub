@@ -43,7 +43,7 @@ const MOUNT = getArg("--mount", "/EmberHub_Baidu").replace(/\/+$/, "");
 
 // 视为 ROM 的扩展名
 const ROM_EXTS = [
-  "zip", "7z", "chd", "iso", "bin", "cue", "img", "ccd", "gcm", "pbp", "m3u",
+  "zip", "7z", "chd", "iso", "bin", "cue", "img", "ccd", "gcm", "pbp", "m3u", "cdi", "gdi", "nrg",
   "gba", "gbc", "gb", "nds", "3ds", "cia", "cso", "rvz", "wbfs", "wad", "nsp", "xci",
   "n64", "z64", "sfc", "smc", "md", "gen", "nes", "pce", "gg", "sms",
 ];
