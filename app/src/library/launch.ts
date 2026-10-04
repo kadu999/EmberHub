@@ -47,6 +47,12 @@ export function substitute(cmd: string, abs: string): string {
     .replace(/\{file\.dir\}/g, dirname(abs));
 }
 
+/** Windows 上部分模拟器（如 PCSX2）不认正斜杠路径，需要转成反斜杠。 */
+const IS_WINDOWS = typeof navigator !== "undefined" && /windows/i.test(navigator.userAgent);
+function nativePath(p: string): string {
+  return IS_WINDOWS ? p.replace(/\//g, "\\") : p;
+}
+
 export interface LaunchPlan {
   exe: string;
   args: string[];
@@ -73,7 +79,7 @@ export async function launchGame(
 ): Promise<void> {
   // 1) Roms 的 launch 优先（自定义命令，默认解压压缩包）
   if (game.launch && game.launch.trim() !== "") {
-    const romAbs = await ensureRom(provider, source, game, onStatus, true);
+    const romAbs = nativePath(await ensureRom(provider, source, game, onStatus, true));
     const plan = buildLaunchPlan(game.launch, romAbs);
     onStatus?.("启动中…");
     await tauri.launchEmulator(plan.exe, plan.args, plan.workdir);
@@ -82,10 +88,10 @@ export async function launchGame(
 
   // 2) 否则用 Emulators/<平台>/config.json；是否解压由 config.extract 决定（默认解压）
   const { dir, config } = await ensureEmulator(provider, source, game.collection, onStatus);
-  const romAbs = await ensureRom(provider, source, game, onStatus, config.extract !== false);
-  const exe = isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe);
+  const romAbs = nativePath(await ensureRom(provider, source, game, onStatus, config.extract !== false));
+  const exe = nativePath(isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe));
   const args = (config.args ?? []).map((a) => substitute(a, romAbs));
-  const workdir = config.workdir ? joinPath(dir, config.workdir) : dirname(exe);
+  const workdir = nativePath(config.workdir ? joinPath(dir, config.workdir) : dirname(exe));
   onStatus?.("启动中…");
   await tauri.launchEmulator(exe, args, workdir);
 }
