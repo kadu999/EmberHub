@@ -18,12 +18,6 @@ export interface DavEntry {
   modified: string | null;
 }
 
-export interface AppInfo {
-  name: string;
-  version: string;
-  tagline: string;
-}
-
 export interface DavAuth {
   root: string;
   username: string;
@@ -31,24 +25,18 @@ export interface DavAuth {
 }
 
 export const tauri = {
-  /** 读取应用信息 */
-  appInfo: () => invoke<AppInfo>("app_info"),
-
   /** 当前运行平台（windows / linux / macos / android / ios） */
   hostOs: () => invoke<string>("host_os"),
 
   // ---- 本地文件系统 ----
   listLocalDir: (path: string) => invoke<LocalEntry[]>("list_local_dir", { path }),
   readLocalText: (path: string) => invoke<string>("read_local_text", { path }),
-  readLocalBase64: (path: string) => invoke<string>("read_local_base64", { path }),
 
   // ---- WebDAV ----
   webdavList: (auth: DavAuth, path: string) =>
     invoke<DavEntry[]>("webdav_list", { ...auth, path }),
   webdavReadText: (auth: DavAuth, path: string) =>
     invoke<string>("webdav_read_text", { ...auth, path }),
-  webdavReadBase64: (auth: DavAuth, path: string) =>
-    invoke<string>("webdav_read_base64", { ...auth, path }),
 
   // ---- 下载 / 解压 / 本地文件 ----
   webdavDownload: (auth: DavAuth, path: string, dest: string) =>
@@ -61,8 +49,6 @@ export const tauri = {
   writeTextFile: (path: string, content: string) =>
     invoke<void>("write_text_file", { path, content }),
   removePath: (path: string) => invoke<void>("remove_path", { path }),
-  extractZip: (zipPath: string, destDir: string) =>
-    invoke<void>("extract_zip", { zipPath, destDir }),
   extractArchive: (path: string, destDir: string) =>
     invoke<void>("extract_archive", { path, destDir }),
 

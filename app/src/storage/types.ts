@@ -46,12 +46,12 @@ export interface RemoteEntry {
 
 export interface StorageProvider {
   readonly kind: StorageKind;
+  /** 稳定标识（kind + 根地址），用于缓存 key */
+  readonly key: string;
   /** 列出某路径下的条目（path 为相对根的 posix 路径，"" 表示根） */
   list(path: string): Promise<RemoteEntry[]>;
   /** 读取文本文件 */
   readText(path: string): Promise<string>;
-  /** 读取文件并返回 data URL（用于图片） */
-  readFileDataUrl(path: string): Promise<string>;
   /** 把相对路径解析为本地绝对路径（仅本地源支持；远程源返回 undefined） */
   absolute?(path: string): string | undefined;
   /** 把远端文件下载到本地 dest（远程源实现；本地源无需） */

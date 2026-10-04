@@ -5,8 +5,11 @@ import type { RemoteEntry, StorageProvider } from "../types";
 
 export class LocalProvider implements StorageProvider {
   readonly kind = "local" as const;
+  readonly key: string;
 
-  constructor(private readonly root: string) {}
+  constructor(private readonly root: string) {
+    this.key = `local:${root}`;
+  }
 
   async list(path: string): Promise<RemoteEntry[]> {
     const abs = path ? joinPath(this.root, path) : this.root;
@@ -22,10 +25,6 @@ export class LocalProvider implements StorageProvider {
 
   readText(path: string): Promise<string> {
     return tauri.readLocalText(joinPath(this.root, path));
-  }
-
-  readFileDataUrl(path: string): Promise<string> {
-    return tauri.readLocalBase64(joinPath(this.root, path));
   }
 
   absolute(path: string): string {

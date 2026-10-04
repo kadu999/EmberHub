@@ -1,6 +1,5 @@
 // 虚拟网格：只渲染可见区域的项，支持动态加载/卸载。
-import { useEffect, useRef, useState, type ReactNode } from "react";
-
+import { useEffect, useRef, useState, type ReactNode, type UIEvent } from "react";
 interface Props<T> {
   items: T[];
   /** 最小列宽 */
@@ -25,6 +24,8 @@ export function VirtualGrid<T>({
   renderItem,
 }: Props<T>) {
   const ref = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingTop = useRef(0);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [scrollTop, setScrollTop] = useState(0);
 
@@ -35,8 +36,21 @@ export function VirtualGrid<T>({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     update();
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
+
+  // 滚动用 rAF 节流，避免每个 scroll 事件都触发一次 React 重渲染
+  const onScroll = (e: UIEvent<HTMLDivElement>) => {
+    pendingTop.current = e.currentTarget.scrollTop;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      setScrollTop(pendingTop.current);
+    });
+  };
 
   const cols = Math.max(1, Math.floor((size.width + gap) / (minColWidth + gap)));
   const colWidth = cols > 0 ? (size.width - gap * (cols - 1)) / cols : minColWidth;
@@ -73,11 +87,7 @@ export function VirtualGrid<T>({
   }
 
   return (
-    <div
-      ref={ref}
-      className="vgrid"
-      onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
-    >
+    <div ref={ref} className="vgrid" onScroll={onScroll}>
       <div style={{ position: "relative", height: totalHeight }}>{cells}</div>
     </div>
   );

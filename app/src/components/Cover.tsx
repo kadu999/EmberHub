@@ -5,6 +5,7 @@ import type { StorageProvider } from "../storage/types";
 import { joinPath } from "../lib/path";
 import { pickCoverName } from "../lib/media";
 import { ensureLocalMedia } from "../library/ensure";
+import { listMediaNames } from "../library/media-cache";
 
 interface Props {
   provider: StorageProvider;
@@ -35,9 +36,9 @@ export function Cover({ provider, path, dir, title }: Props) {
     setFailed(false);
 
     const key = path
-      ? `p:${provider.kind}:${path}`
+      ? `p:${provider.key}:${path}`
       : dir
-        ? `d:${provider.kind}:${dir}`
+        ? `d:${provider.key}:${dir}`
         : null;
     if (!key) return;
 
@@ -51,9 +52,7 @@ export function Cover({ provider, path, dir, title }: Props) {
       let target = path;
       try {
         if (!target && dir) {
-          const names = (await provider.list(dir))
-            .filter((e) => !e.isDir)
-            .map((e) => e.name);
+          const names = await listMediaNames(provider, dir);
           const pick = pickCoverName(names);
           if (pick) target = joinPath(dir, pick);
         }

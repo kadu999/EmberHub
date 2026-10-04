@@ -3,14 +3,27 @@
 // 详见 docs/ARCHITECTURE.md
 
 use std::process::Command;
+use std::sync::OnceLock;
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 use url::Url;
+
+/// 全局复用的 HTTP 客户端：连接池 + 连接超时。
+/// 之前每次请求都 `Client::new()`，无法复用 TCP/TLS 连接，扫描时请求一多就明显变慢。
+fn http_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .pool_max_idle_per_host(16)
+            .build()
+            .expect("failed to build HTTP client")
+    })
+}
 
 // ---------------------------------------------------------------------------
 // 本地文件系统
@@ -69,13 +82,6 @@ fn read_local_text(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("failed to read `{}`: {}", path, e))
 }
 
-/// 读取本地图片，返回 data URL。
-#[tauri::command]
-fn read_local_base64(path: String) -> Result<String, String> {
-    let bytes = std::fs::read(&path).map_err(|e| format!("failed to read `{}`: {}", path, e))?;
-    Ok(to_data_url(&path, &bytes))
-}
-
 // ---------------------------------------------------------------------------
 // WebDAV（对接 OpenList / NAS / Nextcloud）
 // ---------------------------------------------------------------------------
@@ -88,27 +94,6 @@ pub struct DavEntry {
     pub is_dir: bool,
     pub size: u64,
     pub modified: Option<String>,
-}
-
-fn guess_mime(path: &str) -> &'static str {
-    let ext = path
-        .rsplit('.')
-        .next()
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        "bmp" => "image/bmp",
-        "svg" => "image/svg+xml",
-        _ => "application/octet-stream",
-    }
-}
-
-fn to_data_url(path: &str, bytes: &[u8]) -> String {
-    format!("data:{};base64,{}", guess_mime(path), STANDARD.encode(bytes))
 }
 
 /// 把根地址和相对路径拼成完整 URL（自动做百分号编码）。
@@ -201,7 +186,7 @@ async fn webdav_list(
     path: String,
 ) -> Result<Vec<DavEntry>, String> {
     let url = dav_join(&root, &path)?;
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"PROPFIND").map_err(|e| e.to_string())?,
@@ -243,7 +228,7 @@ async fn webdav_read_text(
     path: String,
 ) -> Result<String, String> {
     let url = dav_join(&root, &path)?;
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(&url)
         .basic_auth(&username, Some(&password))
@@ -256,32 +241,6 @@ async fn webdav_read_text(
     resp.text()
         .await
         .map_err(|e| format!("WebDAV 响应读取失败: {}", e))
-}
-
-/// 读取 WebDAV 图片，返回 data URL。
-#[tauri::command]
-async fn webdav_read_base64(
-    root: String,
-    username: String,
-    password: String,
-    path: String,
-) -> Result<String, String> {
-    let url = dav_join(&root, &path)?;
-    let client = reqwest::Client::new();
-    let resp = client
-        .get(&url)
-        .basic_auth(&username, Some(&password))
-        .send()
-        .await
-        .map_err(|e| format!("WebDAV request failed: {}", e))?;
-    if !resp.status().is_success() {
-        return Err(format!("WebDAV 返回 HTTP {}：{}", resp.status(), url));
-    }
-    let bytes = resp
-        .bytes()
-        .await
-        .map_err(|e| format!("WebDAV 响应读取失败: {}", e))?;
-    Ok(to_data_url(&path, &bytes))
 }
 
 // ---------------------------------------------------------------------------
@@ -376,12 +335,6 @@ fn extract_zip_impl(zip_path: &str, dest_dir: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// 解压 zip 到目标目录。
-#[tauri::command]
-fn extract_zip(zip_path: String, dest_dir: String) -> Result<(), String> {
-    extract_zip_impl(&zip_path, &dest_dir)
-}
-
 /// 按扩展名解压压缩包（支持 zip / 7z）。
 #[tauri::command]
 fn extract_archive(path: String, dest_dir: String) -> Result<(), String> {
@@ -410,7 +363,7 @@ async fn webdav_download(
     dest: String,
 ) -> Result<u64, String> {
     let url = dav_join(&root, &path)?;
-    let client = reqwest::Client::new();
+    let client = http_client();
     let part = format!("{}.part", dest);
 
     let mut existing: u64 = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
@@ -481,16 +434,6 @@ async fn webdav_download(
 // 应用信息
 // ---------------------------------------------------------------------------
 
-/// 应用信息，供前端展示。
-#[tauri::command]
-fn app_info() -> serde_json::Value {
-    serde_json::json!({
-        "name": "EmberHub",
-        "version": env!("CARGO_PKG_VERSION"),
-        "tagline": "让每一款老游戏，重新燃烧。",
-    })
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 /// 当前运行平台（编译目标 OS）：windows / linux / macos / android / ios
 #[tauri::command]
@@ -505,10 +448,8 @@ pub fn run() {
             launch_emulator,
             list_local_dir,
             read_local_text,
-            read_local_base64,
             webdav_list,
             webdav_read_text,
-            webdav_read_base64,
             webdav_download,
             default_download_dir,
             path_exists,
@@ -517,9 +458,7 @@ pub fn run() {
             read_text_file,
             write_text_file,
             remove_path,
-            extract_zip,
             extract_archive,
-            app_info,
             host_os
         ])
         .run(tauri::generate_context!())

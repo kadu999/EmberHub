@@ -1,8 +1,10 @@
 // 游戏库扫描：读取自定义 JSON 资源（manifest.json + Roms/<平台>/games.json）。
-// 封面/视频不在扫描阶段解析（避免大量目录请求），改为显示时懒加载。
+// 封面/视频不在扫描阶段解析（避免大量目录请求），改为显示时懒加载并缓存。
 import type { StorageProvider } from "../storage/types";
 import { basename, isAbsolute, joinPath, stripExt } from "../lib/path";
 import { parseManifest, parseMediaMap, parsePlatformGames } from "./parse";
+import { DEFAULT_MEDIA_VARIANTS, buildVariantRegex, matchMediaDir } from "./media-match";
+import { clearMediaCache } from "./media-cache";
 
 export interface Game {
   id: string;
@@ -24,8 +26,6 @@ export interface Game {
   coverPath?: string;
   /** 该游戏对应的 media 子目录（懒加载封面/视频用） */
   mediaDir?: string;
-  /** 内部：Roms/<平台> 目录 */
-  _baseDir?: string;
 }
 
 export interface ScanResult {
@@ -63,224 +63,133 @@ async function mediaIndex(
   return index;
 }
 
-function normalizeKey(s: string): string {
-  return s
-    .replace(/\[[^\]]*\]/g, "")
-    .replace(/\([^)]*\)/g, "")
-    .replace(/[·・．。:：]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-/** 默认的媒体变体后缀（可在 manifest.json 的 mediaVariants 里覆盖）。 */
-export const DEFAULT_MEDIA_VARIANTS = [
-  "部分汉化版",
-  "汉化贴图",
-  "复刻限定版",
-  "汉化版",
-  "英文版",
-  "日文版",
-  "震动版",
-  "平衡版",
-  "RIP版",
-  "重制版",
-  "导剪版",
-  "改版",
-  "HACK",
-];
-
-/** 由变体后缀列表生成匹配正则（长的优先，避免短后缀抢先匹配）。 */
-function buildVariantRegex(variants: string[]): RegExp | null {
-  const esc = variants
-    .filter((v) => v && v.trim() !== "")
-    .map((v) => v.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .sort((a, b) => b.length - a.length);
-  if (esc.length === 0) return null;
-  return new RegExp(`\\s*(${esc.join("|")})\\s*$`, "i");
-}
-
-/** 逐层剥掉变体后缀，返回所有中间形态（如「恶魔城X 平衡版 HACK」→「恶魔城X 平衡版」「恶魔城X」）。 */
-function stripVariantSuffixes(s: string, re: RegExp | null): string[] {
-  if (!re) return [];
-  const out: string[] = [];
-  let cur = s.trim();
-  for (let i = 0; i < 3; i++) {
-    const next = cur.replace(re, "").trim();
-    if (!next || next === cur) break;
-    out.push(next);
-    cur = next;
-  }
-  return out;
-}
-
-/** 在 media 索引里为游戏找匹配目录：精确 → 规整 → 前缀 → 包含。 */
-function matchMediaDir(
-  index: Map<string, string>,
-  candidates: string[],
-  variantRe: RegExp | null,
-): string | undefined {
-  // 展开变体：去掉后缀的基础名也参与匹配，让 HACK 等变体复用基础版封面
-  const expanded = new Set(candidates);
-  for (const c of candidates) for (const s of stripVariantSuffixes(c, variantRe)) expanded.add(s);
-  candidates = [...expanded];
-
-  const raw = candidates.map((c) => c.toLowerCase()).filter((c) => c !== "");
-  for (const c of raw) {
-    const hit = index.get(c);
-    if (hit) return hit;
-  }
-
-  const norm = [...new Set(candidates.map(normalizeKey).filter((s) => s.length >= 2))];
-  for (const n of norm) {
-    const hit = index.get(n);
-    if (hit) return hit;
-  }
-
-  let best: string | undefined;
-  let bestLen = 0;
-
-  // 前缀匹配（标题带后缀、文件夹是基础名，或反之），取最长
-  for (const [key, name] of index) {
-    const k = normalizeKey(key);
-    if (k.length < 3) continue;
-    for (const n of norm) {
-      if (n.length < 3) continue;
-      if (n.startsWith(k) || k.startsWith(n)) {
-        const len = Math.min(k.length, n.length);
-        if (len > bestLen) {
-          best = name;
-          bestLen = len;
-        }
-      }
-    }
-  }
-  if (best) return best;
-
-  // 包含匹配（更宽松）
-  for (const [key, name] of index) {
-    const k = normalizeKey(key);
-    if (k.length < 5) continue;
-    for (const n of norm) {
-      if (n.length < 5) continue;
-      if (n.includes(k) || k.includes(n)) {
-        const len = Math.min(k.length, n.length);
-        if (len > bestLen) {
-          best = name;
-          bestLen = len;
-        }
-      }
-    }
-  }
-  if (best) return best;
-
-  // 词元重叠匹配（处理「…迷宫战记1+2 汉化版」vs「…迷宫战记 汉化版」这类）
-  let bestScore = 0;
-  let bestName: string | undefined;
-  for (const [key, name] of index) {
-    const kt = normalizeKey(key).split(" ").filter(Boolean);
-    if (kt.length === 0) continue;
-    for (const n of norm) {
-      const nt = n.split(" ").filter(Boolean);
-      if (nt.length === 0) continue;
-      let ov = 0;
-      for (const a of kt) {
-        if (nt.some((b) => a === b || a.startsWith(b) || b.startsWith(a))) ov++;
-      }
-      const score = ov / Math.max(kt.length, nt.length);
-      if (ov >= 2 && score > bestScore) {
-        bestScore = score;
-        bestName = name;
-      }
-    }
-  }
-  if (bestName && bestScore >= 0.6) return bestName;
-
-  return undefined;
-}
-
-/** 扫描资源服务器，构建游戏库。romsPath 默认 "Roms"。 */
-export async function scanLibrary(
+/** 扫描单个平台。失败只记录警告，不影响其它平台。 */
+async function scanPlatform(
   provider: StorageProvider,
-  romsPath = "Roms",
-): Promise<ScanResult> {
+  romsPath: string,
+  platform: string,
+  variantRe: RegExp | null,
+  mediaCache: Map<string, Map<string, string>>,
+): Promise<{ games: Game[]; warnings: string[] }> {
+  const baseDir = joinPath(romsPath, platform);
+  const gamesPath = joinPath(baseDir, "games.json");
   const warnings: string[] = [];
-  const games: Game[] = [];
 
+  let text: string;
+  try {
+    text = await provider.readText(gamesPath);
+  } catch (e) {
+    warnings.push(`读取失败：${gamesPath}（${String(e)}）`);
+    return { games: [], warnings };
+  }
+
+  let pg;
+  try {
+    pg = parsePlatformGames(text, platform);
+  } catch (e) {
+    warnings.push(`解析失败：${gamesPath}（${String(e)}）`);
+    return { games: [], warnings };
+  }
+
+  // media 目录索引 + 可选的 media-map.json 并行请求
+  const [index, mediaMapText] = await Promise.all([
+    mediaIndex(provider, baseDir, mediaCache),
+    provider.readText(joinPath(baseDir, "media-map.json")).catch(() => ""),
+  ]);
+
+  let mediaMap: Record<string, string> = {};
+  if (mediaMapText) {
+    try {
+      mediaMap = parseMediaMap(mediaMapText);
+    } catch {
+      // 映射文件损坏时忽略
+    }
+  }
+
+  const games: Game[] = [];
+  for (const gm of pg.games) {
+    const file = normalizeRel(baseDir, gm.file);
+    const game: Game = {
+      id: file,
+      title: gm.title,
+      collection: platform,
+      files: [file],
+      developer: gm.developer,
+      publisher: gm.publisher,
+      genre: gm.genre,
+      players: gm.players !== undefined ? String(gm.players) : undefined,
+      release: gm.release,
+      rating: gm.rating !== undefined ? (gm.rating > 1 ? gm.rating / 100 : gm.rating) : undefined,
+      description: gm.description,
+      launch: gm.launch ?? pg.launch,
+      coverPath: gm.cover ? normalizeRel(baseDir, gm.cover) : undefined,
+    };
+
+    // media 目录：games.json 的 media > media-map.json > 模糊匹配（都校验目录确实存在）
+    const explicit = gm.media ?? mediaMap[gm.title] ?? "";
+    const explicitDir = explicit.replace(/^media\//i, "").replace(/\/+$/, "");
+    const explicitHit = explicitDir ? index.get(explicitDir.toLowerCase()) : undefined;
+    if (explicitHit) {
+      game.mediaDir = joinPath(baseDir, "media", explicitHit);
+    } else if (!game.coverPath) {
+      const candidates = [game.title];
+      if (file) {
+        const f = file.replace(/\\/g, "/");
+        candidates.push(stripExt(basename(f)));
+        const first = f.split("/")[0];
+        if (first && first !== f) candidates.push(first);
+      }
+      const sub = matchMediaDir(index, candidates, variantRe);
+      if (sub) game.mediaDir = joinPath(baseDir, "media", sub);
+    }
+
+    games.push(game);
+  }
+
+  return { games, warnings };
+}
+
+// 同一次扫描（同源 + 同路径）在途去重：React StrictMode 会重复触发 effect，避免扫两遍。
+const scanCache = new Map<string, Promise<ScanResult>>();
+
+async function doScan(provider: StorageProvider, romsPath: string): Promise<ScanResult> {
+  // 重新扫描时清掉媒体目录缓存，确保新增的封面/视频能被发现
+  clearMediaCache();
+
+  const warnings: string[] = [];
   const manifestText = await provider.readText("manifest.json");
   const manifest = parseManifest(manifestText);
   const variantRe = buildVariantRegex(manifest.mediaVariants ?? DEFAULT_MEDIA_VARIANTS);
   const mediaCache = new Map<string, Map<string, string>>();
 
-  for (const platform of manifest.platforms) {
-    const baseDir = joinPath(romsPath, platform);
-    let text: string;
-    try {
-      text = await provider.readText(joinPath(baseDir, "games.json"));
-    } catch (e) {
-      warnings.push(`读取失败：${baseDir}/games.json（${String(e)}）`);
-      continue;
-    }
+  // 各平台并行扫描（请求量大时明显更快）
+  const perPlatform = await Promise.all(
+    manifest.platforms.map((platform) =>
+      scanPlatform(provider, romsPath, platform, variantRe, mediaCache),
+    ),
+  );
 
-    let pg;
-    try {
-      pg = parsePlatformGames(text, platform);
-    } catch (e) {
-      warnings.push(`解析失败：${baseDir}/games.json（${String(e)}）`);
-      continue;
-    }
-
-    const index = await mediaIndex(provider, baseDir, mediaCache);
-
-    // 媒体映射（可选）：标题 → media 目录；手改不会因重新生成 games.json 而丢失
-    let mediaMap: Record<string, string> = {};
-    try {
-      mediaMap = parseMediaMap(await provider.readText(joinPath(baseDir, "media-map.json")));
-    } catch {
-      // 没有映射文件
-    }
-
-    for (const gm of pg.games) {
-      const file = normalizeRel(baseDir, gm.file);
-      const game: Game = {
-        id: file,
-        title: gm.title,
-        collection: platform,
-        files: [file],
-        developer: gm.developer,
-        publisher: gm.publisher,
-        genre: gm.genre,
-        players: gm.players !== undefined ? String(gm.players) : undefined,
-        release: gm.release,
-        rating: gm.rating !== undefined ? (gm.rating > 1 ? gm.rating / 100 : gm.rating) : undefined,
-        description: gm.description,
-        launch: gm.launch ?? pg.launch,
-        coverPath: gm.cover ? normalizeRel(baseDir, gm.cover) : undefined,
-        _baseDir: baseDir,
-      };
-
-      // media 目录：games.json 的 media > media-map.json > 模糊匹配（都校验目录确实存在）
-      const explicit = gm.media ?? mediaMap[gm.title] ?? "";
-      const explicitDir = explicit.replace(/^media\//i, "").replace(/\/+$/, "");
-      const explicitHit = explicitDir ? index.get(explicitDir.toLowerCase()) : undefined;
-      if (explicitHit) {
-        game.mediaDir = joinPath(baseDir, "media", explicitHit);
-      } else if (!game.coverPath) {
-        const candidates = [game.title];
-        if (file) {
-          const f = file.replace(/\\/g, "/");
-          candidates.push(stripExt(basename(f)));
-          const first = f.split("/")[0];
-          if (first && first !== f) candidates.push(first);
-        }
-        const sub = matchMediaDir(index, candidates, variantRe);
-        if (sub) game.mediaDir = joinPath(baseDir, "media", sub);
-      }
-
-      games.push(game);
-    }
+  const games: Game[] = [];
+  for (const r of perPlatform) {
+    games.push(...r.games);
+    warnings.push(...r.warnings);
   }
 
   const collections = Array.from(new Set(games.map((g) => g.collection))).sort();
   return { collections, games, warnings };
+}
+
+/** 扫描资源服务器，构建游戏库。romsPath 默认 "Roms"。 */
+export function scanLibrary(provider: StorageProvider, romsPath = "Roms"): Promise<ScanResult> {
+  const key = `${provider.key}|${romsPath}`;
+  const inflight = scanCache.get(key);
+  if (inflight) return inflight;
+
+  const task = doScan(provider, romsPath);
+  scanCache.set(key, task);
+  task.then(
+    () => scanCache.delete(key),
+    () => scanCache.delete(key),
+  );
+  return task;
 }

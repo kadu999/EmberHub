@@ -1,6 +1,6 @@
 // 游戏库页（默认首页）：左侧信息面板 + 右侧游戏网格。
-// 进入即自动扫描；无头部、无描述文字。
-import { useEffect, useMemo, useState } from "react";
+// 进入即自动扫描；重扫时保留旧数据，避免闪烁成空白。
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -11,6 +11,7 @@ import { Cover } from "../../components/Cover";
 import { VirtualGrid } from "../../components/VirtualGrid";
 import { launchGame } from "../../library/launch";
 import { ensureLocalMedia } from "../../library/ensure";
+import { listMediaNames } from "../../library/media-cache";
 import { joinPath } from "../../lib/path";
 import { pickVideoName } from "../../lib/media";
 
@@ -18,11 +19,15 @@ interface Props {
   onOpenSettings: () => void;
 }
 
+/** 选中游戏切换后，延迟一点再加载视频，避免快速浏览时触发一堆下载。 */
+const VIDEO_DEBOUNCE_MS = 350;
+
 export function LibraryPage({ onOpenSettings }: Props) {
   const { source, scanToken } = useStore();
   const provider = useMemo(() => (source ? createProvider(source) : null), [source]);
 
   const [result, setResult] = useState<ScanResult | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [collection, setCollection] = useState("");
   const [selected, setSelected] = useState<Game | null>(null);
@@ -33,30 +38,33 @@ export function LibraryPage({ onOpenSettings }: Props) {
     total: number | null;
   } | null>(null);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  // 首次进入只加载封面；用户点击某个游戏后才加载视频预览，避免一进来就抢占带宽
+  const [videoArmed, setVideoArmed] = useState(false);
 
   const scanRoot = (source?.romsPath ?? "Roms").trim();
 
-  async function scan() {
+  const scan = useCallback(async () => {
     if (!provider) return;
     setError(null);
-    setResult(null);
-    setSelected(null);
-    setCollection("");
+    setScanning(true);
     try {
       const r = await scanLibrary(provider, scanRoot);
       setResult(r);
-      setSelected(r.games[0] ?? null);
-      setCollection(r.collections[0] ?? "");
+      setCollection((prev) => (r.collections.includes(prev) ? prev : (r.collections[0] ?? "")));
+      setSelected((prev) =>
+        prev && r.games.some((g) => g.id === prev.id) ? prev : (r.games[0] ?? null),
+      );
     } catch (e) {
       setError(String(e));
+    } finally {
+      setScanning(false);
     }
-  }
+  }, [provider, scanRoot]);
 
   // 进入即扫描；scanToken 变化时重扫
   useEffect(() => {
     if (provider && source) void scan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider, source, scanToken]);
+  }, [provider, source, scan, scanToken]);
 
   // 下载进度（ROM / 模拟器）；媒体预览静默下载，不显示进度条
   useEffect(() => {
@@ -78,28 +86,34 @@ export function LibraryPage({ onOpenSettings }: Props) {
   useEffect(() => {
     let alive = true;
     setVideoSrc(null);
-    if (!selected || !provider || !source) return;
-    (async () => {
-      try {
-        let videoRel: string | undefined;
-        if (selected.mediaDir) {
-          const names = (await provider.list(selected.mediaDir))
-            .filter((e) => !e.isDir)
-            .map((e) => e.name);
+    if (!selected || !provider || !source || !selected.mediaDir || !videoArmed) return;
+
+    const dir = selected.mediaDir;
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const names = await listMediaNames(provider, dir);
           const pick = pickVideoName(names);
-          if (pick) videoRel = joinPath(selected.mediaDir!, pick);
+          if (!pick) return;
+          const p = await ensureLocalMedia(provider, joinPath(dir, pick));
+          if (alive) setVideoSrc(convertFileSrc(p));
+        } catch (e) {
+          console.warn("[EmberHub] 视频加载失败:", e);
         }
-        if (!videoRel) return;
-        const p = await ensureLocalMedia(provider, videoRel);
-        if (alive) setVideoSrc(convertFileSrc(p));
-      } catch (e) {
-        console.warn("[EmberHub] 视频加载失败:", e);
-      }
-    })();
+      })();
+    }, VIDEO_DEBOUNCE_MS);
+
     return () => {
       alive = false;
+      clearTimeout(timer);
     };
-  }, [selected, provider, source]);
+  }, [selected, provider, source, videoArmed]);
+
+  const games = result?.games;
+  const filtered = useMemo(
+    () => (games ?? []).filter((g) => g.collection === collection),
+    [games, collection],
+  );
 
   // 未配置存储源
   if (!source || !provider) {
@@ -116,6 +130,18 @@ export function LibraryPage({ onOpenSettings }: Props) {
     );
   }
 
+  // 首次加载（还没有数据，也没报错）
+  if (!result && !error) {
+    return (
+      <div className="page centered">
+        <div className="loading">
+          <span className="spinner" />
+          正在加载游戏库…
+        </div>
+      </div>
+    );
+  }
+
   async function launch(g: Game) {
     setSelected(g);
     setLaunchMsg(null);
@@ -128,23 +154,11 @@ export function LibraryPage({ onOpenSettings }: Props) {
     }
   }
 
-  const games = result?.games ?? [];
-  const filtered = games.filter((g) => g.collection === collection);
-
   return (
     <div className="page">
       {error && <p className="error">{error}</p>}
 
-      <div
-        className="library-layout"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "clamp(240px, 24vw, 340px) minmax(0, 1fr)",
-          gridTemplateRows: "1fr",
-          gap: 24,
-          alignItems: "stretch",
-        }}
-      >
+      <div className="library-layout">
         {/* 左侧：信息面板 */}
         <aside className="detail-panel">
           {selected && (
@@ -208,6 +222,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 {c}
               </button>
             ))}
+            {scanning && <span className="refresh-badge">刷新中…</span>}
           </div>
 
           {result && result.warnings.length > 0 && (
@@ -233,6 +248,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 onClick={() => {
                   setLaunchMsg(null);
                   setSelected(g);
+                  setVideoArmed(true);
                 }}
                 onDoubleClick={() => launch(g)}
               >

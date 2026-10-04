@@ -5,10 +5,12 @@ import type { RemoteEntry, StorageProvider } from "../types";
 
 export class WebDavProvider implements StorageProvider {
   readonly kind = "openlist" as const;
+  readonly key: string;
   private readonly auth: DavAuth;
 
   constructor(url: string, username: string, password: string) {
     this.auth = { root: url, username, password };
+    this.key = `openlist:${url}`;
   }
 
   async list(path: string): Promise<RemoteEntry[]> {
@@ -24,10 +26,6 @@ export class WebDavProvider implements StorageProvider {
 
   readText(path: string): Promise<string> {
     return tauri.webdavReadText(this.auth, path);
-  }
-
-  readFileDataUrl(path: string): Promise<string> {
-    return tauri.webdavReadBase64(this.auth, path);
   }
 
   downloadTo(path: string, dest: string): Promise<number> {
