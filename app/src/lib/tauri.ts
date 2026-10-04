@@ -30,6 +30,8 @@ export const tauri = {
 
   // ---- 本地文件系统 ----
   listLocalDir: (path: string) => invoke<LocalEntry[]>("list_local_dir", { path }),
+  /** 递归列出目录下所有文件（相对 root 的 posix 路径） */
+  listLocalFiles: (path: string) => invoke<string[]>("list_local_files", { path }),
 
   // ---- WebDAV ----
   webdavList: (auth: DavAuth, path: string) =>

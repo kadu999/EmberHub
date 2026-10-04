@@ -1,6 +1,8 @@
 // 手柄支持：轮询 Gamepad API，把按键 / 摇杆映射成高层动作。
 // 标准 Gamepad API 按键索引（Xbox 布局，PlayStation 位置对应）。
+// 映射可在 src/config.json 的 gamepad 段调整，无需改代码。
 import { useEffect, useRef, useState } from "react";
+import { APP_CONFIG } from "../config";
 
 export type GamepadAction =
   | "up"
@@ -14,28 +16,40 @@ export type GamepadAction =
   | "next"
   | "fullscreen";
 
+const VALID_ACTIONS: readonly GamepadAction[] = [
+  "up",
+  "down",
+  "left",
+  "right",
+  "confirm",
+  "back",
+  "menu",
+  "prev",
+  "next",
+  "fullscreen",
+];
+
+/** 把配置里的 { "索引": "动作" } 转成可用的按键映射（非法项忽略）。 */
+function toActions(src: Record<string, string>): Record<number, GamepadAction> {
+  const out: Record<number, GamepadAction> = {};
+  for (const [key, action] of Object.entries(src)) {
+    const idx = Number(key);
+    if (Number.isInteger(idx) && (VALID_ACTIONS as readonly string[]).includes(action)) {
+      out[idx] = action as GamepadAction;
+    }
+  }
+  return out;
+}
+
+const GP = APP_CONFIG.gamepad;
 /** 离散按键（按下沿触发一次） */
-const BUTTON_ACTIONS: Record<number, GamepadAction> = {
-  0: "confirm", // A / ✕
-  1: "back", // B / ○
-  3: "fullscreen", // Y / △
-  4: "prev", // LB / L1
-  5: "next", // RB / R1
-  8: "menu", // Select / View
-  9: "menu", // Start / Menu
-};
-
+const BUTTON_ACTIONS = toActions(GP.buttons);
 /** 十字键（长按重复） */
-const DPAD_ACTIONS: Record<number, GamepadAction> = {
-  12: "up",
-  13: "down",
-  14: "left",
-  15: "right",
-};
+const DPAD_ACTIONS = toActions(GP.dpad);
 
-const AXIS_DEADZONE = 0.5;
-const REPEAT_FIRST_MS = 380; // 长按后首次重复的延迟
-const REPEAT_EVERY_MS = 110; // 之后的重复间隔
+const AXIS_DEADZONE = GP.axisDeadzone;
+const REPEAT_FIRST_MS = GP.repeatFirstMs; // 长按后首次重复的延迟
+const REPEAT_EVERY_MS = GP.repeatEveryMs; // 之后的重复间隔
 
 function dirFromPad(pad: Gamepad): GamepadAction | null {
   for (const [idx, action] of Object.entries(DPAD_ACTIONS)) {

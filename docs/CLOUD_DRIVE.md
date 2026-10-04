@@ -158,3 +158,21 @@ A：确认服务器根目录有 `manifest.json`，且 `Roms/<平台>/games.json`
 
 **Q：夸克/115 下载很慢？**
 A：这些驱动走本地代理，需 OpenList 所在机器带宽足够；优先用支持 302 的驱动。
+
+---
+
+## 六、维护脚本（可选）
+
+`scripts/` 下有若干资源维护脚本。**默认参数统一放在 `scripts/config.json`**（也可继续用命令行参数覆盖），键：`server` / `user` / `pass` / `mount` / `romsDir` / `ffmpeg` / `ffprobe`。
+
+> 首次使用先复制模板：`copy scripts\config.example.json scripts\config.json`（该文件已被 gitignore，不会提交账号）。
+
+| 脚本 | 作用 |
+|---|---|
+| `check-resources.mjs <平台\|all> [--fix\|--add\|--prune\|--reconcile]` | 审计 / 对齐 ROM 文件与 `games.json` |
+| `check-media.mjs <平台\|all>` | 审计媒体（封面）匹配情况 |
+| `fix-media-video.mjs <平台...> [--apply]` | 把 WebView2 不支持编码的视频转 H.264 |
+| `pack-media.mjs <源目录> <输出目录>` | 整理天马风格媒体包为 EmberHub 目录结构 |
+| `pegasus-to-json.mjs <metadata.pegasus.txt> <平台> <games.json>` | 天马 metadata → games.json |
+
+媒体匹配算法在 `scripts/lib/media-match.mjs`，与 app 侧（`app/src/library/media-match.ts`）规则一致。

@@ -2,15 +2,23 @@
 // 封面/视频不在扫描阶段解析（避免大量目录请求），改为显示时懒加载并缓存。
 import type { StorageProvider } from "../storage/types";
 import { basename, isAbsolute, joinPath, stripExt } from "../lib/path";
-import { parseManifest, parsePlatformGames } from "./parse";
+import { parsePlatformGames } from "./parse";
 import { DEFAULT_MEDIA_VARIANTS, buildVariantRegex, matchMediaDir } from "./media-match";
 import { clearMediaCache } from "./media-cache";
+import {
+  clearResourceConfigCache,
+  loadResourceConfig,
+  setActiveResourceConfig,
+  type ResourceConfig,
+} from "./resource-config";
 
 export interface Game {
   id: string;
   title: string;
   /** 平台（Roms 下的文件夹名） */
   collection: string;
+  /** 平台显示名（games.json 的 name，缺省为 collection） */
+  platformName?: string;
   files: string[];
   developer?: string;
   publisher?: string;
@@ -22,6 +30,8 @@ export interface Game {
   description?: string;
   /** 启动命令（游戏级或平台级，Roms 优先） */
   launch?: string;
+  /** 使用 Roms 级 launch 时是否解压 ROM 压缩包（默认 true） */
+  extract?: boolean;
   /** 显式指定的封面路径（games.json 里的 cover） */
   coverPath?: string;
   /** 该游戏对应的 media 子目录（懒加载封面/视频用） */
@@ -47,9 +57,10 @@ function normalizeRel(baseDir: string, file: string): string {
 async function mediaIndex(
   provider: StorageProvider,
   baseDir: string,
+  cfg: ResourceConfig,
   cache: Map<string, Map<string, string>>,
 ): Promise<Map<string, string>> {
-  const mediaDir = joinPath(baseDir, "media");
+  const mediaDir = joinPath(baseDir, cfg.media.dir);
   let index = cache.get(mediaDir);
   if (!index) {
     index = new Map();
@@ -69,15 +80,17 @@ async function mediaIndex(
 async function listPlatformFiles(
   provider: StorageProvider,
   baseDir: string,
+  cfg: ResourceConfig,
 ): Promise<Set<string> | null> {
   try {
     const set = new Set<string>();
+    const mediaDirName = cfg.media.dir.toLowerCase();
     const walk = async (dir: string, depth: number): Promise<void> => {
       const entries = await provider.list(dir);
       const subdirs: string[] = [];
       for (const e of entries) {
         if (e.isDir) {
-          if (e.name.toLowerCase() !== "media") subdirs.push(e.path);
+          if (e.name.toLowerCase() !== mediaDirName) subdirs.push(e.path);
         } else {
           set.add(e.name.toLowerCase());
         }
@@ -86,7 +99,7 @@ async function listPlatformFiles(
         await Promise.all(subdirs.map((d) => walk(d, depth - 1)));
       }
     };
-    await walk(baseDir, 2);
+    await walk(baseDir, cfg.fileDepth);
     return set;
   } catch {
     return null;
@@ -100,9 +113,10 @@ async function scanPlatform(
   platform: string,
   variantRe: RegExp | null,
   mediaCache: Map<string, Map<string, string>>,
+  cfg: ResourceConfig,
 ): Promise<{ games: Game[]; warnings: string[] }> {
   const baseDir = joinPath(romsPath, platform);
-  const gamesPath = joinPath(baseDir, "games.json");
+  const gamesPath = joinPath(baseDir, cfg.files.games);
   const warnings: string[] = [];
 
   let text: string;
@@ -123,9 +137,12 @@ async function scanPlatform(
 
   // media 目录索引 + 平台文件列表并行请求
   const [index, fileSet] = await Promise.all([
-    mediaIndex(provider, baseDir, mediaCache),
-    listPlatformFiles(provider, baseDir),
+    mediaIndex(provider, baseDir, cfg, mediaCache),
+    listPlatformFiles(provider, baseDir, cfg),
   ]);
+
+  const mediaDirAbs = joinPath(baseDir, cfg.media.dir);
+  const mediaPrefix = cfg.media.dir.toLowerCase() + "/";
 
   const games: Game[] = [];
   for (const gm of pg.games) {
@@ -134,25 +151,35 @@ async function scanPlatform(
       id: file,
       title: gm.title,
       collection: platform,
+      platformName: pg.name ?? platform,
       files: [file],
       developer: gm.developer,
       publisher: gm.publisher,
       genre: gm.genre,
       players: gm.players !== undefined ? String(gm.players) : undefined,
       release: gm.release,
-      rating: gm.rating !== undefined ? (gm.rating > 1 ? gm.rating / 100 : gm.rating) : undefined,
+      rating:
+        gm.rating !== undefined
+          ? gm.rating > 1
+            ? gm.rating / cfg.ratingScale
+            : gm.rating
+          : undefined,
       description: gm.description,
       launch: gm.launch ?? pg.launch,
+      extract: gm.extract ?? pg.extract,
       coverPath: gm.cover ? normalizeRel(baseDir, gm.cover) : undefined,
       available: fileSet ? fileSet.has(basename(file).toLowerCase()) : undefined,
     };
 
     // media 目录：games.json 的 media 字段 > 按标题模糊匹配（都校验目录确实存在）
     const explicit = gm.media ?? "";
-    const explicitDir = explicit.replace(/^media\//i, "").replace(/\/+$/, "");
+    const stripped = explicit.toLowerCase().startsWith(mediaPrefix)
+      ? explicit.slice(mediaPrefix.length)
+      : explicit;
+    const explicitDir = stripped.replace(/\/+$/, "");
     const explicitHit = explicitDir ? index.get(explicitDir.toLowerCase()) : undefined;
     if (explicitHit) {
-      game.mediaDir = joinPath(baseDir, "media", explicitHit);
+      game.mediaDir = joinPath(mediaDirAbs, explicitHit);
     } else if (!game.coverPath) {
       const candidates = [game.title];
       if (file) {
@@ -162,7 +189,7 @@ async function scanPlatform(
         if (first && first !== f) candidates.push(first);
       }
       const sub = matchMediaDir(index, candidates, variantRe);
-      if (sub) game.mediaDir = joinPath(baseDir, "media", sub);
+      if (sub) game.mediaDir = joinPath(mediaDirAbs, sub);
     }
 
     games.push(game);
@@ -175,19 +202,22 @@ async function scanPlatform(
 const scanCache = new Map<string, Promise<ScanResult>>();
 
 async function doScan(provider: StorageProvider, romsPath: string): Promise<ScanResult> {
-  // 重新扫描时清掉媒体目录缓存，确保新增的封面/视频能被发现
+  // 重新扫描时清掉缓存，确保新增的封面/视频、改动过的 manifest 能被发现
   clearMediaCache();
+  clearResourceConfigCache();
 
   const warnings: string[] = [];
-  const manifestText = await provider.readText("manifest.json");
-  const manifest = parseManifest(manifestText);
-  const variantRe = buildVariantRegex(manifest.mediaVariants ?? DEFAULT_MEDIA_VARIANTS);
+  const cfg = await loadResourceConfig(provider, true);
+  setActiveResourceConfig(cfg);
+  const variantRe = buildVariantRegex(
+    cfg.mediaVariants.length ? cfg.mediaVariants : DEFAULT_MEDIA_VARIANTS,
+  );
   const mediaCache = new Map<string, Map<string, string>>();
 
   // 各平台并行扫描（请求量大时明显更快）
   const perPlatform = await Promise.all(
-    manifest.platforms.map((platform) =>
-      scanPlatform(provider, romsPath, platform, variantRe, mediaCache),
+    cfg.platforms.map((platform) =>
+      scanPlatform(provider, romsPath, platform, variantRe, mediaCache, cfg),
     ),
   );
 
@@ -199,7 +229,7 @@ async function doScan(provider: StorageProvider, romsPath: string): Promise<Scan
 
   // 平台顺序跟随 manifest.platforms（只保留实际有游戏的），未知平台追加在后
   const present = new Set(games.map((g) => g.collection));
-  const collections = manifest.platforms.filter((p) => present.has(p));
+  const collections = cfg.platforms.filter((p) => present.has(p));
   for (const c of present) if (!collections.includes(c)) collections.push(c);
   return { collections, games, warnings };
 }

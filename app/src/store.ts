@@ -1,4 +1,4 @@
-// 全局状态：唯一资源源（OpenList 或 本地，二选一）与下载目录（持久化到 localStorage）。
+// 全局状态：唯一资源源（OpenList/WebDAV）与下载目录（持久化到 localStorage）。
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SourceConfig } from "./storage/types";
@@ -26,7 +26,7 @@ function migrateSource(s: unknown): SourceConfig | null {
 }
 
 interface AppStore {
-  /** 唯一资源源（OpenList 或 本地） */
+  /** 唯一资源源（OpenList/WebDAV） */
   source: SourceConfig | null;
   /** 下载目录（空 = 使用程序目录） */
   downloadDir: string;

@@ -116,7 +116,7 @@ export function EmulatorsPage({ onClose }: Props) {
                 <button
                   className="ghost small"
                   disabled={busy !== null || !e.installed}
-                  onClick={() => run(e.platform, () => removeEmulator(source!, e.platform))}
+                  onClick={() => run(e.platform, () => removeEmulator(provider!, source!, e.platform))}
                 >
                   删除
                 </button>

@@ -14,11 +14,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { SCRIPT_DEFAULTS, getArg, trimUrl } from "./lib/config.mjs";
+import { DEFAULT_MEDIA_VARIANTS, buildVariantRegex, matchMediaDir } from "./lib/media-match.mjs";
 
-function getArg(name, def) {
-  const i = process.argv.indexOf(name);
-  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : def;
-}
 const VALUE_FLAGS = ["--ffmpeg", "--ffprobe", "--limit", "--server", "--user", "--pass", "--mount"];
 const positional = [];
 for (let i = 2; i < process.argv.length; i++) {
@@ -31,15 +29,17 @@ for (let i = 2; i < process.argv.length; i++) {
 }
 
 const APPLY = process.argv.includes("--apply");
-const FFMPEG = getArg("--ffmpeg", "ffmpeg");
-const FFPROBE = getArg("--ffprobe", "ffprobe");
+const FFMPEG = getArg("--ffmpeg", SCRIPT_DEFAULTS.ffmpeg);
+const FFPROBE = getArg("--ffprobe", SCRIPT_DEFAULTS.ffprobe);
 const LIMIT = Number(getArg("--limit", "0")) || 0;
-const SERVER = getArg("--server", "http://127.0.0.1:5244").replace(/\/+$/, "");
-const USER = getArg("--user", "admin");
-const PASS = getArg("--pass", "12345");
-const MOUNT = getArg("--mount", "/EmberHub_Baidu").replace(/\/+$/, "");
+const SERVER = trimUrl(getArg("--server", SCRIPT_DEFAULTS.server));
+const USER = getArg("--user", SCRIPT_DEFAULTS.user);
+const PASS = getArg("--pass", SCRIPT_DEFAULTS.pass);
+const MOUNT = trimUrl(getArg("--mount", SCRIPT_DEFAULTS.mount));
+const ROMS_DIR = SCRIPT_DEFAULTS.romsDir;
 
-const VIDEO_EXTS = ["mp4", "webm", "mkv", "avi", "mov", "m4v"];
+// 视频扩展名可被 manifest.json 的 media.video.exts 覆盖（下面读取 manifest 后设置）
+let VIDEO_EXTS = ["mp4", "webm", "mkv", "avi", "mov", "m4v"];
 // WebView2 能播的编码（这里比对的是 MP4 里的 fourcc）
 const GOOD_CODECS = new Set(["avc1", "hvc1", "hev1", "av01", "vp09"]);
 
@@ -79,11 +79,6 @@ async function upload(p, buf) {
   if (j.code !== 200) throw new Error(`上传失败: ${p} (${j.message})`);
 }
 const davUrl = (rel) => `${SERVER}/dav${MOUNT}/${rel.split("/").map(encodeURIComponent).join("/")}`;
-// 给 ffprobe 用的带认证 URL（http://user:pass@host/...）
-const davUrlAuth = (rel) => {
-  const base = SERVER.replace(/^(https?:\/\/)/, `$1${encodeURIComponent(USER)}:${encodeURIComponent(PASS)}@`);
-  return `${base}/dav${MOUNT}/${rel.split("/").map(encodeURIComponent).join("/")}`;
-};
 const AUTH_HEADER = { Authorization: "Basic " + Buffer.from(`${USER}:${PASS}`).toString("base64") };
 
 /** 抓头/尾片段找编码 fourcc（Range 请求，比 ffprobe 拉整个文件快很多）。 */
@@ -109,99 +104,13 @@ async function detectCodec(rel, size) {
   return "(unknown)";
 }
 
-// ---------- 媒体匹配（与 app/src/library/scan.ts 一致）----------
-const DEFAULT_MEDIA_VARIANTS = [
-  "部分汉化版", "汉化贴图", "复刻限定版", "汉化版", "英文版", "日文版",
-  "震动版", "平衡版", "RIP版", "重制版", "导剪版", "改版", "HACK",
-];
-function normalizeKey(s) {
-  return s
-    .replace(/\[[^\]]*\]/g, "")
-    .replace(/\([^)]*\)/g, "")
-    .replace(/[·・．。:：]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-function buildVariantRegex(variants) {
-  const esc = variants
-    .filter((v) => v && v.trim() !== "")
-    .map((v) => v.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .sort((a, b) => b.length - a.length);
-  return esc.length ? new RegExp(`\\s*(${esc.join("|")})\\s*$`, "i") : null;
-}
-function stripVariantSuffixes(s, re) {
-  if (!re) return [];
-  const out = [];
-  let cur = s.trim();
-  for (let i = 0; i < 3; i++) {
-    const next = cur.replace(re, "").trim();
-    if (!next || next === cur) break;
-    out.push(next);
-    cur = next;
-  }
-  return out;
-}
-function matchMediaDir(index, candidates, variantRe) {
-  const expanded = new Set(candidates);
-  for (const c of candidates) for (const s of stripVariantSuffixes(c, variantRe)) expanded.add(s);
-  candidates = [...expanded];
-  const raw = candidates.map((c) => c.toLowerCase()).filter((c) => c !== "");
-  for (const c of raw) {
-    const hit = index.get(c);
-    if (hit) return hit;
-  }
-  const norm = [...new Set(candidates.map(normalizeKey).filter((s) => s.length >= 2))];
-  for (const n of norm) {
-    const hit = index.get(n);
-    if (hit) return hit;
-  }
-  let best, bestLen = 0;
-  for (const [key, name] of index) {
-    const k = normalizeKey(key);
-    if (k.length < 3) continue;
-    for (const n of norm) {
-      if (n.length < 3) continue;
-      if (n.startsWith(k) || k.startsWith(n)) {
-        const len = Math.min(k.length, n.length);
-        if (len > bestLen) { best = name; bestLen = len; }
-      }
-    }
-  }
-  if (best) return best;
-  for (const [key, name] of index) {
-    const k = normalizeKey(key);
-    if (k.length < 5) continue;
-    for (const n of norm) {
-      if (n.length < 5) continue;
-      if (n.includes(k) || k.includes(n)) {
-        const len = Math.min(k.length, n.length);
-        if (len > bestLen) { best = name; bestLen = len; }
-      }
-    }
-  }
-  if (best) return best;
-  let bestScore = 0, bestName;
-  for (const [key, name] of index) {
-    const kt = normalizeKey(key).split(" ").filter(Boolean);
-    if (kt.length === 0) continue;
-    for (const n of norm) {
-      const nt = n.split(" ").filter(Boolean);
-      if (nt.length === 0) continue;
-      let ov = 0;
-      for (const a of kt) if (nt.some((b) => a === b || a.startsWith(b) || b.startsWith(a))) ov++;
-      const score = ov / Math.max(kt.length, nt.length);
-      if (ov >= 2 && score > bestScore) { bestScore = score; bestName = name; }
-    }
-  }
-  return bestName && bestScore >= 0.6 ? bestName : undefined;
-}
+// 媒体匹配算法（normalizeKey / buildVariantRegex / matchMediaDir）见 ./lib/media-match.mjs
 
 /** 某平台 games.json 里游戏实际用到的 media 目录集合；读不到 games.json 返回 null（= 不限制）。 */
 async function usedMediaDirs(platform, index, variantRe) {
   let games;
   try {
-    const d = await api("/api/fs/get", { path: `${MOUNT}/Roms/${platform}/games.json`, password: "" });
+    const d = await api("/api/fs/get", { path: `${MOUNT}/${ROMS_DIR}/${platform}/${GAMES_FILE}`, password: "" });
     if (!d.data?.raw_url) return null;
     games = JSON.parse(await (await fetch(d.data.raw_url)).text()).games ?? [];
   } catch {
@@ -209,7 +118,9 @@ async function usedMediaDirs(platform, index, variantRe) {
   }
   const used = new Set();
   for (const g of games) {
-    const explicit = String(g.media ?? "").replace(/^media\//i, "").replace(/\/+$/, "");
+    const prefix = MEDIA_DIR.toLowerCase() + "/";
+    const raw = String(g.media ?? "").replace(/\/+$/, "");
+    const explicit = raw.toLowerCase().startsWith(prefix) ? raw.slice(prefix.length) : raw;
     let hit = explicit ? index.get(explicit.toLowerCase()) : undefined;
     if (!hit) {
       const file = String(g.file ?? "").replace(/\\/g, "/");
@@ -231,12 +142,20 @@ let checked = 0;
 let badCount = 0;
 const bad = [];
 
-// manifest 里的 mediaVariants（用于匹配）
+// manifest 约定（mediaVariants / 视频扩展名 / 媒体目录名 / games 文件名）
 let mediaVariants = DEFAULT_MEDIA_VARIANTS;
+let MEDIA_DIR = "media";
+let GAMES_FILE = "games.json";
 try {
   const d = await api("/api/fs/get", { path: `${MOUNT}/manifest.json`, password: "" });
   if (d.data?.raw_url) {
-    mediaVariants = JSON.parse(await (await fetch(d.data.raw_url)).text()).mediaVariants ?? DEFAULT_MEDIA_VARIANTS;
+    const m = JSON.parse(await (await fetch(d.data.raw_url)).text());
+    mediaVariants = m.mediaVariants ?? DEFAULT_MEDIA_VARIANTS;
+    if (Array.isArray(m.media?.video?.exts) && m.media.video.exts.length > 0) {
+      VIDEO_EXTS = m.media.video.exts;
+    }
+    if (m.media?.dir) MEDIA_DIR = m.media.dir;
+    if (m.files?.games) GAMES_FILE = m.files.games;
   }
 } catch {
   /* 忽略 */
@@ -244,7 +163,7 @@ try {
 const variantRe = buildVariantRegex(mediaVariants);
 
 for (const platform of positional) {
-  const mediaRoot = `Roms/${platform}/media`;
+  const mediaRoot = `${ROMS_DIR}/${platform}/${MEDIA_DIR}`;
   let allDirs;
   try {
     allDirs = (await listEntries(`${MOUNT}/${mediaRoot}`)).filter((e) => e.dir).map((e) => e.n);

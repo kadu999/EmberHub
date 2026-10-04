@@ -5,12 +5,14 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../../store";
+import { APP_CONFIG } from "../../config";
 import { createProvider } from "../../storage";
 import { scanLibrary, type Game, type ScanResult } from "../../library/scan";
 import { Cover } from "../../components/Cover";
 import { VirtualGrid, type VirtualGridHandle } from "../../components/VirtualGrid";
 import { launchGame } from "../../library/launch";
 import { ensureLocalMedia } from "../../library/ensure";
+import { listDownloadedGames } from "../../library/local";
 import { listMediaNames } from "../../library/media-cache";
 import { joinPath } from "../../lib/path";
 import { pickVideoName } from "../../lib/media";
@@ -28,7 +30,7 @@ interface Props {
 }
 
 /** 选中游戏切换后，延迟一点再加载视频，避免快速浏览时触发一堆下载。 */
-const VIDEO_DEBOUNCE_MS = 350;
+const VIDEO_DEBOUNCE_MS = APP_CONFIG.videoPreviewDebounceMs;
 
 /** 某个容器内可聚焦的元素（手柄导航用）。 */
 function focusablesIn(selector: string): HTMLElement[] {
@@ -85,6 +87,8 @@ export function LibraryPage({
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   // 是否正在启动（下载/解压/拉起模拟器）
   const [launching, setLaunching] = useState(false);
+  // 本地已下载的游戏 id 集合
+  const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
 
   const scanRoot = (source?.romsPath ?? "Roms").trim();
 
@@ -117,6 +121,22 @@ export function LibraryPage({
   useEffect(() => {
     if (provider && source) void scan();
   }, [provider, source, scan, scanToken]);
+
+  // 本地已下载集合（每次扫描结果更新后刷新，用于卡片「已下载」标记）
+  useEffect(() => {
+    let alive = true;
+    if (!source) {
+      setDownloaded(new Set());
+      return;
+    }
+    (async () => {
+      const set = await listDownloadedGames(source, scanRoot);
+      if (alive) setDownloaded(set);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [source, scanRoot, result]);
 
   // 下载进度（ROM / 模拟器）；媒体预览静默下载，不显示进度条
   useEffect(() => {
@@ -328,6 +348,12 @@ export function LibraryPage({
 
               <div className="detail-scroll">
                 <h3 className="detail-title">{selected.title}</h3>
+                <div className="detail-platform">
+                  {selected.platformName ?? selected.collection}
+                  {selected.available !== false && downloaded.has(selected.id) && (
+                    <span className="detail-downloaded">已下载</span>
+                  )}
+                </div>
                 {selected.available === false && (
                   <p className="detail-missing">服务器上没有该游戏文件，无法启动。</p>
                 )}
@@ -404,10 +430,11 @@ export function LibraryPage({
 
           <VirtualGrid
             items={filtered}
-            minColWidth={150}
-            aspect={4 / 3}
-            extraHeight={46}
-            gap={18}
+            minColWidth={APP_CONFIG.grid.minColWidth}
+            aspect={APP_CONFIG.grid.aspect}
+            extraHeight={APP_CONFIG.grid.extraHeight}
+            gap={APP_CONFIG.grid.gap}
+            overscan={APP_CONFIG.grid.overscan}
             handleRef={gridRef}
             renderItem={(g) => (
               <button
@@ -426,6 +453,9 @@ export function LibraryPage({
               >
                 <Cover provider={provider} path={g.coverPath} dir={g.mediaDir} title={g.title} />
                 {g.available === false && <span className="game-badge">未上传</span>}
+                {g.available !== false && downloaded.has(g.id) && (
+                  <span className="game-badge downloaded">已下载</span>
+                )}
                 <span className="game-title" title={g.title}>
                   {g.title}
                 </span>

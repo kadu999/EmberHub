@@ -76,6 +76,37 @@ fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
     Ok(entries)
 }
 
+/// 递归列出目录下所有文件，返回相对 root 的 posix 路径（用于判断游戏是否已下载）。
+/// 目录不存在时返回空数组，不报错。
+#[tauri::command]
+fn list_local_files(root: String) -> Result<Vec<String>, String> {
+    let base = std::path::Path::new(&root);
+    if !base.exists() {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::new();
+    let mut stack = vec![base.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let rd = match std::fs::read_dir(&dir) {
+            Ok(rd) => rd,
+            Err(_) => continue,
+        };
+        for entry in rd.flatten() {
+            let path = entry.path();
+            match entry.metadata() {
+                Ok(m) if m.is_dir() => stack.push(path),
+                Ok(_) => {
+                    if let Ok(rel) = path.strip_prefix(base) {
+                        out.push(rel.to_string_lossy().replace('\\', "/"));
+                    }
+                }
+                Err(_) => {}
+            }
+        }
+    }
+    Ok(out)
+}
+
 // ---------------------------------------------------------------------------
 // WebDAV（对接 OpenList / NAS / Nextcloud）
 // ---------------------------------------------------------------------------
@@ -501,6 +532,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             launch_emulator,
             list_local_dir,
+            list_local_files,
             webdav_list,
             webdav_read_text,
             webdav_download,

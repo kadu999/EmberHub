@@ -64,13 +64,23 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 ### 3.3 根清单 `manifest.json`
 
-平台列表 + 可选全局设置：
+平台列表 + 可选全局设置（以下约定项均可选，缺省用程序内置默认）：
 
 ```json
 {
   "platforms": ["GBA", "NES", "PS"],
   "mediaVariants": ["HACK", "改版", "汉化版", "英文版", "日文版", "震动版"],
-  "osFolders": { "windows": "Windows", "android": "Android", "linux": "Linux", "macos": "MacOS" }
+  "osFolders": { "windows": "Windows", "android": "Android", "linux": "Linux", "macos": "MacOS" },
+  "dirs": { "roms": "Roms", "emulators": "Emulators" },
+  "files": { "games": "games.json", "emulators": "emulators.json", "emulatorConfig": "config.json", "platformMap": "platforms.json" },
+  "media": {
+    "dir": "media",
+    "cover": { "names": ["boxFront", "cover", "front"], "exts": ["png", "jpg", "jpeg", "webp"] },
+    "video": { "names": ["video"], "exts": ["mp4", "webm"] }
+  },
+  "archives": ["zip", "7z"],
+  "scan": { "fileDepth": 2 },
+  "ratingScale": 100
 }
 ```
 
@@ -79,6 +89,13 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 | `platforms` | 平台列表（= `Roms/` 下的文件夹名） |
 | `mediaVariants` | 可选。媒体变体后缀：匹配时去掉，让 HACK/汉化版 等复用基础版封面；缺省用内置默认表 |
 | `osFolders` | 可选。运行平台 → `Emulators/` 下的文件夹名；缺省 `windows→Windows` 等 |
+| `dirs.roms` / `dirs.emulators` | 可选。服务器目录名，缺省 `Roms` / `Emulators` |
+| `files.*` | 可选。各配置文件命名，缺省见上 |
+| `media.dir` | 可选。媒体目录名，缺省 `media` |
+| `media.cover` / `media.video` | 可选。封面/视频的**文件名关键字（按优先级）与扩展名**，缺省用内置约定（`boxFront.*` 等） |
+| `archives` | 可选。需要自动解压的压缩包扩展名，缺省 `["zip","7z"]` |
+| `scan.fileDepth` | 可选。扫描 ROM 时递归的子目录层数，缺省 `2` |
+| `ratingScale` | 可选。`rating > 1` 时的满分，缺省 `100` |
 
 ### 3.4 Roms 平台游戏列表 `Roms/<平台>/games.json`
 
@@ -109,16 +126,22 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 | `platform` | 平台标识 |
 | `name` | 平台显示名（可选） |
 | `launch` | 平台级启动命令（可选，含 `{file.path}` 占位符） |
+| `extract` | 平台级是否解压 ROM 压缩包（可选，默认 `true`；游戏级可覆盖） |
 | `games[].title` | 游戏标题 |
 | `games[].file` | ROM 文件名（相对本平台目录） |
 | `games[].cover` | 封面路径（可选；不写则按 §3.5 自动查找） |
 | `games[].launch` | 游戏级启动命令（可选，覆盖平台级） |
+| `games[].extract` | 游戏级是否解压 ROM 压缩包（可选，覆盖平台级） |
 | 其余 | `developer` / `publisher` / `genre` / `players` / `release` / `rating` / `description` 均为可选 |
+
+**启动命令占位符**：`{file.path}` `{file.uri}` `{file.name}` `{file.basename}` `{file.stem}` `{file.ext}` `{file.dir}` `{platform}` `{title}` `{emulator.dir}`。
+**相对 `exe` 的解析**：先在下载目录下查找（服务器结构会镜像到本地），找不到再交给系统按 `PATH` 查找。
 
 ### 3.5 封面/素材（沿用天马G 目录约定，自动查找）
 
-- 目录：`Roms/<平台>/media/<游戏名>/`
+- 目录：`Roms/<平台>/media/<游戏名>/`（媒体目录名可在 manifest.json 的 `media.dir` 修改）
 - 约定文件名：`boxFront.*`（封面）、`logo.*`、`video.*`（视频）等，支持 png/jpg/jpeg/webp、mp4/webm
+  （文件名关键字与扩展名可在 manifest.json 的 `media.cover` / `media.video` 修改）
 - 媒体目录匹配优先级：① `games.json` 的 `media` 字段 → ② 按标题自动匹配（会先去掉 `mediaVariants` 后缀再匹配）
 
 **显式指定媒体目录**（标题与目录名对不上时用）：在 `games.json` 的单个游戏里写 `"media": "media/目录名"`：
@@ -166,6 +189,26 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 | `args` | 启动参数数组，支持 `{file.path}` 等占位符 |
 | `workdir` | 工作目录（相对解压根，可选） |
 | `extract` | 是否解压 ROM 压缩包（默认 `true`）。模拟器能直接读压缩包时设为 `false`（如 mGBA 读 zip） |
+| `configs` | 解压后要预置到模拟器目录的文件（可选），见下 |
+
+**`configs`（解压后预置配置，配置驱动）**：数组，每项二选一：
+
+- `{ "to": "相对安装目录的路径", "from": "服务器上相对该模拟器目录的文件" }`：把服务器文件复制进去；
+- `{ "to": "相对安装目录的路径", "content": "文本内容" }`：直接写文本，支持 `{install.dir}` / `{download.dir}` / `{roms.dir}` 占位符。
+
+例（PCSX2 便携模式 + 跳过首次向导 + 指向包内 `bios/`，包里的 `bios/` 放好后即可直接进游戏）：
+
+```json
+"PS2": {
+  "archive": "PS2.zip",
+  "exe": "PS2/pcsx2-qt.exe",
+  "args": ["{file.path}"],
+  "configs": [
+    { "to": "PS2/portable.ini", "content": "" },
+    { "to": "PS2/inis/PCSX2.ini", "from": "PCSX2.ini" }
+  ]
+}
+```
 
 ---
 

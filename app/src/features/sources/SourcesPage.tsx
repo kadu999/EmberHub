@@ -2,6 +2,7 @@
 // 默认隐藏，按 F1 打开。
 import { useEffect, useState } from "react";
 import { useStore } from "../../store";
+import { APP_CONFIG } from "../../config";
 import { createProvider } from "../../storage";
 import { tauri } from "../../lib/tauri";
 import { mediaCacheRoot } from "../../library/ensure";
@@ -11,10 +12,10 @@ interface Props {
   onClose?: () => void;
 }
 
-// OpenList 表单默认值：预填，可直接修改
-const DEFAULT_SERVER = "127.0.0.1:5244";
-const DEFAULT_USER = "admin";
-const DEFAULT_PASS = "12345";
+// OpenList 表单默认值来自 src/config.json
+const DEFAULT_SERVER = APP_CONFIG.openlist.server;
+const DEFAULT_USER = APP_CONFIG.openlist.username;
+const DEFAULT_PASS = APP_CONFIG.openlist.password;
 
 interface Mount {
   path: string;
@@ -51,6 +52,10 @@ export function SourcesPage({ onClose }: Props) {
   const [loadingMounts, setLoadingMounts] = useState(false);
   const [username, setUsername] = useState(initial?.username ?? DEFAULT_USER);
   const [password, setPassword] = useState(initial?.password ?? DEFAULT_PASS);
+  const [romsPath, setRomsPath] = useState(initial?.romsPath ?? APP_CONFIG.defaults.romsPath);
+  const [emulatorsPath, setEmulatorsPath] = useState(
+    initial?.emulatorsPath ?? APP_CONFIG.defaults.emulatorsPath,
+  );
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const [cacheSize, setCacheSize] = useState<number | null>(null);
@@ -128,7 +133,8 @@ export function SourcesPage({ onClose }: Props) {
       id: "main",
       name: mountPath.replace(/^\//, "") || "OpenList",
       kind: "openlist",
-      romsPath: "Roms",
+      romsPath: romsPath.trim() || APP_CONFIG.defaults.romsPath,
+      emulatorsPath: emulatorsPath.trim() || APP_CONFIG.defaults.emulatorsPath,
       server: server.trim(),
       mountPath,
       username: username.trim(),
@@ -273,6 +279,23 @@ export function SourcesPage({ onClose }: Props) {
             将使用：<code>{normalizeServer(server)}/dav{mountPath}</code>
           </p>
         )}
+
+        <div className="field">
+          <label>游戏目录（服务器 Roms 目录名，可改）</label>
+          <input
+            value={romsPath}
+            onChange={(e) => setRomsPath(e.currentTarget.value)}
+            placeholder={APP_CONFIG.defaults.romsPath}
+          />
+        </div>
+        <div className="field">
+          <label>模拟器目录（服务器 Emulators 目录名，可改）</label>
+          <input
+            value={emulatorsPath}
+            onChange={(e) => setEmulatorsPath(e.currentTarget.value)}
+            placeholder={APP_CONFIG.defaults.emulatorsPath}
+          />
+        </div>
 
         <div className="actions">
           <button onClick={save}>保存</button>

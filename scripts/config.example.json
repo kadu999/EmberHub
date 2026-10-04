@@ -1,0 +1,9 @@
+{
+  "server": "http://127.0.0.1:5244",
+  "user": "admin",
+  "pass": "12345",
+  "mount": "/EmberHub_Baidu",
+  "romsDir": "Roms",
+  "ffmpeg": "ffmpeg",
+  "ffprobe": "ffprobe"
+}

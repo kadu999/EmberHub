@@ -184,7 +184,6 @@ EmberHub/                     # 仓库根（项目）
 │   │   ├── lib/              # Tauri invoke 封装、路径工具
 │   │   └── main.tsx
 │   ├── src-tauri/            # Rust 薄壳（启动/文件/WebDAV 命令）
-│   ├── examples/             # 示例 Pegasus 游戏库
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.ts

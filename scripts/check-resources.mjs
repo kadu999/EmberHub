@@ -18,11 +18,7 @@
 // 任何写操作都会先把原 games.json 备份为 games.json.bak。
 
 import fs from "node:fs";
-
-function getArg(name, def) {
-  const i = process.argv.indexOf(name);
-  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : def;
-}
+import { SCRIPT_DEFAULTS, getArg, trimUrl } from "./lib/config.mjs";
 
 const target = process.argv[2];
 if (!target || target.startsWith("--")) {
@@ -36,10 +32,11 @@ const FIX = process.argv.includes("--fix") || RECONCILE;
 const ADD = process.argv.includes("--add") || RECONCILE;
 const PRUNE = process.argv.includes("--prune") || RECONCILE;
 
-const SERVER = getArg("--server", "http://127.0.0.1:5244").replace(/\/+$/, "");
-const USER = getArg("--user", "admin");
-const PASS = getArg("--pass", "12345");
-const MOUNT = getArg("--mount", "/EmberHub_Baidu").replace(/\/+$/, "");
+const SERVER = trimUrl(getArg("--server", SCRIPT_DEFAULTS.server));
+const USER = getArg("--user", SCRIPT_DEFAULTS.user);
+const PASS = getArg("--pass", SCRIPT_DEFAULTS.pass);
+const MOUNT = trimUrl(getArg("--mount", SCRIPT_DEFAULTS.mount));
+const ROMS_DIR = SCRIPT_DEFAULTS.romsDir;
 
 // 视为 ROM 的扩展名
 const ROM_EXTS = [
@@ -175,7 +172,7 @@ function uniqueTitle(title, used) {
 
 // ---------- 处理单个平台 ----------
 async function processPlatform(platform) {
-  const baseRel = `Roms/${platform}`;
+  const baseRel = `${ROMS_DIR}/${platform}`;
   const baseAbs = `${MOUNT}/${baseRel}`;
 
   const gamesJsonText = await readText(`${baseAbs}/games.json`);

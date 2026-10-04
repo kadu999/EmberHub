@@ -3,12 +3,11 @@ import { tauri } from "../lib/tauri";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../lib/path";
 import { useStore } from "../store";
 import type { SourceConfig, StorageProvider } from "../storage/types";
-import { parseEmulatorConfig, parseEmulators, parseManifest, parsePlatformMap } from "./parse";
+import { parseEmulatorConfig, parseEmulators, parsePlatformMap } from "./parse";
 import type { EmulatorsFile } from "./parse";
+import { loadResourceConfig, type ResourceConfig } from "./resource-config";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
-
-const ARCHIVE_EXTS = ["zip", "7z"];
 
 /** 默认下载目录只解析一次（Rust 侧也会缓存，这里避免重复 invoke）。 */
 let defaultDirPromise: Promise<string> | null = null;
@@ -63,39 +62,47 @@ export interface EmulatorInstall {
   /** 本地模拟器目录 */
   dir: string;
   config: EmulatorConfig;
+  /** 该 Roms 平台实际使用的启动参数（可能被 platformArgs 覆盖） */
+  args?: string[];
 }
 
 /** Emulators/<运行平台> 目录（相对存储源根）。 */
-async function emulatorOsRoot(provider: StorageProvider, source: SourceConfig): Promise<string> {
-  const emuRoot = (source.emulatorsPath ?? "Emulators").trim() || "Emulators";
-  let osFolders: Record<string, string> | undefined;
-  try {
-    osFolders = parseManifest(await provider.readText("manifest.json")).osFolders;
-  } catch {
-    // 忽略
-  }
-  return joinPath(emuRoot, osFolder(await tauri.hostOs(), osFolders));
+async function emulatorOsRoot(source: SourceConfig, cfg: ResourceConfig): Promise<string> {
+  const emuRoot = (source.emulatorsPath ?? cfg.emulatorsDir).trim() || cfg.emulatorsDir;
+  return joinPath(emuRoot, osFolder(await tauri.hostOs(), cfg.osFolders));
 }
 
 /** 读取该运行平台的模拟器配置：优先合并文件 emulators.json，否则回退旧的 platforms.json + 各 config.json。 */
-async function loadEmulators(provider: StorageProvider, osRoot: string): Promise<EmulatorsFile> {
+async function loadEmulators(
+  provider: StorageProvider,
+  osRoot: string,
+  cfg: ResourceConfig,
+): Promise<EmulatorsFile> {
+  let file: EmulatorsFile;
   try {
-    return parseEmulators(await provider.readText(joinPath(osRoot, "emulators.json")));
+    file = parseEmulators(await provider.readText(joinPath(osRoot, cfg.files.emulators)));
   } catch {
     const platforms: Record<string, string> = {};
     try {
-      Object.assign(platforms, parsePlatformMap(await provider.readText(joinPath(osRoot, "platforms.json"))));
+      Object.assign(
+        platforms,
+        parsePlatformMap(await provider.readText(joinPath(osRoot, cfg.files.platformMap))),
+      );
     } catch {
       // 没有 platforms.json
     }
-    return { platforms, emulators: {} };
+    file = { platforms, emulators: {}, platformArgs: {}, warnings: [] };
   }
+  if (file.warnings.length > 0) {
+    console.warn(`[EmberHub] ${cfg.files.emulators}:\n${file.warnings.join("\n")}`);
+  }
+  return file;
 }
 
 /** 本地模拟器安装目录 + 版本戳路径。 */
-async function emulatorLocal(source: SourceConfig, platform: string) {
+async function emulatorLocal(source: SourceConfig, platform: string, cfg: ResourceConfig) {
   const dl = await getDownloadDir(source);
-  const dir = joinPath(dl, "Emulators", platform);
+  const dir = joinPath(dl, cfg.emulatorsDir, platform);
   return { dir, stampPath: joinPath(dir, ".installed.json") };
 }
 
@@ -105,6 +112,62 @@ async function installedVersion(stampPath: string): Promise<string | undefined> 
     return (JSON.parse(await tauri.readTextFile(stampPath)) as { version?: string }).version;
   } catch {
     return undefined;
+  }
+}
+
+/** 替换配置内容里的路径占位符。 */
+function applyConfigPlaceholders(
+  text: string,
+  vars: { installDir: string; downloadDir: string; romsDir: string },
+): string {
+  return text
+    .replace(/\{install\.dir\}/g, nativePath(vars.installDir))
+    .replace(/\{download\.dir\}/g, nativePath(vars.downloadDir))
+    .replace(/\{roms\.dir\}/g, nativePath(vars.romsDir));
+}
+
+/**
+ * 把 emulators.json 里声明的配置文件写入本地模拟器目录（幂等）。
+ * - `content`：直接写文本（支持 {install.dir} / {download.dir} / {roms.dir}）
+ * - `from`：从服务器该模拟器目录下载文件（本地已存在则跳过）
+ * 全部失败只记录警告，不阻断启动。
+ */
+async function provisionEmulatorConfigs(
+  provider: StorageProvider,
+  emuBase: string,
+  localDir: string,
+  config: EmulatorConfig,
+  downloadDir: string,
+  romsRoot: string,
+  onStatus?: (s: string) => void,
+): Promise<void> {
+  const list = config.configs ?? [];
+  if (list.length === 0) return;
+  const vars = {
+    installDir: localDir,
+    downloadDir,
+    romsDir: joinPath(downloadDir, romsRoot),
+  };
+  for (const f of list) {
+    const dest = joinPath(localDir, f.to);
+    try {
+      if (f.from) {
+        if (await tauri.fileExists(dest)) continue;
+        if (!provider.downloadTo) continue;
+        onStatus?.(`写入配置 ${f.to}`);
+        await provider.downloadTo(joinPath(emuBase, f.from), dest);
+      } else {
+        const content = applyConfigPlaceholders(f.content ?? "", vars);
+        const existing = (await tauri.fileExists(dest))
+          ? await tauri.readTextFile(dest).catch(() => null)
+          : null;
+        if (existing === content) continue;
+        onStatus?.(`写入配置 ${f.to}`);
+        await tauri.writeTextFile(dest, content);
+      }
+    } catch (e) {
+      console.warn(`[EmberHub] 预置配置失败 ${f.to}:`, e);
+    }
   }
 }
 
@@ -124,8 +187,9 @@ export async function listEmulators(
   provider: StorageProvider,
   source: SourceConfig,
 ): Promise<EmulatorInfo[]> {
-  const osRoot = await emulatorOsRoot(provider, source);
-  const { emulators } = await loadEmulators(provider, osRoot);
+  const cfg = await loadResourceConfig(provider);
+  const osRoot = await emulatorOsRoot(source, cfg);
+  const { emulators } = await loadEmulators(provider, osRoot, cfg);
 
   // 平台 → 配置：优先合并文件，否则回退各目录的 config.json
   const entries: Array<[string, EmulatorConfig]> = Object.entries(emulators);
@@ -140,7 +204,9 @@ export async function listEmulators(
       try {
         entries.push([
           platform,
-          parseEmulatorConfig(await provider.readText(joinPath(osRoot, platform, "config.json"))),
+          parseEmulatorConfig(
+            await provider.readText(joinPath(osRoot, platform, cfg.files.emulatorConfig)),
+          ),
         ]);
       } catch {
         // 跳过没有 config.json 的目录
@@ -150,7 +216,7 @@ export async function listEmulators(
 
   const out: EmulatorInfo[] = [];
   for (const [platform, config] of entries) {
-    const { stampPath } = await emulatorLocal(source, platform);
+    const { stampPath } = await emulatorLocal(source, platform, cfg);
     const ver = await installedVersion(stampPath);
     out.push({
       platform,
@@ -172,8 +238,9 @@ export async function ensureEmulator(
   onStatus?: (s: string) => void,
   force = false,
 ): Promise<EmulatorInstall> {
-  const osRoot = await emulatorOsRoot(provider, source);
-  const { platforms, emulators } = await loadEmulators(provider, osRoot);
+  const cfg = await loadResourceConfig(provider);
+  const osRoot = await emulatorOsRoot(source, cfg);
+  const { platforms, emulators, platformArgs } = await loadEmulators(provider, osRoot, cfg);
 
   // 平台映射（无则同名）
   const emuPlatform = platforms[platform] ?? platform;
@@ -183,18 +250,23 @@ export async function ensureEmulator(
   // 优先用合并配置，回退单文件 config.json
   const config =
     emulators[emuPlatform] ??
-    parseEmulatorConfig(await provider.readText(joinPath(emuBase, "config.json")));
+    parseEmulatorConfig(await provider.readText(joinPath(emuBase, cfg.files.emulatorConfig)));
+
+  // 该 Roms 平台的启动参数：platformArgs 覆盖 > 模拟器自身 args
+  const args = platformArgs[platform] ?? config.args;
 
   const dl = await getDownloadDir(source);
-  const localDir = joinPath(dl, "Emulators", emuPlatform);
+  const localDir = joinPath(dl, cfg.emulatorsDir, emuPlatform);
   const stampPath = joinPath(localDir, ".installed.json");
+  const romsRoot = (source.romsPath ?? cfg.romsDir).trim() || cfg.romsDir;
 
-  // 版本比对：已安装且版本一致则直接用
+  // 版本比对：已安装且版本一致则直接用（仍补写一次配置，保证配置变更能生效）
   if (!force) {
     const ver = await installedVersion(stampPath);
     if (ver === config.version) {
+      await provisionEmulatorConfigs(provider, emuBase, localDir, config, dl, romsRoot, onStatus);
       onStatus?.(`模拟器已就绪（${config.version}）`);
-      return { dir: localDir, config };
+      return { dir: localDir, config, args };
     }
   }
 
@@ -211,14 +283,20 @@ export async function ensureEmulator(
   await tauri.removePath(localDir);
   await tauri.ensureDir(localDir);
   await tauri.extractArchive(localArchive, localDir);
+  await provisionEmulatorConfigs(provider, emuBase, localDir, config, dl, romsRoot, onStatus);
   await tauri.writeTextFile(stampPath, JSON.stringify({ version: config.version }));
-  return { dir: localDir, config };
+  return { dir: localDir, config, args };
 }
 
 /** 删除本地模拟器（安装目录 + 压缩包缓存）。 */
-export async function removeEmulator(source: SourceConfig, platform: string): Promise<void> {
+export async function removeEmulator(
+  provider: StorageProvider,
+  source: SourceConfig,
+  platform: string,
+): Promise<void> {
+  const cfg = await loadResourceConfig(provider);
   const dl = await getDownloadDir(source);
-  await tauri.removePath(joinPath(dl, "Emulators", platform));
+  await tauri.removePath(joinPath(dl, cfg.emulatorsDir, platform));
   await tauri.removePath(joinPath(dl, ".cache", "Emulators", platform));
 }
 
@@ -260,30 +338,53 @@ export async function ensureRom(
     onStatus?.("下载完成");
   }
 
-  return extract ? maybeExtract(dest, onStatus) : dest;
+  if (!extract) return dest;
+  const { archives } = await loadResourceConfig(provider);
+  return maybeExtract(dest, archives, onStatus);
 }
 
-/** 若文件是压缩包则解压，返回内部 ROM 路径。 */
-async function maybeExtract(file: string, onStatus?: (s: string) => void): Promise<string> {
+/** 若文件是压缩包则解压，返回内部 ROM 路径。已解压过则直接复用。 */
+async function maybeExtract(
+  file: string,
+  archives: string[],
+  onStatus?: (s: string) => void,
+): Promise<string> {
   const ext = extname(file);
-  if (!ARCHIVE_EXTS.includes(ext)) return file;
+  if (!archives.includes(ext)) return file;
   const dir = joinPath(dirname(file), stripExt(basename(file)));
+
+  // 已经解压过（目录里已有 ROM）就不再重复解压
+  const cached = await firstRomFileSafe(dir, archives);
+  if (cached) return cached;
+
   onStatus?.("解压中…");
   await tauri.removePath(dir);
   await tauri.ensureDir(dir);
   await tauri.extractArchive(file, dir);
-  return (await firstRomFile(dir)) ?? file;
+  return (await firstRomFile(dir, archives)) ?? file;
+}
+
+/** firstRomFile 的容错版：目录不存在 / 不可读时返回 undefined。 */
+async function firstRomFileSafe(
+  dir: string,
+  archives: string[],
+): Promise<string | undefined> {
+  try {
+    return await firstRomFile(dir, archives);
+  } catch {
+    return undefined;
+  }
 }
 
 /** 在目录里递归找第一个非压缩包文件。 */
-async function firstRomFile(dir: string): Promise<string | undefined> {
+async function firstRomFile(dir: string, archives: string[]): Promise<string | undefined> {
   const entries = await tauri.listLocalDir(dir);
   for (const e of entries) {
-    if (!e.is_dir && !ARCHIVE_EXTS.includes(extname(e.name))) return e.path;
+    if (!e.is_dir && !archives.includes(extname(e.name))) return e.path;
   }
   for (const e of entries) {
     if (e.is_dir) {
-      const inner = await firstRomFile(e.path);
+      const inner = await firstRomFile(e.path, archives);
       if (inner) return inner;
     }
   }

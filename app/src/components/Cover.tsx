@@ -5,25 +5,13 @@ import type { StorageProvider } from "../storage/types";
 import { joinPath } from "../lib/path";
 import { pickCoverName } from "../lib/media";
 import { ensureLocalMedia } from "../library/ensure";
-import { listMediaNames } from "../library/media-cache";
+import { getCachedMediaPath, listMediaNames, rememberMediaPath } from "../library/media-cache";
 
 interface Props {
   provider: StorageProvider;
   path?: string;
   dir?: string;
   title: string;
-}
-
-// 已解析的本地路径缓存（避免重复存在性检查）
-const pathCache = new Map<string, string>();
-const MAX_CACHE = 300;
-
-function remember(key: string, value: string) {
-  pathCache.set(key, value);
-  if (pathCache.size > MAX_CACHE) {
-    const oldest = pathCache.keys().next().value;
-    if (oldest !== undefined) pathCache.delete(oldest);
-  }
 }
 
 export function Cover({ provider, path, dir, title }: Props) {
@@ -42,7 +30,7 @@ export function Cover({ provider, path, dir, title }: Props) {
         : null;
     if (!key) return;
 
-    const cached = pathCache.get(key);
+    const cached = getCachedMediaPath(key);
     if (cached) {
       setSrc(convertFileSrc(cached));
       return;
@@ -61,7 +49,7 @@ export function Cover({ provider, path, dir, title }: Props) {
           return;
         }
         const local = await ensureLocalMedia(provider, target);
-        remember(key, local);
+        rememberMediaPath(key, local);
         if (alive) setSrc(convertFileSrc(local));
       } catch (e) {
         console.warn("[EmberHub] 封面加载失败:", target ?? dir, e);

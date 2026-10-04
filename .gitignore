@@ -6,17 +6,15 @@
 *.7z
 *.sav
 
-# 示例库中的真实测试资源（ROM / 模拟器 / 素材）不入库，只提交 JSON 结构
-/app/examples/sample-library/Roms/*/media/
-/app/examples/sample-library/Emulators/**/*.zip
-/app/examples/sample-library/Emulators/**/*.7z
-
 # 系统文件
 .DS_Store
 Thumbs.db
 
 # 本地令牌 / 密钥（百度网盘 token 等）
 baidu_token.json
+
+# 脚本本地配置（含账号，复制 config.example.json 后使用）
+/scripts/config.json
 
 # Python
 __pycache__/
