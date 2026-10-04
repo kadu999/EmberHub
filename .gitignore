@@ -21,3 +21,6 @@ baidu_token.json
 # Python
 __pycache__/
 *.pyc
+
+# 媒体检测报告
+media-report-*.txt
