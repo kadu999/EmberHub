@@ -142,7 +142,8 @@ export async function ensureRom(
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
   const dl = await getDownloadDir(source);
-  const dest = joinPath(dl, "Roms", game.collection, basename(romRel));
+  // 保留服务器上的相对路径（含子文件夹），避免多卷/多盘同名文件互相覆盖
+  const dest = joinPath(dl, romRel);
 
   if (await tauri.fileExists(dest)) {
     onStatus?.("已下载，直接启动");

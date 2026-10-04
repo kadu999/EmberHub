@@ -65,16 +65,28 @@ async function mediaIndex(
   return index;
 }
 
-/** 列出平台目录下的文件名（小写），用于判断游戏文件是否已上传。失败返回 null（不判断）。 */
+/** 递归列出平台目录下的文件名（小写，含子文件夹，跳过 media/），用于判断游戏文件是否已上传。失败返回 null（不判断）。 */
 async function listPlatformFiles(
   provider: StorageProvider,
   baseDir: string,
 ): Promise<Set<string> | null> {
   try {
     const set = new Set<string>();
-    for (const e of await provider.list(baseDir)) {
-      if (!e.isDir) set.add(e.name.toLowerCase());
-    }
+    const walk = async (dir: string, depth: number): Promise<void> => {
+      const entries = await provider.list(dir);
+      const subdirs: string[] = [];
+      for (const e of entries) {
+        if (e.isDir) {
+          if (e.name.toLowerCase() !== "media") subdirs.push(e.path);
+        } else {
+          set.add(e.name.toLowerCase());
+        }
+      }
+      if (depth > 0 && subdirs.length > 0) {
+        await Promise.all(subdirs.map((d) => walk(d, depth - 1)));
+      }
+    };
+    await walk(baseDir, 2);
     return set;
   } catch {
     return null;
