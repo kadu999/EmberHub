@@ -197,7 +197,10 @@ async function doScan(provider: StorageProvider, romsPath: string): Promise<Scan
     warnings.push(...r.warnings);
   }
 
-  const collections = Array.from(new Set(games.map((g) => g.collection))).sort();
+  // 平台顺序跟随 manifest.platforms（只保留实际有游戏的），未知平台追加在后
+  const present = new Set(games.map((g) => g.collection));
+  const collections = manifest.platforms.filter((p) => present.has(p));
+  for (const c of present) if (!collections.includes(c)) collections.push(c);
   return { collections, games, warnings };
 }
 
