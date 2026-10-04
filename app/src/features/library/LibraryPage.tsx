@@ -216,6 +216,10 @@ export function LibraryPage({
   }
 
   async function launch(g: Game) {
+    if (g.available === false) {
+      setLaunchMsg({ ok: false, text: "该游戏文件未上传，无法启动。" });
+      return;
+    }
     setSelected(g);
     setLaunchMsg(null);
     setProgress(null);
@@ -288,6 +292,9 @@ export function LibraryPage({
 
               <div className="detail-scroll">
                 <h3 className="detail-title">{selected.title}</h3>
+                {selected.available === false && (
+                  <p className="detail-missing">服务器上没有该游戏文件，无法启动。</p>
+                )}
 
                 <dl>
                   {selected.developer && (
@@ -368,7 +375,13 @@ export function LibraryPage({
             handleRef={gridRef}
             renderItem={(g) => (
               <button
-                className={g.id === selected?.id ? "game-card active" : "game-card"}
+                className={[
+                  "game-card",
+                  g.id === selected?.id ? "active" : "",
+                  g.available === false ? "unavailable" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 onClick={() => {
                   setLaunchMsg(null);
                   setSelected(g);
@@ -376,6 +389,7 @@ export function LibraryPage({
                 onDoubleClick={() => launch(g)}
               >
                 <Cover provider={provider} path={g.coverPath} dir={g.mediaDir} title={g.title} />
+                {g.available === false && <span className="game-badge">未上传</span>}
                 <span className="game-title" title={g.title}>
                   {g.title}
                 </span>

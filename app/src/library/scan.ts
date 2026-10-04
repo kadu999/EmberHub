@@ -26,6 +26,8 @@ export interface Game {
   coverPath?: string;
   /** 该游戏对应的 media 子目录（懒加载封面/视频用） */
   mediaDir?: string;
+  /** 服务器上是否存在该游戏文件（undefined = 未检查，如列目录失败） */
+  available?: boolean;
 }
 
 export interface ScanResult {
@@ -63,6 +65,22 @@ async function mediaIndex(
   return index;
 }
 
+/** 列出平台目录下的文件名（小写），用于判断游戏文件是否已上传。失败返回 null（不判断）。 */
+async function listPlatformFiles(
+  provider: StorageProvider,
+  baseDir: string,
+): Promise<Set<string> | null> {
+  try {
+    const set = new Set<string>();
+    for (const e of await provider.list(baseDir)) {
+      if (!e.isDir) set.add(e.name.toLowerCase());
+    }
+    return set;
+  } catch {
+    return null;
+  }
+}
+
 /** 扫描单个平台。失败只记录警告，不影响其它平台。 */
 async function scanPlatform(
   provider: StorageProvider,
@@ -91,10 +109,11 @@ async function scanPlatform(
     return { games: [], warnings };
   }
 
-  // media 目录索引 + 可选的 media-map.json 并行请求
-  const [index, mediaMapText] = await Promise.all([
+  // media 目录索引 + 可选的 media-map.json + 平台文件列表并行请求
+  const [index, mediaMapText, fileSet] = await Promise.all([
     mediaIndex(provider, baseDir, mediaCache),
     provider.readText(joinPath(baseDir, "media-map.json")).catch(() => ""),
+    listPlatformFiles(provider, baseDir),
   ]);
 
   let mediaMap: Record<string, string> = {};
@@ -123,6 +142,7 @@ async function scanPlatform(
       description: gm.description,
       launch: gm.launch ?? pg.launch,
       coverPath: gm.cover ? normalizeRel(baseDir, gm.cover) : undefined,
+      available: fileSet ? fileSet.has(basename(file).toLowerCase()) : undefined,
     };
 
     // media 目录：games.json 的 media > media-map.json > 模糊匹配（都校验目录确实存在）

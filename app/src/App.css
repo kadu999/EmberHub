@@ -326,6 +326,7 @@ code {
 }
 
 .game-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -361,6 +362,31 @@ code {
 .game-card.active .game-title {
   color: var(--select);
   font-weight: 700;
+}
+
+/* 服务器上缺文件的游戏 */
+.game-card.unavailable .cover {
+  filter: grayscale(1);
+}
+
+.game-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: rgba(20, 16, 14, 0.85);
+  border: 1px solid #ff8a8a;
+  color: #ff8a8a;
+}
+
+.detail-missing {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #ff8a8a;
 }
 
 .game-title {
