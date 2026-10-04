@@ -1,6 +1,6 @@
 // 游戏库页（默认首页）：左侧信息面板 + 右侧游戏网格。
 // 进入即自动扫描；重扫时保留旧数据，避免闪烁成空白。
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -8,23 +8,55 @@ import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { scanLibrary, type Game, type ScanResult } from "../../library/scan";
 import { Cover } from "../../components/Cover";
-import { VirtualGrid } from "../../components/VirtualGrid";
+import { VirtualGrid, type VirtualGridHandle } from "../../components/VirtualGrid";
 import { launchGame } from "../../library/launch";
 import { ensureLocalMedia } from "../../library/ensure";
 import { listMediaNames } from "../../library/media-cache";
 import { joinPath } from "../../lib/path";
 import { pickVideoName } from "../../lib/media";
+import { useGamepad } from "../../lib/useGamepad";
 
 interface Props {
   onOpenSettings: () => void;
+  settingsOpen: boolean;
+  onCloseSettings: () => void;
 }
 
 /** 选中游戏切换后，延迟一点再加载视频，避免快速浏览时触发一堆下载。 */
 const VIDEO_DEBOUNCE_MS = 350;
 
-export function LibraryPage({ onOpenSettings }: Props) {
+/** 设置面板里可聚焦的元素（手柄导航用）。 */
+function settingsFocusables(): HTMLElement[] {
+  const panel = document.querySelector(".settings-panel");
+  if (!panel) return [];
+  return Array.from(
+    panel.querySelectorAll<HTMLElement>("button, input, select, textarea, [tabindex]"),
+  ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+}
+
+function focusSettings(delta: number) {
+  const els = settingsFocusables();
+  if (els.length === 0) return;
+  const cur = document.activeElement as HTMLElement | null;
+  const i = cur ? els.indexOf(cur) : -1;
+  const next = i < 0 ? (delta > 0 ? 0 : els.length - 1) : (i + delta + els.length) % els.length;
+  els[next]?.focus();
+}
+
+function activateSettings() {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || !settingsFocusables().includes(el)) {
+    focusSettings(1);
+    return;
+  }
+  if (el instanceof HTMLButtonElement) el.click();
+  else el.focus();
+}
+
+export function LibraryPage({ onOpenSettings, settingsOpen, onCloseSettings }: Props) {
   const { source, scanToken } = useStore();
   const provider = useMemo(() => (source ? createProvider(source) : null), [source]);
+  const gridRef = useRef<VirtualGridHandle | null>(null);
 
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -118,6 +150,25 @@ export function LibraryPage({ onOpenSettings }: Props) {
   // 启动中（下载/解压）或启动失败时，显示居中的进度/状态面板
   const showLaunchPanel = launching || progress !== null || (launchMsg !== null && !launchMsg.ok);
 
+  // 手柄：导航 / 确认启动 / 切换平台 / 开关设置
+  const gamepadConnected = useGamepad((action) => {
+    if (settingsOpen) {
+      if (action === "menu" || action === "back") onCloseSettings();
+      else if (action === "up") focusSettings(-1);
+      else if (action === "down") focusSettings(1);
+      else if (action === "confirm") activateSettings();
+      return;
+    }
+    if (action === "menu") onOpenSettings();
+    else if (action === "prev") switchPlatform(-1);
+    else if (action === "next") switchPlatform(1);
+    else if (action === "confirm") {
+      if (selected) void launch(selected);
+    } else if (action === "up" || action === "down" || action === "left" || action === "right") {
+      navigate(action);
+    }
+  });
+
   // 未配置存储源
   if (!source || !provider) {
     return (
@@ -158,6 +209,35 @@ export function LibraryPage({ onOpenSettings }: Props) {
       setProgress(null);
       setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
     }
+  }
+
+  /** 手柄方向键：在当前平台内移动选中项 */
+  function navigate(dir: "up" | "down" | "left" | "right") {
+    if (filtered.length === 0) return;
+    const cur = selected ? filtered.findIndex((g) => g.id === selected.id) : -1;
+    const base = cur < 0 ? 0 : cur;
+    const cols = Math.max(1, gridRef.current?.cols() ?? 1);
+    const delta = dir === "left" ? -1 : dir === "right" ? 1 : dir === "up" ? -cols : cols;
+    const next = base + delta;
+    if (next < 0 || next >= filtered.length) return; // 不越界
+    const g = filtered[next];
+    if (g) {
+      setLaunchMsg(null);
+      setSelected(g);
+      gridRef.current?.scrollToIndex(next);
+    }
+  }
+
+  /** 手柄 LB/RB：切换平台并选中第一个 */
+  function switchPlatform(delta: number) {
+    const list = result?.collections ?? [];
+    if (list.length === 0) return;
+    const i = list.indexOf(collection);
+    const next = (i + delta + list.length) % list.length;
+    const c = list[next];
+    setCollection(c);
+    const first = result?.games.find((g) => g.collection === c);
+    if (first) setSelected(first);
   }
 
   return (
@@ -266,6 +346,7 @@ export function LibraryPage({ onOpenSettings }: Props) {
             aspect={4 / 3}
             extraHeight={46}
             gap={18}
+            handleRef={gridRef}
             renderItem={(g) => (
               <button
                 className={g.id === selected?.id ? "game-card active" : "game-card"}
@@ -284,6 +365,8 @@ export function LibraryPage({ onOpenSettings }: Props) {
           />
         </main>
       </div>
+
+      {gamepadConnected && <div className="gamepad-hint">🎮 手柄已连接</div>}
 
       {showLaunchPanel && (
         <div

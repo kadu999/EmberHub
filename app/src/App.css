@@ -100,6 +100,21 @@ body {
   opacity: 0.85;
 }
 
+/* ---------- 手柄连接提示 ---------- */
+.gamepad-hint {
+  position: fixed;
+  left: 16px;
+  bottom: 14px;
+  z-index: 25;
+  pointer-events: none;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
 /* ---------- 品牌 ---------- */
 .brand {
   display: flex;
@@ -327,8 +342,10 @@ code {
 
 .game-card.active .cover {
   border-color: var(--ember);
-  border-width: 2px;
-  box-shadow: 0 0 22px rgba(255, 107, 44, 0.6);
+  border-width: 3px;
+  box-shadow:
+    0 0 0 2px rgba(255, 107, 44, 0.9),
+    0 0 30px rgba(255, 107, 44, 0.75);
   transform: translateY(-2px);
 }
 

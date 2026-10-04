@@ -27,7 +27,11 @@ function App() {
 
   return (
     <div className="app">
-      <LibraryPage onOpenSettings={() => setShowSettings(true)} />
+      <LibraryPage
+        onOpenSettings={() => setShowSettings(true)}
+        settingsOpen={showSettings}
+        onCloseSettings={() => setShowSettings(false)}
+      />
 
       {showSettings && (
         <div className="settings-overlay" onClick={() => setShowSettings(false)}>

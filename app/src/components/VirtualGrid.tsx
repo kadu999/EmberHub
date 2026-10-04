@@ -1,5 +1,14 @@
 // 虚拟网格：只渲染可见区域的项，支持动态加载/卸载。
 import { useEffect, useRef, useState, type ReactNode, type UIEvent } from "react";
+
+/** 命令式句柄：供手柄/键盘导航定位 */
+export interface VirtualGridHandle {
+  /** 当前列数 */
+  cols: () => number;
+  /** 让第 index 项滚动到可见区域 */
+  scrollToIndex: (index: number) => void;
+}
+
 interface Props<T> {
   items: T[];
   /** 最小列宽 */
@@ -11,6 +20,8 @@ interface Props<T> {
   gap?: number;
   /** 视口外多渲染几行 */
   overscan?: number;
+  /** 命令式句柄（手柄导航用） */
+  handleRef?: { current: VirtualGridHandle | null };
   renderItem: (item: T, index: number) => ReactNode;
 }
 
@@ -21,6 +32,7 @@ export function VirtualGrid<T>({
   extraHeight = 46,
   gap = 18,
   overscan = 3,
+  handleRef,
   renderItem,
 }: Props<T>) {
   const ref = useRef<HTMLDivElement>(null);
@@ -57,6 +69,30 @@ export function VirtualGrid<T>({
   const rowHeight = Math.round(colWidth * aspect) + extraHeight;
   const rows = Math.ceil(items.length / cols);
   const totalHeight = rows * rowHeight;
+
+  // 布局信息放在 ref 里，供命令式句柄读取（避免句柄随布局变化重建）
+  const layoutRef = useRef({ cols: 1, rowHeight: 1 });
+  layoutRef.current = { cols, rowHeight };
+
+  useEffect(() => {
+    if (!handleRef) return;
+    handleRef.current = {
+      cols: () => layoutRef.current.cols,
+      scrollToIndex: (index: number) => {
+        const el = ref.current;
+        const { cols: c, rowHeight: rh } = layoutRef.current;
+        if (!el || c <= 0 || rh <= 0) return;
+        const row = Math.floor(index / c);
+        const top = row * rh;
+        const bottom = top + rh;
+        if (top < el.scrollTop) el.scrollTop = top;
+        else if (bottom > el.scrollTop + el.clientHeight) el.scrollTop = bottom - el.clientHeight;
+      },
+    };
+    return () => {
+      handleRef.current = null;
+    };
+  }, [handleRef]);
 
   const visibleRows = Math.ceil(size.height / rowHeight) + 1;
   const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
