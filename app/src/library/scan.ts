@@ -73,8 +73,30 @@ function normalizeKey(s: string): string {
     .toLowerCase();
 }
 
+/** 变体后缀：匹配媒体时去掉，让 HACK / 汉化版 等变体复用基础版封面。 */
+const VARIANT_SUFFIX =
+  /\s*(部分汉化版|汉化贴图|复刻限定版|汉化版|英文版|日文版|震动版|平衡版|RIP版|重制版|改版|HACK)\s*$/i;
+
+/** 逐层剥掉变体后缀，返回所有中间形态（如「恶魔城X 平衡版 HACK」→「恶魔城X 平衡版」「恶魔城X」）。 */
+function stripVariantSuffixes(s: string): string[] {
+  const out: string[] = [];
+  let cur = s.trim();
+  for (let i = 0; i < 3; i++) {
+    const next = cur.replace(VARIANT_SUFFIX, "").trim();
+    if (!next || next === cur) break;
+    out.push(next);
+    cur = next;
+  }
+  return out;
+}
+
 /** 在 media 索引里为游戏找匹配目录：精确 → 规整 → 前缀 → 包含。 */
 function matchMediaDir(index: Map<string, string>, candidates: string[]): string | undefined {
+  // 展开变体：去掉后缀的基础名也参与匹配，让 HACK 等变体复用基础版封面
+  const expanded = new Set(candidates);
+  for (const c of candidates) for (const s of stripVariantSuffixes(c)) expanded.add(s);
+  candidates = [...expanded];
+
   const raw = candidates.map((c) => c.toLowerCase()).filter((c) => c !== "");
   for (const c of raw) {
     const hit = index.get(c);
