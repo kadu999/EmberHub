@@ -65,13 +65,21 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 ### 3.3 根清单 `manifest.json`
 
-只表明有几个平台：
+平台列表 + 可选全局设置：
 
 ```json
 {
-  "platforms": ["GBA", "NES", "PS"]
+  "platforms": ["GBA", "NES", "PS"],
+  "mediaVariants": ["HACK", "改版", "汉化版", "英文版", "日文版", "震动版"],
+  "osFolders": { "windows": "Windows", "android": "Android", "linux": "Linux", "macos": "MacOS" }
 }
 ```
+
+| 字段 | 含义 |
+|---|---|
+| `platforms` | 平台列表（= `Roms/` 下的文件夹名） |
+| `mediaVariants` | 可选。媒体变体后缀：匹配时去掉，让 HACK/汉化版 等复用基础版封面；缺省用内置默认表 |
+| `osFolders` | 可选。运行平台 → `Emulators/` 下的文件夹名；缺省 `windows→Windows` 等 |
 
 ### 3.4 Roms 平台游戏列表 `Roms/<平台>/games.json`
 
@@ -112,7 +120,19 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 - 目录：`Roms/<平台>/media/<游戏名>/`
 - 约定文件名：`boxFront.*`（封面）、`logo.*`、`video.*`（视频）等，支持 png/jpg/jpeg/webp、mp4/webm
-- 查找顺序：① `games.json` 里显式写的 `cover` → ② `media/<title>/` → ③ `media/<文件名(去扩展名)>/`
+- 媒体目录匹配优先级：① `games.json` 的 `media` 字段 → ② `Roms/<平台>/media-map.json` → ③ 按标题自动匹配（会先去掉 `mediaVariants` 后缀再匹配）
+
+**显式指定媒体目录**（标题与目录名对不上时用）：
+
+- `games.json` 单个游戏里写 `"media": "media/目录名"`（重新生成 games.json 会丢）
+- 或写进 `Roms/<平台>/media-map.json`（推荐，重新生成 games.json 不影响）：
+
+```json
+{
+  "恶魔城历代记 HACK": "media/恶魔城年代记 汉化版",
+  "生化危机1 重制版 HACK": "media/生化危机 导演剪辑震动版 汉化版"
+}
+```
 
 ### 3.6 Emulators 配置 `Emulators/<运行平台>/<平台>/config.json`
 
