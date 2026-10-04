@@ -150,8 +150,12 @@ export function LibraryPage({ onOpenSettings, settingsOpen, onCloseSettings }: P
   // 启动中（下载/解压）或启动失败时，显示居中的进度/状态面板
   const showLaunchPanel = launching || progress !== null || (launchMsg !== null && !launchMsg.ok);
 
-  // 手柄：导航 / 确认启动 / 切换平台 / 开关设置
+  // 手柄：导航 / 确认启动 / 切换平台 / 开关设置 / 全屏
   const gamepadConnected = useGamepad((action) => {
+    if (action === "fullscreen") {
+      useStore.getState().toggleFullscreen();
+      return;
+    }
     if (settingsOpen) {
       if (action === "menu" || action === "back") onCloseSettings();
       else if (action === "up") focusSettings(-1);

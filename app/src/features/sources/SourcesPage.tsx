@@ -34,6 +34,8 @@ export function SourcesPage({ onClose }: Props) {
   const downloadDir = useStore((s) => s.downloadDir);
   const setDownloadDir = useStore((s) => s.setDownloadDir);
   const requestScan = useStore((s) => s.requestScan);
+  const fullscreen = useStore((s) => s.fullscreen);
+  const toggleFullscreen = useStore((s) => s.toggleFullscreen);
 
   // 打开设置时用当前资源源初始化表单（面板每次 F1 都会重新挂载）
   const initial = useStore.getState().source;
@@ -164,6 +166,9 @@ export function SourcesPage({ onClose }: Props) {
       <div className="settings-head">
         <h2>设置</h2>
         <div style={{ display: "flex", gap: 8 }}>
+          <button className="ghost small" onClick={() => toggleFullscreen()}>
+            {fullscreen ? "退出全屏" : "全屏"}
+          </button>
           <button
             className="ghost small"
             onClick={() => {

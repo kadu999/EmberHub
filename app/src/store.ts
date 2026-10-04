@@ -32,9 +32,13 @@ interface AppStore {
   downloadDir: string;
   /** 扫描信号：自增以请求游戏库重新扫描 */
   scanToken: number;
+  /** 是否全屏（持久化，启动时应用） */
+  fullscreen: boolean;
   setSource: (s: SourceConfig | null) => void;
   setDownloadDir: (dir: string) => void;
   requestScan: () => void;
+  setFullscreen: (v: boolean) => void;
+  toggleFullscreen: () => void;
 }
 
 export const useStore = create<AppStore>()(
@@ -43,9 +47,12 @@ export const useStore = create<AppStore>()(
       source: null,
       downloadDir: "",
       scanToken: 0,
+      fullscreen: false,
       setSource: (s) => set({ source: s }),
       setDownloadDir: (dir) => set({ downloadDir: dir }),
       requestScan: () => set((st) => ({ scanToken: st.scanToken + 1 })),
+      setFullscreen: (v) => set({ fullscreen: v }),
+      toggleFullscreen: () => set((st) => ({ fullscreen: !st.fullscreen })),
     }),
     {
       name: "emberhub",
@@ -64,6 +71,7 @@ export const useStore = create<AppStore>()(
           source: src,
           downloadDir: typeof p.downloadDir === "string" ? p.downloadDir : current.downloadDir,
           scanToken: typeof p.scanToken === "number" ? p.scanToken : current.scanToken,
+          fullscreen: typeof p.fullscreen === "boolean" ? p.fullscreen : current.fullscreen,
         };
       },
     },

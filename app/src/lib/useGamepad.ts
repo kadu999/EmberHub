@@ -11,12 +11,14 @@ export type GamepadAction =
   | "back"
   | "menu"
   | "prev"
-  | "next";
+  | "next"
+  | "fullscreen";
 
 /** 离散按键（按下沿触发一次） */
 const BUTTON_ACTIONS: Record<number, GamepadAction> = {
   0: "confirm", // A / ✕
   1: "back", // B / ○
+  3: "fullscreen", // Y / △
   4: "prev", // LB / L1
   5: "next", // RB / R1
   8: "menu", // Select / View
