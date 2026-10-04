@@ -236,7 +236,12 @@ export function LibraryPage({ onOpenSettings }: Props) {
               <button
                 key={c}
                 className={collection === c ? "chip active" : "chip"}
-                onClick={() => setCollection(c)}
+                onClick={() => {
+                  setCollection(c);
+                  // 切换平台时自动选中该平台的第一个游戏
+                  const first = result?.games.find((g) => g.collection === c);
+                  if (first) setSelected(first);
+                }}
               >
                 {c}
               </button>
