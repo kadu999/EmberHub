@@ -30,7 +30,6 @@ export const tauri = {
 
   // ---- 本地文件系统 ----
   listLocalDir: (path: string) => invoke<LocalEntry[]>("list_local_dir", { path }),
-  readLocalText: (path: string) => invoke<string>("read_local_text", { path }),
 
   // ---- WebDAV ----
   webdavList: (auth: DavAuth, path: string) =>

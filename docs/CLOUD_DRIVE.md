@@ -2,8 +2,7 @@
 
 EmberHub 采用「直连优先」的存储适配器架构。当前已实现：
 
-- **LocalProvider**：本地文件夹
-- **WebDavProvider**：WebDAV（可对接 OpenList、NAS、Nextcloud 等）
+- **WebDavProvider**：WebDAV（对接 OpenList）
 
 推荐用 **OpenList** 把各类网盘统一挂载为 WebDAV，再在 EmberHub 里添加一个 WebDAV 存储源。
 
@@ -89,7 +88,7 @@ OpenList 是 AList 的官方继任者，一个绿色小程序，无需数据库�
 | 密码 | 你的 OpenList 密码 |
 | 资源源 | 点「获取资源源」后从下拉里选一个挂载（如 `EmberHub_Baidu`） |
 
-填好地址后点「获取资源源」，EmberHub 会从 OpenList 拉取挂载列表（`/dav/` 根目录）；选中一个后「测试连接」确认，再点「保存」即可（EmberHub 只保留一个资源源，OpenList 与本地文件夹二选一）。
+填好地址后点「获取资源源」，EmberHub 会从 OpenList 拉取挂载列表（`/dav/` 根目录）；选中一个后「测试连接」确认，再点「保存」即可（EmberHub 只保留一个资源源）。
 
 ---
 

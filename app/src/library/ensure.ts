@@ -112,22 +112,14 @@ export async function ensureEmulator(
     }
   }
 
-  // 取得压缩包的本地路径（远程下载 / 本地源直接用）
+  // 下载模拟器压缩包到缓存目录
+  if (!provider.downloadTo) throw new Error("该存储源不支持下载模拟器。");
   const remoteArchive = joinPath(emuBase, config.archive);
-  let localArchive: string;
-  if (provider.absolute) {
-    const abs = provider.absolute(remoteArchive);
-    if (!abs) throw new Error("无法解析模拟器压缩包的本地路径。");
-    localArchive = abs;
-  } else if (provider.downloadTo) {
-    const cacheDir = joinPath(dl, ".cache", "Emulators", emuPlatform);
-    await tauri.ensureDir(cacheDir);
-    localArchive = joinPath(cacheDir, basename(config.archive));
-    onStatus?.(`下载模拟器 ${emuPlatform} ${config.version}…`);
-    await provider.downloadTo(remoteArchive, localArchive);
-  } else {
-    throw new Error("该存储源不支持下载模拟器。");
-  }
+  const cacheDir = joinPath(dl, ".cache", "Emulators", emuPlatform);
+  await tauri.ensureDir(cacheDir);
+  const localArchive = joinPath(cacheDir, basename(config.archive));
+  onStatus?.(`下载模拟器 ${emuPlatform} ${config.version}…`);
+  await provider.downloadTo(remoteArchive, localArchive);
 
   onStatus?.("解压模拟器…");
   await tauri.removePath(localDir);
@@ -147,13 +139,6 @@ export async function ensureRom(
 ): Promise<string> {
   const romRel = game.files[0];
   if (!romRel) throw new Error("该游戏没有指定文件。");
-
-  // 本地源：直接绝对路径
-  if (provider.absolute) {
-    const abs = provider.absolute(romRel);
-    if (!abs) throw new Error("无法解析 ROM 的本地路径。");
-    return abs;
-  }
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
   const dl = await getDownloadDir(source);
@@ -205,8 +190,6 @@ export async function ensureLocalMedia(
   provider: StorageProvider,
   relPath: string,
 ): Promise<string> {
-  const local = provider.absolute?.(relPath);
-  if (local) return local;
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
   const dl = await getDownloadDir();

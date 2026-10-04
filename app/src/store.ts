@@ -13,11 +13,11 @@ function parseDavUrl(url: string): { server: string; mountPath: string } {
   }
 }
 
-/** 迁移单个存储源：丢弃已移除的类型（如 FTP），旧的 webdav → openlist。 */
+/** 迁移单个存储源：丢弃已移除的类型（本地 / FTP），旧的 webdav → openlist。 */
 function migrateSource(s: unknown): SourceConfig | null {
   if (!s || typeof s !== "object") return null;
   const o = s as Record<string, unknown>;
-  if (o.kind === "local" || o.kind === "openlist") return o as unknown as SourceConfig;
+  if (o.kind === "openlist") return o as unknown as SourceConfig;
   if (o.kind === "webdav") {
     const { server, mountPath } = parseDavUrl(String(o.url ?? ""));
     return { ...o, kind: "openlist", server, mountPath } as SourceConfig;

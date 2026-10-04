@@ -58,7 +58,7 @@ fn launch_emulator(
     }
 }
 
-/// 列出本地目录内容，供 LocalProvider 使用。
+/// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
 #[tauri::command]
 fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
     let mut entries = Vec::new();
@@ -74,12 +74,6 @@ fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
         });
     }
     Ok(entries)
-}
-
-/// 读取本地文本文件（UTF-8）。
-#[tauri::command]
-fn read_local_text(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| format!("failed to read `{}`: {}", path, e))
 }
 
 // ---------------------------------------------------------------------------
@@ -507,7 +501,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             launch_emulator,
             list_local_dir,
-            read_local_text,
             webdav_list,
             webdav_read_text,
             webdav_download,

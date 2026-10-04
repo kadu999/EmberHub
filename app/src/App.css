@@ -152,53 +152,80 @@ h3 {
   margin: 6px 0 18px;
 }
 
-/* ---------- 下载进度条 ---------- */
-.dl-bar {
+/* ---------- 下载 / 解压进度（居中放大） ---------- */
+.launch-overlay {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 16px;
-  min-width: 420px;
-  max-width: 80vw;
-  z-index: 30;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  justify-content: center;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 40;
 }
 
-.dl-name {
-  font-size: 12px;
-  color: var(--text);
-  max-width: 170px;
+.launch-panel {
+  width: min(600px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 36px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  text-align: center;
+}
+
+.launch-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dl-track {
-  flex: 1;
-  height: 8px;
+  height: 16px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 9px;
   overflow: hidden;
 }
 
 .dl-fill {
   height: 100%;
-  background: var(--ember);
+  background: linear-gradient(90deg, var(--ember), var(--ember-soft));
   transition: width 0.2s linear;
 }
 
-.dl-text {
-  font-size: 12px;
+.dl-fill.indeterminate {
+  width: 35%;
+  animation: dl-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes dl-slide {
+  0% {
+    margin-left: -35%;
+  }
+  100% {
+    margin-left: 100%;
+  }
+}
+
+.launch-meta {
+  margin-top: 14px;
+  font-size: 13px;
   color: var(--muted);
-  white-space: nowrap;
+  word-break: break-all;
+}
+
+.launch-status {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--ember-soft);
+}
+
+.launch-status.is-error {
+  color: #ff8a8a;
 }
 
 code {

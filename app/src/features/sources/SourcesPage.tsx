@@ -1,11 +1,11 @@
-// 设置页：唯一资源源配置（OpenList / 本地文件夹，二选一）。
+// 设置页：OpenList 资源源配置 + 下载目录 + 媒体缓存。
 // 默认隐藏，按 F1 打开。
 import { useEffect, useState } from "react";
 import { useStore } from "../../store";
 import { createProvider } from "../../storage";
 import { tauri } from "../../lib/tauri";
 import { mediaCacheRoot } from "../../library/ensure";
-import type { SourceConfig, StorageKind } from "../../storage/types";
+import type { SourceConfig } from "../../storage/types";
 
 interface Props {
   onClose?: () => void;
@@ -43,8 +43,6 @@ export function SourcesPage({ onClose }: Props) {
     tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
   }, []);
 
-  const [kind, setKind] = useState<StorageKind>(initial?.kind ?? "openlist");
-  const [root, setRoot] = useState(initial?.kind === "local" ? initial.root ?? "" : "");
   const [server, setServer] = useState(initial?.server ?? DEFAULT_SERVER);
   const [mountPath, setMountPath] = useState(initial?.mountPath ?? "");
   const [mounts, setMounts] = useState<Mount[]>([]);
@@ -123,15 +121,11 @@ export function SourcesPage({ onClose }: Props) {
   }
 
   function buildConfig(): SourceConfig | null {
-    if (kind === "local") {
-      if (!root.trim()) return null;
-      return { id: "main", name: "本地文件夹", kind, romsPath: "Roms", root: root.trim() };
-    }
     if (!normalizeServer(server) || !mountPath) return null;
     return {
       id: "main",
       name: mountPath.replace(/^\//, "") || "OpenList",
-      kind,
+      kind: "openlist",
       romsPath: "Roms",
       server: server.trim(),
       mountPath,
@@ -186,7 +180,7 @@ export function SourcesPage({ onClose }: Props) {
           )}
         </div>
       </div>
-      <p className="hint">资源服务器二选一：OpenList 或 本地文件夹。游戏库放在「游戏目录」（默认 Roms）下。</p>
+      <p className="hint">通过 OpenList（WebDAV）读取游戏库。游戏库放在「游戏目录」（默认 Roms）下。</p>
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>下载目录</h3>
@@ -228,69 +222,51 @@ export function SourcesPage({ onClose }: Props) {
       </div>
 
       <div className="card">
-        <div className="segmented">
-          <button className={kind === "openlist" ? "active" : ""} onClick={() => setKind("openlist")}>
-            OpenList
-          </button>
-          <button className={kind === "local" ? "active" : ""} onClick={() => setKind("local")}>
-            本地文件夹
-          </button>
+        <h3 style={{ marginTop: 0 }}>OpenList 资源源</h3>
+
+        <div className="field">
+          <label>OpenList 地址（IP:端口）</label>
+          <input
+            value={server}
+            onChange={(e) => setServer(e.currentTarget.value)}
+            placeholder="127.0.0.1:5244"
+          />
         </div>
-
-        {kind === "openlist" && (
-          <>
-            <div className="field">
-              <label>OpenList 地址（IP:端口）</label>
-              <input
-                value={server}
-                onChange={(e) => setServer(e.currentTarget.value)}
-                placeholder="127.0.0.1:5244"
-              />
-            </div>
-            <div className="field">
-              <label>用户名</label>
-              <input value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
-            </div>
-            <div className="field">
-              <label>密码</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
-            </div>
-            <div className="field">
-              <label>资源源（OpenList 挂载）</label>
-              <div className="field-row">
-                <select
-                  value={mountPath}
-                  onChange={(e) => setMountPath(e.currentTarget.value)}
-                  disabled={mounts.length === 0}
-                >
-                  {mounts.length === 0 ? (
-                    <option value="">{loadingMounts ? "获取中…" : "点击右侧按钮获取"}</option>
-                  ) : (
-                    mounts.map((m) => (
-                      <option key={m.path} value={m.path}>
-                        {m.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                <button className="ghost small" onClick={() => void fetchMounts()} disabled={loadingMounts}>
-                  {loadingMounts ? "获取中…" : "获取资源源"}
-                </button>
-              </div>
-            </div>
-            {mountPath && (
-              <p className="hint">
-                将使用：<code>{normalizeServer(server)}/dav{mountPath}</code>
-              </p>
-            )}
-          </>
-        )}
-
-        {kind === "local" && (
-          <div className="field">
-            <label>根目录</label>
-            <input value={root} onChange={(e) => setRoot(e.currentTarget.value)} placeholder="E:\\Games" />
+        <div className="field">
+          <label>用户名</label>
+          <input value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
+        </div>
+        <div className="field">
+          <label>密码</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
+        </div>
+        <div className="field">
+          <label>资源源（OpenList 挂载）</label>
+          <div className="field-row">
+            <select
+              value={mountPath}
+              onChange={(e) => setMountPath(e.currentTarget.value)}
+              disabled={mounts.length === 0}
+            >
+              {mounts.length === 0 ? (
+                <option value="">{loadingMounts ? "获取中…" : "点击右侧按钮获取"}</option>
+              ) : (
+                mounts.map((m) => (
+                  <option key={m.path} value={m.path}>
+                    {m.name}
+                  </option>
+                ))
+              )}
+            </select>
+            <button className="ghost small" onClick={() => void fetchMounts()} disabled={loadingMounts}>
+              {loadingMounts ? "获取中…" : "获取资源源"}
+            </button>
           </div>
+        </div>
+        {mountPath && (
+          <p className="hint">
+            将使用：<code>{normalizeServer(server)}/dav{mountPath}</code>
+          </p>
         )}
 
         <div className="actions">

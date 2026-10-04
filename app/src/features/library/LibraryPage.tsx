@@ -40,6 +40,8 @@ export function LibraryPage({ onOpenSettings }: Props) {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   // 首次进入只加载封面；用户点击某个游戏后才加载视频预览，避免一进来就抢占带宽
   const [videoArmed, setVideoArmed] = useState(false);
+  // 是否正在启动（下载/解压/拉起模拟器）
+  const [launching, setLaunching] = useState(false);
 
   const scanRoot = (source?.romsPath ?? "Roms").trim();
 
@@ -115,6 +117,9 @@ export function LibraryPage({ onOpenSettings }: Props) {
     [games, collection],
   );
 
+  // 启动中（下载/解压）或启动失败时，显示居中的进度/状态面板
+  const showLaunchPanel = launching || progress !== null || (launchMsg !== null && !launchMsg.ok);
+
   // 未配置存储源
   if (!source || !provider) {
     return (
@@ -146,10 +151,13 @@ export function LibraryPage({ onOpenSettings }: Props) {
     setSelected(g);
     setLaunchMsg(null);
     setProgress(null);
+    setLaunching(true);
     try {
       await launchGame(g, provider!, source!, (s) => setLaunchMsg({ ok: true, text: s }));
       await getCurrentWindow().close();
     } catch (e) {
+      setLaunching(false);
+      setProgress(null);
       setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
     }
   }
@@ -204,7 +212,6 @@ export function LibraryPage({ onOpenSettings }: Props) {
                 )}
               </dl>
 
-              {launchMsg && <p className={launchMsg.ok ? "ok" : "error"}>{launchMsg.text}</p>}
               {selected.description && <p className="desc">{selected.description}</p>}
             </>
           )}
@@ -262,24 +269,43 @@ export function LibraryPage({ onOpenSettings }: Props) {
         </main>
       </div>
 
-      {progress && (
-        <div className="dl-bar">
-          <span className="dl-name">{progress.path.replace(/\\/g, "/").split("/").pop()}</span>
-          <div className="dl-track">
-            <div
-              className="dl-fill"
-              style={{
-                width: progress.total
-                  ? `${Math.min(100, (progress.downloaded / progress.total) * 100)}%`
-                  : "100%",
-              }}
-            />
+      {showLaunchPanel && (
+        <div
+          className="launch-overlay"
+          onClick={() => {
+            if (launchMsg && !launchMsg.ok) setLaunchMsg(null);
+          }}
+        >
+          <div className="launch-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="launch-title">{selected?.title ?? "正在启动"}</div>
+            <div className="dl-track">
+              <div
+                className={progress ? "dl-fill" : "dl-fill indeterminate"}
+                style={
+                  progress
+                    ? {
+                        width: progress.total
+                          ? `${Math.min(100, (progress.downloaded / progress.total) * 100)}%`
+                          : "100%",
+                      }
+                    : undefined
+                }
+              />
+            </div>
+            {progress && (
+              <div className="launch-meta">
+                {progress.path.replace(/\\/g, "/").split("/").pop()}
+                {progress.total
+                  ? ` · ${(progress.downloaded / 1048576).toFixed(1)} / ${(progress.total / 1048576).toFixed(1)} MB`
+                  : ` · ${(progress.downloaded / 1048576).toFixed(1)} MB`}
+              </div>
+            )}
+            {launchMsg && (
+              <div className={launchMsg.ok ? "launch-status" : "launch-status is-error"}>
+                {launchMsg.text}
+              </div>
+            )}
           </div>
-          <span className="dl-text">
-            {progress.total
-              ? `${(progress.downloaded / 1048576).toFixed(1)} / ${(progress.total / 1048576).toFixed(1)} MB`
-              : `${(progress.downloaded / 1048576).toFixed(1)} MB`}
-          </span>
         </div>
       )}
     </div>

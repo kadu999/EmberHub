@@ -111,7 +111,7 @@ export interface DownloadTicket {
 
 | 阶段 | Provider | 协议 / 现状 | 优先级 |
 |---|---|---|---|
-| M1 | **LocalProvider** | 本地文件夹 | ⭐ 先做（0 依赖） |
+| M1 | ~~LocalProvider~~ | 本地文件夹（已移除，只保留 OpenList/WebDAV） | — |
 | M2 | **AliyunDriveProvider** | 阿里云盘开放平台 OpenAPI（官方） | ⭐ 你已有 |
 | M3 | **Pan123Provider** | 123 云盘开放平台（官方） | 可选 |
 | M4 | **OneDriveProvider** | Microsoft Graph（官方，最标准） | 可选 |
@@ -199,7 +199,7 @@ EmberHub/                     # 仓库根（项目）
 
 ## 9. 里程碑
 
-- **M1**：Tauri 2 骨架 + 本地游戏库 + LocalProvider + 启动本地 ROM。
+- **M1**：Tauri 2 骨架 + 自定义 JSON 游戏库 + WebDAV（OpenList）存储源 + 启动 ROM。
 - **M2**：阿里云盘直连 + 按需下载 + 下载中心。
 - **M3**：模拟器参数配置、刮削封面、手柄导航。
 - **M4**：Android 壳（Capacitor 或 Tauri mobile）+ 更多 Provider。

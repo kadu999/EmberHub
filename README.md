@@ -21,7 +21,7 @@
 **Early Development** — 已实现：
 
 - ✅ Tauri 2 桌面应用骨架（Windows）
-- ✅ 存储源配置（本地文件夹 / WebDAV）
+- ✅ 存储源配置（OpenList / WebDAV）
 - ✅ 自定义 JSON 资源解析与游戏库浏览（封面、筛选、详情）
 
 规划中：模拟器配置与启动、按需下载、刮削、手柄导航、Android 端。
@@ -31,7 +31,7 @@
 - 打开即进入**游戏库**（主机前端式交互）
 - 资源格式为**自定义 JSON**：服务器根 `manifest.json` + `Roms/<平台>/games.json`，封面按 `media/` 约定
 - **按 `F1`** 打开设置（配置存储源 / 游戏目录），`Esc` 关闭
-- 存储源支持本地文件夹、WebDAV（对接 OpenList）
+- 存储源通过 OpenList（WebDAV）接入
 
 ## 🛠️ 技术选型
 

@@ -2,7 +2,7 @@
 // 直连优先，想加哪个 Provider 就实现这个接口即可。
 // 详见 docs/ARCHITECTURE.md 第 5 节
 
-export type StorageKind = "local" | "openlist";
+export type StorageKind = "openlist";
 
 /** 用户配置的一个存储源 */
 export interface SourceConfig {
@@ -15,8 +15,6 @@ export interface SourceConfig {
   emulatorsPath?: string;
   /** 下载目录（默认程序数据目录，可改） */
   downloadDir?: string;
-  /** local: 根目录绝对路径 */
-  root?: string;
   /** openlist: 服务地址（ip:端口 或完整 http(s) 地址） */
   server?: string;
   /** openlist: 选中的资源源挂载路径，如 /EmberHub_Baidu */
@@ -52,8 +50,6 @@ export interface StorageProvider {
   list(path: string): Promise<RemoteEntry[]>;
   /** 读取文本文件 */
   readText(path: string): Promise<string>;
-  /** 把相对路径解析为本地绝对路径（仅本地源支持；远程源返回 undefined） */
-  absolute?(path: string): string | undefined;
   /** 把远端文件下载到本地 dest（远程源实现；本地源无需） */
   downloadTo?(path: string, dest: string): Promise<number>;
 }
