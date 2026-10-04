@@ -20,22 +20,25 @@ interface Props {
   onOpenSettings: () => void;
   settingsOpen: boolean;
   onCloseSettings: () => void;
+  menuOpen: boolean;
+  onOpenMenu: () => void;
+  onCloseMenu: () => void;
 }
 
 /** 选中游戏切换后，延迟一点再加载视频，避免快速浏览时触发一堆下载。 */
 const VIDEO_DEBOUNCE_MS = 350;
 
-/** 设置面板里可聚焦的元素（手柄导航用）。 */
-function settingsFocusables(): HTMLElement[] {
-  const panel = document.querySelector(".settings-panel");
-  if (!panel) return [];
+/** 某个容器内可聚焦的元素（手柄导航用）。 */
+function focusablesIn(selector: string): HTMLElement[] {
+  const root = document.querySelector(selector);
+  if (!root) return [];
   return Array.from(
-    panel.querySelectorAll<HTMLElement>("button, input, select, textarea, [tabindex]"),
+    root.querySelectorAll<HTMLElement>("button, input, select, textarea, [tabindex]"),
   ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
 }
 
-function focusSettings(delta: number) {
-  const els = settingsFocusables();
+function moveFocus(selector: string, delta: number) {
+  const els = focusablesIn(selector);
   if (els.length === 0) return;
   const cur = document.activeElement as HTMLElement | null;
   const i = cur ? els.indexOf(cur) : -1;
@@ -43,17 +46,21 @@ function focusSettings(delta: number) {
   els[next]?.focus();
 }
 
-function activateSettings() {
+function activateFocused() {
   const el = document.activeElement as HTMLElement | null;
-  if (!el || !settingsFocusables().includes(el)) {
-    focusSettings(1);
-    return;
-  }
+  if (!el) return;
   if (el instanceof HTMLButtonElement) el.click();
   else el.focus();
 }
 
-export function LibraryPage({ onOpenSettings, settingsOpen, onCloseSettings }: Props) {
+export function LibraryPage({
+  onOpenSettings,
+  settingsOpen,
+  onCloseSettings,
+  menuOpen,
+  onOpenMenu,
+  onCloseMenu,
+}: Props) {
   const { source, scanToken } = useStore();
   const provider = useMemo(() => (source ? createProvider(source) : null), [source]);
   const gridRef = useRef<VirtualGridHandle | null>(null);
@@ -150,7 +157,7 @@ export function LibraryPage({ onOpenSettings, settingsOpen, onCloseSettings }: P
   // 启动中（下载/解压）或启动失败时，显示居中的进度/状态面板
   const showLaunchPanel = launching || progress !== null || (launchMsg !== null && !launchMsg.ok);
 
-  // 手柄：导航 / 确认启动 / 切换平台 / 开关设置 / 全屏
+  // 手柄：导航 / 确认启动 / 切换平台 / 菜单 / 全屏
   const gamepadConnected = useGamepad((action) => {
     if (action === "fullscreen") {
       useStore.getState().toggleFullscreen();
@@ -158,12 +165,20 @@ export function LibraryPage({ onOpenSettings, settingsOpen, onCloseSettings }: P
     }
     if (settingsOpen) {
       if (action === "menu" || action === "back") onCloseSettings();
-      else if (action === "up") focusSettings(-1);
-      else if (action === "down") focusSettings(1);
-      else if (action === "confirm") activateSettings();
+      else if (action === "up") moveFocus(".settings-panel", -1);
+      else if (action === "down") moveFocus(".settings-panel", 1);
+      else if (action === "confirm") activateFocused();
+      return;
+    }
+    if (menuOpen) {
+      if (action === "menu" || action === "back") onCloseMenu();
+      else if (action === "up") moveFocus(".menu-panel", -1);
+      else if (action === "down") moveFocus(".menu-panel", 1);
+      else if (action === "confirm") activateFocused();
       return;
     }
     if (action === "menu") onOpenSettings();
+    else if (action === "back") onOpenMenu();
     else if (action === "prev") switchPlatform(-1);
     else if (action === "next") switchPlatform(1);
     else if (action === "confirm") {

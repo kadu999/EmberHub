@@ -581,6 +581,48 @@ select:focus {
   margin-top: 8px;
 }
 
+/* ---------- 右侧菜单（Esc / 手柄返回） ---------- */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 15;
+}
+
+.menu-panel {
+  width: min(320px, 80vw);
+  height: 100%;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: menu-slide 0.18s ease;
+}
+
+.menu-panel h2 {
+  margin: 0 0 12px;
+}
+
+.menu-panel button {
+  width: 100%;
+  text-align: left;
+  padding: 14px 18px;
+  font-size: 15px;
+}
+
+@keyframes menu-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 /* ---------- 设置弹层 ---------- */
 .settings-overlay {
   position: fixed;
