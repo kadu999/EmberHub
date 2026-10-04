@@ -53,13 +53,12 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 │  └─ NES/...
 └─ Emulators/                # 模拟器按「运行平台」分（客户端只下自己系统的）
    ├─ Windows/
-   │  ├─ platforms.json      # 平台映射表（Roms 文件夹 → Emulators 游戏平台文件夹）
+   │  ├─ emulators.json      # 平台映射 + 各模拟器配置（合并，见 3.6）
    │  ├─ GBA/
-   │  │  ├─ config.json      # 模拟器配置文件（含版本）
    │  │  └─ GBA.zip          # 模拟器压缩包
    │  └─ NES/...
    └─ Android/
-      ├─ platforms.json
+      ├─ emulators.json
       └─ GBA/...
 ```
 
@@ -132,41 +131,41 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 }
 ```
 
-### 3.6 Emulators 配置 `Emulators/<运行平台>/<平台>/config.json`
+### 3.6 Emulators 配置 `Emulators/<运行平台>/emulators.json`
+
+每个运行平台**一个文件**，包含「平台映射」+「各模拟器配置」：
 
 ```json
 {
-  "platform": "GBA",
-  "version": "1.2.0",
-  "archive": "GBA.zip",
-  "exe": "retroarch.exe",
-  "args": ["-L", "cores/mgba_libretro.dll", "{file.path}"],
-  "workdir": ".",
-  "extract": true
+  "platforms": {
+    "GBA": "GBA",
+    "PS": "PS1"
+  },
+  "emulators": {
+    "GBA": {
+      "platform": "GBA",
+      "version": "1.2.0",
+      "archive": "GBA.zip",
+      "exe": "retroarch.exe",
+      "args": ["-L", "cores/mgba_libretro.dll", "{file.path}"],
+      "workdir": ".",
+      "extract": true
+    }
+  }
 }
 ```
 
+- **`platforms`**：键 = Roms 下平台文件夹名，值 = Emulators 下游戏平台文件夹名（缺省同名）。
+- **`emulators`**：键 = 模拟器平台文件夹名，值 = 该模拟器配置：
+
 | 字段 | 含义 |
 |---|---|
-| `platform` | 平台标识 |
 | `version` | 版本号（判断是否需要更新） |
 | `archive` | 压缩包文件名（相对该平台目录） |
 | `exe` | 解压后可执行文件路径（相对解压根） |
 | `args` | 启动参数数组，支持 `{file.path}` 等占位符 |
 | `workdir` | 工作目录（相对解压根，可选） |
 | `extract` | 是否解压 ROM 压缩包（默认 `true`）。模拟器能直接读压缩包时设为 `false`（如 mGBA 读 zip） |
-
-### 3.7 平台映射 `Emulators/<运行平台>/platforms.json`
-
-每个运行平台一份。键 = Roms 下平台文件夹名，值 = Emulators 下游戏平台文件夹名：
-
-```json
-{
-  "GBA": "GBA",
-  "NES": "NES",
-  "PS": "PS1"
-}
-```
 
 ---
 
@@ -178,7 +177,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 ### 4.2 下载模拟器（按平台）
 
-- 点游戏 → 经 `platforms.json` 得到平台 → 读 `Emulators/<平台>/config.json`
+- 点游戏 → 经 `emulators.json` 的 `platforms` 得到平台 → 读 `emulators.json` 的 `emulators[平台]`
 - 未下载 → 下载压缩包并解压
 - 已下载 → 比对 `version`，不同则更新
 
@@ -208,7 +207,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 1. `Roms/<平台>/games.json` 里该游戏的 `launch`（游戏级）
 2. 否则 `games.json` 的平台级 `launch`
-3. 否则 `Emulators/<平台>/config.json` 的 `exe` + `args`
+3. 否则 `emulators.json` 里该平台的 `exe` + `args`
 
 ### 5.2 生命周期
 
@@ -242,16 +241,15 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 | 1 | 全部改用自定义 JSON | ✅ 已定 |
 | 2 | Roms `games.json` 结构 | ✅ 已定 |
 | 3 | 根 `manifest.json`（只列平台） | ✅ 已定 |
-| 4 | Emulators `config.json` | ✅ 已定 |
-| 5 | 平台映射 `platforms.json` | ✅ 已定 |
-| 6 | 封面沿用天马G 目录约定 | ✅ 已定 |
-| 7 | 启动命令 Roms 优先 | ✅ 已定 |
-| 8 | OpenList/WebDAV 账号密码 | ✅ 已定 |
-| 9 | 默认下载目录（程序数据目录）与结构 | ✅ 已定 |
-| 10 | ROM 自动解压 | ✅ 已定 |
-| 11 | 断点续传 | ✅ 已定 |
-| 12 | 不自动清理 | ✅ 已定 |
-| 13 | PC / Android 模拟器差异 | ❓ 非阻塞（Android 阶段再定） |
+| 4 | Emulators 合并配置 `emulators.json`（平台映射 + 各模拟器） | ✅ 已定 |
+| 5 | 封面沿用天马G 目录约定 | ✅ 已定 |
+| 6 | 启动命令 Roms 优先 | ✅ 已定 |
+| 7 | OpenList/WebDAV 账号密码 | ✅ 已定 |
+| 8 | 默认下载目录（程序数据目录）与结构 | ✅ 已定 |
+| 9 | ROM 自动解压 | ✅ 已定 |
+| 10 | 断点续传 | ✅ 已定 |
+| 11 | 不自动清理 | ✅ 已定 |
+| 12 | PC / Android 模拟器差异 | ❓ 非阻塞（Android 阶段再定） |
 
 ---
 

@@ -106,10 +106,12 @@ OpenList 是 AList 的官方继任者，一个绿色小程序，无需数据库�
 │     └─ media/             # 封面/视频（天马G 目录约定）
 │        └─ Advance Wars (USA)/boxFront.png
 └─ Emulators/
-   ├─ platforms.json        # 平台映射（Roms 文件夹 → Emulators 文件夹）
-   └─ GBA/
-      ├─ config.json        # 模拟器配置（含 version）
-      └─ GBA.zip            # 模拟器压缩包
+   ├─ Windows/
+   │  ├─ emulators.json     # 平台映射 + 各模拟器配置（合并）
+   │  ├─ GBA/
+   │  │  └─ GBA.zip         # 模拟器压缩包
+   │  └─ ...
+   └─ Android/
 ```
 
 `manifest.json`：

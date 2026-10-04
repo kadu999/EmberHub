@@ -80,16 +80,23 @@ export function parsePlatformMap(text: string): PlatformMap {
   return out;
 }
 
-export function parseEmulatorConfig(text: string): EmulatorConfig {
-  const o = asObject(text, "config.json");
+/** Emulators/<OS>/emulators.json：平台映射 + 各模拟器配置合并在一个文件里。 */
+export interface EmulatorsFile {
+  /** Roms 平台 → 模拟器平台 */
+  platforms: PlatformMap;
+  /** 模拟器平台 → 配置 */
+  emulators: Record<string, EmulatorConfig>;
+}
+
+function emulatorConfigFrom(o: Record<string, unknown>, fallbackPlatform: string): EmulatorConfig {
   const version = str(o.version);
   const archive = str(o.archive);
   const exe = str(o.exe);
-  if (!version) throw new Error("config.json 缺少 version");
-  if (!archive) throw new Error("config.json 缺少 archive");
-  if (!exe) throw new Error("config.json 缺少 exe");
+  if (!version) throw new Error("模拟器配置缺少 version");
+  if (!archive) throw new Error("模拟器配置缺少 archive");
+  if (!exe) throw new Error("模拟器配置缺少 exe");
   return {
-    platform: str(o.platform) ?? "",
+    platform: str(o.platform) ?? fallbackPlatform,
     version,
     archive,
     exe,
@@ -97,4 +104,32 @@ export function parseEmulatorConfig(text: string): EmulatorConfig {
     workdir: str(o.workdir),
     extract: typeof o.extract === "boolean" ? o.extract : undefined,
   };
+}
+
+export function parseEmulatorConfig(text: string): EmulatorConfig {
+  return emulatorConfigFrom(asObject(text, "config.json"), "");
+}
+
+/** 解析合并后的 emulators.json（兼容旧结构：单独读 platforms.json / config.json）。 */
+export function parseEmulators(text: string): EmulatorsFile {
+  const o = asObject(text, "emulators.json");
+  const platforms: PlatformMap = {};
+  if (o.platforms && typeof o.platforms === "object" && !Array.isArray(o.platforms)) {
+    for (const [k, v] of Object.entries(o.platforms as Record<string, unknown>)) {
+      if (typeof v === "string") platforms[k] = v;
+    }
+  }
+  const emulators: Record<string, EmulatorConfig> = {};
+  if (o.emulators && typeof o.emulators === "object" && !Array.isArray(o.emulators)) {
+    for (const [k, v] of Object.entries(o.emulators as Record<string, unknown>)) {
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        try {
+          emulators[k] = emulatorConfigFrom(v as Record<string, unknown>, k);
+        } catch {
+          // 单条损坏时跳过
+        }
+      }
+    }
+  }
+  return { platforms, emulators };
 }

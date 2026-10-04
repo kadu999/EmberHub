@@ -3,7 +3,8 @@ import { tauri } from "../lib/tauri";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../lib/path";
 import { useStore } from "../store";
 import type { SourceConfig, StorageProvider } from "../storage/types";
-import { parseEmulatorConfig, parseManifest, parsePlatformMap } from "./parse";
+import { parseEmulatorConfig, parseEmulators, parseManifest, parsePlatformMap } from "./parse";
+import type { EmulatorsFile } from "./parse";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
 
@@ -76,6 +77,21 @@ async function emulatorOsRoot(provider: StorageProvider, source: SourceConfig): 
   return joinPath(emuRoot, osFolder(await tauri.hostOs(), osFolders));
 }
 
+/** 读取该运行平台的模拟器配置：优先合并文件 emulators.json，否则回退旧的 platforms.json + 各 config.json。 */
+async function loadEmulators(provider: StorageProvider, osRoot: string): Promise<EmulatorsFile> {
+  try {
+    return parseEmulators(await provider.readText(joinPath(osRoot, "emulators.json")));
+  } catch {
+    const platforms: Record<string, string> = {};
+    try {
+      Object.assign(platforms, parsePlatformMap(await provider.readText(joinPath(osRoot, "platforms.json"))));
+    } catch {
+      // 没有 platforms.json
+    }
+    return { platforms, emulators: {} };
+  }
+}
+
 /** 本地模拟器安装目录 + 版本戳路径。 */
 async function emulatorLocal(source: SourceConfig, platform: string) {
   const dl = await getDownloadDir(source);
@@ -109,29 +125,41 @@ export async function listEmulators(
   source: SourceConfig,
 ): Promise<EmulatorInfo[]> {
   const osRoot = await emulatorOsRoot(provider, source);
-  let dirs: string[];
-  try {
-    dirs = (await provider.list(osRoot)).filter((e) => e.isDir).map((e) => e.name);
-  } catch {
-    return [];
-  }
-  const out: EmulatorInfo[] = [];
-  for (const platform of dirs) {
+  const { emulators } = await loadEmulators(provider, osRoot);
+
+  // 平台 → 配置：优先合并文件，否则回退各目录的 config.json
+  const entries: Array<[string, EmulatorConfig]> = Object.entries(emulators);
+  if (entries.length === 0) {
+    let dirs: string[];
     try {
-      const config = parseEmulatorConfig(await provider.readText(joinPath(osRoot, platform, "config.json")));
-      const { stampPath } = await emulatorLocal(source, platform);
-      const ver = await installedVersion(stampPath);
-      out.push({
-        platform,
-        version: config.version,
-        archive: config.archive,
-        exe: config.exe,
-        installed: ver !== undefined,
-        installedVersion: ver,
-      });
+      dirs = (await provider.list(osRoot)).filter((e) => e.isDir).map((e) => e.name);
     } catch {
-      // 没有 config.json 的目录跳过
+      return [];
     }
+    for (const platform of dirs) {
+      try {
+        entries.push([
+          platform,
+          parseEmulatorConfig(await provider.readText(joinPath(osRoot, platform, "config.json"))),
+        ]);
+      } catch {
+        // 跳过没有 config.json 的目录
+      }
+    }
+  }
+
+  const out: EmulatorInfo[] = [];
+  for (const [platform, config] of entries) {
+    const { stampPath } = await emulatorLocal(source, platform);
+    const ver = await installedVersion(stampPath);
+    out.push({
+      platform,
+      version: config.version,
+      archive: config.archive,
+      exe: config.exe,
+      installed: ver !== undefined,
+      installedVersion: ver,
+    });
   }
   return out.sort((a, b) => a.platform.localeCompare(b.platform));
 }
@@ -145,19 +173,17 @@ export async function ensureEmulator(
   force = false,
 ): Promise<EmulatorInstall> {
   const osRoot = await emulatorOsRoot(provider, source);
+  const { platforms, emulators } = await loadEmulators(provider, osRoot);
 
-  // 平台映射（该运行平台目录下的 platforms.json；无则同名）
-  let emuPlatform = platform;
-  try {
-    const map = parsePlatformMap(await provider.readText(joinPath(osRoot, "platforms.json")));
-    emuPlatform = map[platform] ?? platform;
-  } catch {
-    // 忽略
-  }
+  // 平台映射（无则同名）
+  const emuPlatform = platforms[platform] ?? platform;
 
   // 服务器结构：Emulators/<运行平台>/<游戏平台>/
   const emuBase = joinPath(osRoot, emuPlatform);
-  const config = parseEmulatorConfig(await provider.readText(joinPath(emuBase, "config.json")));
+  // 优先用合并配置，回退单文件 config.json
+  const config =
+    emulators[emuPlatform] ??
+    parseEmulatorConfig(await provider.readText(joinPath(emuBase, "config.json")));
 
   const dl = await getDownloadDir(source);
   const localDir = joinPath(dl, "Emulators", emuPlatform);
