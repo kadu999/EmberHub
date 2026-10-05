@@ -7,13 +7,16 @@ import { launchGame } from "./domain/launch";
 import { ensureEmulator, ensureRom } from "./domain/ensure";
 import { listDownloadedGames } from "./domain/local";
 import { Cover } from "./components/Cover";
-import { VirtualGrid } from "./components/VirtualGrid";
+import { VirtualGrid, type VirtualGridHandle } from "./components/VirtualGrid";
 import { SourcesPage } from "./features/sources/SourcesPage";
 import { EmulatorsPage } from "./features/emulators/EmulatorsPage";
+import { APP_CONFIG } from "./config/config";
 import { native } from "./shared/native";
 import { basename } from "./shared/path";
 
 const LS_KEY = "emberhub2.source";
+const LS_FULL = "emberhub2.fullscreen";
+const LS_LAST = "emberhub2.last";
 
 const DEFAULT_SOURCE: SourceConfig = {
   id: "default",
@@ -63,14 +66,35 @@ export function App() {
   const [launching, setLaunching] = useState(false);
   const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [status, setStatus] = useState("未连接");
+  const gridRef = useRef<VirtualGridHandle | null>(null);
+  const pendingScrollId = useRef<string | null>(null);
 
-  useEffect(() => onFullscreenChange(setFull), []);
+  function applyFull(v: boolean) {
+    setFull(v);
+    try {
+      localStorage.setItem(LS_FULL, v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  useEffect(() => onFullscreenChange(applyFull), []);
+
+  // 全屏状态记忆：启动时应用
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(LS_FULL) === "1") void setFullscreen(true).then(applyFull);
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "F11") {
         e.preventDefault();
-        void setFullscreen().then(setFull);
+        void setFullscreen().then(applyFull);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -127,8 +151,27 @@ export function App() {
       setCollections(res.collections);
       setGames(res.games);
       setWarnings(res.warnings);
-      setCollection(res.collections[0] ?? "");
-      setSelected(res.games[0] ?? null);
+      let sel = res.games[0] ?? null;
+      try {
+        const remembered = JSON.parse(localStorage.getItem(LS_LAST) || "null") as {
+          id?: string;
+          collection?: string;
+        } | null;
+        if (remembered) {
+          const hit =
+            res.games.find((g) => g.id === remembered.id) ??
+            res.games.find((g) => g.collection === remembered.collection);
+          if (hit) {
+            sel = hit;
+            pendingScrollId.current = hit.id;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      setSelected(sel);
+      setCollection(sel ? sel.collection : (res.collections[0] ?? ""));
+      if (sel) selectGame(sel);
       setConnected(true);
       setShowSettings(false);
       setStatus(`已加载 ${res.games.length} 个游戏 / ${res.collections.length} 个平台`);
@@ -151,7 +194,7 @@ export function App() {
       setLaunchMsg({ ok: false, text: "该游戏文件未上传，无法启动。" });
       return;
     }
-    setSelected(g);
+    selectGame(g);
     setLaunchMsg(null);
     setProgress(null);
     setLaunching(true);
@@ -168,11 +211,31 @@ export function App() {
     }
   }
 
+  function selectGame(g: Game) {
+    setSelected(g);
+    try {
+      localStorage.setItem(LS_LAST, JSON.stringify({ id: g.id, collection: g.collection }));
+    } catch {
+      /* ignore */
+    }
+  }
+
   function selectCollection(c: string) {
     setCollection(c);
     const first = games.find((g) => g.collection === c);
-    if (first) setSelected(first);
+    if (first) selectGame(first);
   }
+
+  // 恢复上次位置：扫描完成后滚动到选中项
+  useEffect(() => {
+    const id = pendingScrollId.current;
+    if (!id) return;
+    const idx = filtered.findIndex((g) => g.id === id);
+    if (idx < 0) return;
+    pendingScrollId.current = null;
+    const t = setTimeout(() => gridRef.current?.scrollToIndex(idx), 120);
+    return () => clearTimeout(t);
+  }, [filtered]);
 
   // 测试钩子：供打包/冒烟脚本调用
   const srcRef = useRef(src);
@@ -360,11 +423,12 @@ export function App() {
 
             <VirtualGrid
               items={filtered}
-              minColWidth={150}
-              aspect={4 / 3}
-              extraHeight={46}
-              gap={18}
-              overscan={3}
+              minColWidth={APP_CONFIG.grid.minColWidth}
+              aspect={APP_CONFIG.grid.aspect}
+              extraHeight={APP_CONFIG.grid.extraHeight}
+              gap={APP_CONFIG.grid.gap}
+              overscan={APP_CONFIG.grid.overscan}
+              handleRef={gridRef}
               renderItem={(g) => (
                 <button
                   className={[
@@ -374,7 +438,7 @@ export function App() {
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  onClick={() => setSelected(g)}
+                  onClick={() => selectGame(g)}
                   onDoubleClick={() => void launch(g)}
                 >
                   <Cover provider={provider!} path={g.coverPath} dir={g.mediaDir} title={g.title} />

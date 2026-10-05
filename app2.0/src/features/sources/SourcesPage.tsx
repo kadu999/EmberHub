@@ -1,15 +1,16 @@
 // 设置页：OpenList 资源源配置 + 下载目录 + 媒体缓存。
 import { useEffect, useState } from "react";
 import { createProvider } from "../../storage";
+import { APP_CONFIG } from "../../config/config";
 import { native } from "../../shared/native";
 import { mediaCacheRoot } from "../../domain/ensure";
 import type { SourceConfig } from "../../storage/types";
 
-const DEFAULT_SERVER = "127.0.0.1:5244";
-const DEFAULT_USER = "admin";
-const DEFAULT_PASS = "12345";
-const DEFAULT_ROMS = "Roms";
-const DEFAULT_EMULATORS = "Emulators";
+const DEFAULT_SERVER = APP_CONFIG.openlist.server;
+const DEFAULT_USER = APP_CONFIG.openlist.username;
+const DEFAULT_PASS = APP_CONFIG.openlist.password;
+const DEFAULT_ROMS = APP_CONFIG.defaults.romsPath;
+const DEFAULT_EMULATORS = APP_CONFIG.defaults.emulatorsPath;
 
 interface Mount {
   path: string;
