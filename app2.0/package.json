@@ -2,14 +2,17 @@
   "name": "emberhub-app2",
   "private": true,
   "version": "0.1.0",
-  "description": "EmberHub 2.0 — Capacitor (Android) 壳",
+  "description": "EmberHub 2.0 — Electron(Windows) + Capacitor(Android) 壳，共用一套前端",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "sync": "cap sync android",
-    "open:android": "cap open android"
+    "open:android": "cap open android",
+    "electron": "pnpm build && electron .",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5280 && cross-env EMBERHUB_DEV_URL=http://localhost:5280 electron .\""
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
@@ -22,7 +25,11 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^44.5.1",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "wait-on": "^9.5.1"
   }
 }

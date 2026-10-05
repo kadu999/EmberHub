@@ -1,0 +1,3 @@
+# pnpm 10+ 默认不执行依赖的构建脚本；Electron 需要它的 postinstall 来下载二进制。
+onlyBuiltDependencies:
+  - electron
