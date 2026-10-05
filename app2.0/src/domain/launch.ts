@@ -91,13 +91,13 @@ export async function buildLaunchPlan(
   return { exe: raw, args, workdir: undefined };
 }
 
-/** 启动游戏：先确保 ROM 在本地，再按 Roms 优先 / Emulators 配置拉起模拟器。 */
+/** 启动游戏：先确保 ROM 在本地，再按 Roms 优先 / Emulators 配置拉起模拟器。返回进程 PID。 */
 export async function launchGame(
   game: Game,
   provider: StorageProvider,
   source: SourceConfig,
   onStatus?: (s: string) => void,
-): Promise<void> {
+): Promise<number> {
   // 1) Roms 的 launch 优先
   if (game.launch && game.launch.trim() !== "") {
     const romAbs = nativePath(
@@ -108,8 +108,7 @@ export async function launchGame(
       title: game.title,
     });
     onStatus?.("启动中…");
-    await native.proc.launch(plan.exe, plan.args, plan.workdir);
-    return;
+    return native.proc.launch(plan.exe, plan.args, plan.workdir);
   }
 
   // 2) 否则用 Emulators 的 emulators.json
@@ -127,5 +126,5 @@ export async function launchGame(
   const args = (cfgArgs ?? []).map((a) => substitute(a, romAbs, vars));
   const workdir = nativePath(config.workdir ? joinPath(dir, config.workdir) : dirname(exe));
   onStatus?.("启动中…");
-  await native.proc.launch(exe, args, workdir);
+  return native.proc.launch(exe, args, workdir);
 }

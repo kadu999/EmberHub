@@ -125,6 +125,27 @@ export function App() {
           return { error: e instanceof Error ? e.message : String(e) };
         }
       },
+      play: async (platform: string) => {
+        try {
+          const p = createProvider(srcRef.current);
+          const res = await scanLibrary(p, srcRef.current.romsPath || "Roms");
+          const game = res.games.find((g) => g.collection === platform);
+          if (!game) return { error: `没有 ${platform} 的游戏` };
+          const pid = await launchGame(game, p, srcRef.current, (s) => setStatus(s));
+          return { platform, title: game.title, pid };
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : String(e) };
+        }
+      },
+      list: async () => {
+        const p = createProvider(srcRef.current);
+        const res = await scanLibrary(p, srcRef.current.romsPath || "Roms");
+        return {
+          collections: res.collections,
+          warnings: res.warnings,
+          games: res.games.map((g) => ({ c: g.collection, t: g.title, a: g.available })),
+        };
+      },
     };
     return () => {
       delete (window as unknown as { __emberhub2?: unknown }).__emberhub2;

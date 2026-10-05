@@ -235,6 +235,50 @@ async function runSmoke() {
             console.log("[smoke] prepare took", ((Date.now() - t0) / 1000).toFixed(1), "s");
           }
         }
+
+        // 列出游戏库（可选）：真实扫描后打印平台与游戏
+        if (process.env.EMBERHUB_LIST) {
+          const t0 = Date.now();
+          const lib = await win.webContents.executeJavaScript(`window.__emberhub2.list()`);
+          console.log("[list] platforms:", lib.collections.join(", "));
+          const byC = {};
+          for (const g of lib.games) (byC[g.c] || (byC[g.c] = [])).push(g);
+          for (const c of lib.collections) {
+            const arr = byC[c] || [];
+            console.log(`[list] === ${c}（${arr.length}）===`);
+            for (const g of arr.slice(0, 15)) console.log(`[list]   ${g.a === false ? "×" : "·"} ${g.t}`);
+            if (arr.length > 15) console.log(`[list]   … 其余 ${arr.length - 15} 个`);
+          }
+          if (lib.warnings && lib.warnings.length) {
+            console.log("[list] warnings:", lib.warnings.slice(0, 5).join(" | "));
+          }
+          console.log("[list] took", ((Date.now() - t0) / 1000).toFixed(1), "s");
+        }
+
+        // 真正启动模拟器跑一把（可选）：起进程 → 等 6s → 确认存活 → 杀掉
+        if (process.env.EMBERHUB_LAUNCH) {
+          const platform = process.env.EMBERHUB_LAUNCH;
+          const r = await win.webContents.executeJavaScript(
+            `window.__emberhub2.play(${JSON.stringify(platform)})`,
+          );
+          console.log("[smoke] play result:", JSON.stringify(r));
+          const pid = r && r.pid;
+          if (pid) {
+            await new Promise((res) => setTimeout(res, 6000));
+            let alive = true;
+            try {
+              process.kill(pid, 0);
+            } catch {
+              alive = false;
+            }
+            console.log("[smoke] emulator alive after 6s:", alive);
+            try {
+              process.kill(pid);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
       }
     } catch (e) {
       console.error("[smoke] error:", e && e.message ? e.message : e);

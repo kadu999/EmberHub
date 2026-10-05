@@ -101,6 +101,9 @@ $env:EMBERHUB_DAV_PASS="12345"
 .\node_modules\.bin\electron.cmd .
 ```
 
+> 可选：`$env:EMBERHUB_PREPARE="GBA"` 会走真实链路下载模拟器（RetroArch ~226MB）+ ROM 并解压；
+> `$env:EMBERHUB_LAUNCH="GBA"` 会真正启动模拟器，跑 6 秒确认存活后杀掉。
+
 > **Electron 二进制没装成功时**：`node node_modules/electron/install.js`（配合 `.npmrc` 的镜像）。
 > pnpm 10+ 默认不跑依赖构建脚本，本仓库用 `pnpm-workspace.yaml` 的 `onlyBuiltDependencies: [electron]` 声明；若仍被跳过，手动执行上面这句即可。
 
