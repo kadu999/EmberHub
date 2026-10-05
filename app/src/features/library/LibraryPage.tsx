@@ -18,6 +18,7 @@ import { listMediaNames } from "../../domain/media-cache";
 import { joinPath } from "../../shared/path";
 import { pickVideoName } from "../../shared/media";
 import { useGamepad } from "../../shared/useGamepad";
+import { platform } from "../../platform";
 
 interface Props {
   onOpenSettings: () => void;
@@ -73,6 +74,7 @@ export function LibraryPage({
   onCloseMenu,
 }: Props) {
   const { source, scanToken } = useStore();
+  const mobile = platform.isMobile;
   const [provider, setProvider] = useState<StorageProvider | null>(null);
   const gridRef = useRef<VirtualGridHandle | null>(null);
 
@@ -474,10 +476,10 @@ export function LibraryPage({
 
           <VirtualGrid
             items={filtered}
-            minColWidth={APP_CONFIG.grid.minColWidth}
+            minColWidth={mobile ? 104 : APP_CONFIG.grid.minColWidth}
             aspect={APP_CONFIG.grid.aspect}
-            extraHeight={APP_CONFIG.grid.extraHeight}
-            gap={APP_CONFIG.grid.gap}
+            extraHeight={mobile ? 34 : APP_CONFIG.grid.extraHeight}
+            gap={mobile ? 10 : APP_CONFIG.grid.gap}
             overscan={APP_CONFIG.grid.overscan}
             handleRef={gridRef}
             renderItem={(g) => (

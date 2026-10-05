@@ -522,6 +522,51 @@ code {
   font-weight: 700;
 }
 
+/* ---------- 移动端（横屏手机）微调：只作用于 .app.is-mobile，不影响桌面 ---------- */
+.app.is-mobile .library-layout {
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+.app.is-mobile .detail-panel {
+  padding: 12px;
+  border-radius: 10px;
+}
+.app.is-mobile .detail-media {
+  margin-bottom: 10px;
+}
+.app.is-mobile .detail-media .cover,
+.app.is-mobile .detail-media .preview-video {
+  max-height: min(150px, 38vh);
+}
+.app.is-mobile .detail-title {
+  font-size: 16px;
+}
+.app.is-mobile .detail-platform {
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.app.is-mobile .filters {
+  gap: 6px;
+}
+.app.is-mobile .filters .chip {
+  font-size: 12px;
+  padding: 4px 9px;
+}
+.app.is-mobile .game-card {
+  gap: 4px;
+}
+.app.is-mobile .game-title {
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* ---------- 按钮 / 表单 ---------- */
 button {
   background: var(--ember);

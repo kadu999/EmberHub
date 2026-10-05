@@ -62,8 +62,16 @@ export function Cover({ provider, path, dir, title }: Props) {
     };
   }, [provider, path, dir]);
 
-  if (src) {
-    return <img className="cover" src={src} alt={title} loading="lazy" />;
+  if (src && !failed) {
+    return (
+      <img
+        className="cover"
+        src={src}
+        alt={title}
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+    );
   }
   return (
     <div className="cover placeholder" title={failed ? "封面加载失败" : undefined}>

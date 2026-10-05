@@ -101,7 +101,7 @@ function App() {
 
   const anyPanel = showSettings || showEmulators || showCache;
   return (
-    <div className="app">
+    <div className={"app" + (platform.isMobile ? " is-mobile" : "")}>
       <LibraryPage
         onOpenSettings={openSettings}
         settingsOpen={showSettings}
