@@ -165,6 +165,19 @@ button.primary {
   justify-content: center;
 }
 
+.detail-media .preview-video {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #000;
+}
+
+.flame {
+  color: var(--ember);
+}
+
 .detail-scroll {
   overflow-y: auto;
   min-height: 0;

@@ -4,15 +4,17 @@ import { createProvider } from "./storage";
 import type { SourceConfig, StorageProvider } from "./storage/types";
 import { scanLibrary, type Game } from "./domain/scan";
 import { launchGame } from "./domain/launch";
-import { ensureEmulator, ensureRom } from "./domain/ensure";
+import { ensureEmulator, ensureLocalMedia, ensureRom } from "./domain/ensure";
 import { listDownloadedGames } from "./domain/local";
+import { listMediaNames } from "./domain/media-cache";
 import { Cover } from "./components/Cover";
 import { VirtualGrid, type VirtualGridHandle } from "./components/VirtualGrid";
 import { SourcesPage } from "./features/sources/SourcesPage";
 import { EmulatorsPage } from "./features/emulators/EmulatorsPage";
 import { APP_CONFIG } from "./config/config";
 import { native } from "./shared/native";
-import { basename } from "./shared/path";
+import { basename, joinPath } from "./shared/path";
+import { pickVideoName } from "./shared/media";
 import { useGamepad } from "./shared/useGamepad";
 
 /** 某个容器内可聚焦的元素（手柄导航用）。 */
@@ -92,6 +94,7 @@ export function App() {
   const [launching, setLaunching] = useState(false);
   const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [status, setStatus] = useState("未连接");
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const gridRef = useRef<VirtualGridHandle | null>(null);
   const pendingScrollId = useRef<string | null>(null);
 
@@ -151,6 +154,31 @@ export function App() {
       alive = false;
     };
   }, [connected, src, games]);
+
+  // 选中游戏的视频预览（懒加载：列 media 目录 → 挑视频 → 按需下载）
+  useEffect(() => {
+    let alive = true;
+    setVideoSrc(null);
+    if (!selected || !provider || !selected.mediaDir) return;
+    const dir = selected.mediaDir;
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const names = await listMediaNames(provider, dir);
+          const pick = pickVideoName(names);
+          if (!pick) return;
+          const p = await ensureLocalMedia(provider, joinPath(dir, pick));
+          if (alive) setVideoSrc(native.media.url(p));
+        } catch (e) {
+          console.warn("[EmberHub2] 视频加载失败:", e);
+        }
+      })();
+    }, APP_CONFIG.videoPreviewDebounceMs);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [selected, provider]);
 
   const byCollection = useMemo(() => {
     const m = new Map<string, Game[]>();
@@ -377,7 +405,7 @@ export function App() {
       <header>
         <div className="brand">
           <h1>
-            EmberHub <span>2.0</span>
+            <span className="flame">🔥</span> EmberHub <span>2.0</span>
           </h1>
           <span className="muted status-text">{status}</span>
         </div>
@@ -412,12 +440,26 @@ export function App() {
             {selected ? (
               <>
                 <div className="detail-media">
-                  <Cover
-                    provider={provider!}
-                    path={selected.coverPath}
-                    dir={selected.mediaDir}
-                    title={selected.title}
-                  />
+                  {videoSrc ? (
+                    <video
+                      key={videoSrc}
+                      className="preview-video"
+                      src={videoSrc}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      onCanPlay={(e) => void e.currentTarget.play().catch(() => undefined)}
+                      onError={() => setVideoSrc(null)}
+                    />
+                  ) : (
+                    <Cover
+                      provider={provider!}
+                      path={selected.coverPath}
+                      dir={selected.mediaDir}
+                      title={selected.title}
+                    />
+                  )}
                 </div>
                 <div className="detail-scroll">
                   <h3 className="detail-title">{selected.title}</h3>

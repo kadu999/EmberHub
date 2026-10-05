@@ -15,11 +15,16 @@
 - **窗口 / 全屏**：Electron（`BrowserWindow.setFullScreen`）/ Capacitor（`FullscreenPlugin`）/ Web（Fullscreen API）
 - **WebDAV**：列目录（PROPFIND）、读文本、下载 —— Electron 走主进程 Node `http`，绕过 CORS
 - **本地文件系统**：目录/文件读写、递归列举、大小统计 —— Electron 主进程 Node `fs`
-- **游戏库**：连接 OpenList → `scanLibrary()` 扫描 `manifest.json` + `Roms/<平台>/games.json` → 平台切换 + 封面网格
-- **封面/媒体**：本地缓存，经 `emberhub-media://` 自定义协议供 `<img>` 加载
-- **下载（断点续传 + 进度）**：流式写 `<dest>.part`，用 HTTP `Range` 续传，完成后改名；每 200ms 上报进度事件给 UI
+- **游戏库**：连接 OpenList → `scanLibrary()` 扫描 → 平台 chips + **虚拟滚动**封面网格
+- **详情面板**：封面/视频预览、开发商/类型/人数/发行/评分/简介、已下载/未上传徽标
+- **搜索与交互**：单选选中、双击启动、启动进度覆盖层、**手柄导航**
+- **设置页**：获取资源源 / 测试连接 / 保存、下载目录、媒体缓存占用与清理
+- **模拟器页**：列出 / 下载 / 更新 / 删除 / 打开模拟器
+- **封面/视频**：本地缓存，经 `emberhub-media://` 自定义协议加载
+- **下载（断点续传 + 进度）**：流式 `.part` + `Range` 续传 + 进度事件
 - **ROM 解压**：`7za` 解压 zip/7z（`7zip-bin` 内置）
-- **启动游戏**：点击卡片 → 确保 ROM/模拟器就位 → `child_process.spawn` 拉起模拟器
+- **启动游戏**：点击 → 确保 ROM/模拟器就位 → `child_process.spawn`
+- **持久化**：资源源、下载目录、全屏状态、上次选中的游戏
 
 > 浏览器（`pnpm dev`）没有文件系统/原生网络，部分功能会提示「当前运行环境未实现」。
 
