@@ -364,22 +364,33 @@ export function App() {
     selectCollection(collections[next]);
   }
 
-  // 手柄：导航 / 确认启动 / 切换平台 / 菜单 / 全屏
+  // 手柄：导航 / 确认启动 / 切换平台 / 菜单 / 全屏（对齐 1.0）
   const gamepadConnected = useGamepad((action) => {
     if (action === "fullscreen") {
       void setFullscreen().then(applyFull);
       return;
     }
-    if (showSettings || showEmulators) {
+    // 弹框打开时：菜单/返回关闭，上下移动焦点，确认点击
+    if (showSettings || showEmulators || showCache) {
       if (action === "menu" || action === "back") {
         setShowSettings(false);
         setShowEmulators(false);
+        setShowCache(false);
       } else if (action === "up") moveFocus(".settings-panel", -1);
       else if (action === "down") moveFocus(".settings-panel", 1);
       else if (action === "confirm") activateFocused();
       return;
     }
+    // 右侧菜单打开时
+    if (showMenu) {
+      if (action === "menu" || action === "back") setShowMenu(false);
+      else if (action === "up") moveFocus(".menu-panel", -1);
+      else if (action === "down") moveFocus(".menu-panel", 1);
+      else if (action === "confirm") activateFocused();
+      return;
+    }
     if (action === "menu") setShowSettings(true);
+    else if (action === "back") setShowMenu(true);
     else if (action === "prev") switchPlatform(-1);
     else if (action === "next") switchPlatform(1);
     else if (action === "confirm") {
