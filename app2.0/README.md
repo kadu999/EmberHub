@@ -10,25 +10,37 @@
 
 **一套前端 + 一套业务逻辑，多个壳**。`dist/` 只构建一次：Electron 加载它，`cap sync` 把它拷进 Android。
 
-本次只完成第一步：**窗口 / 全屏**（对应 1.0 的 `getCurrentWindow().setFullscreen`）。
+## 当前能力
+
+- **窗口 / 全屏**：Electron（`BrowserWindow.setFullScreen`）/ Capacitor（`FullscreenPlugin`）/ Web（Fullscreen API）
+- **WebDAV**：列目录（PROPFIND）、读文本、下载 —— Electron 走主进程 Node `http`，绕过 CORS
+- **本地文件系统**：目录/文件读写、递归列举、大小统计 —— Electron 主进程 Node `fs`
+- **游戏库**：连接 OpenList → `scanLibrary()` 扫描 `manifest.json` + `Roms/<平台>/games.json` → 列出平台与游戏
+
+> 浏览器（`pnpm dev`）没有文件系统/原生网络，部分功能会提示「当前运行环境未实现」。
 
 ## 结构
 
 ```
 app2.0/
 ├─ src/
-│  ├─ App.tsx  main.tsx  styles.css      # 共享 UI
-│  └─ platform/window.ts                 # 全屏抽象（Electron / Capacitor / Web 三选一）
-├─ electron/                             # Windows 壳（主进程 + preload）
-├─ android/                              # Capacitor 生成（含 Kotlin 插件 FullscreenPlugin）
+│  ├─ App.tsx  main.tsx  styles.css       # 共享 UI
+│  ├─ shared/                             # path / media / dto / native（统一原生入口）
+│  ├─ domain/                             # parse / scan / resource-config / media-match …（纯 TS）
+│  ├─ storage/                            # StorageProvider（含 WebDavProvider）
+│  └─ platform/window.ts                  # 全屏抽象（Electron / Capacitor / Web）
+├─ electron/                              # Windows 壳
+│  ├─ main.cjs                            # 建窗口 + IPC + 冒烟测试
+│  ├─ preload.cjs                         # contextBridge → window.emberhub
+│  ├─ dav.cjs                             # WebDAV（PROPFIND / GET）
+│  └─ fs.cjs                              # 文件系统
+├─ android/                               # Capacitor 生成（Kotlin 插件 FullscreenPlugin）
 ├─ capacitor.config.ts
 └─ vite.config.ts  index.html  package.json
 ```
 
-`src/platform/window.ts` 按运行时选择实现：
-- 有 `window.emberhub`（Electron preload 注入）→ 主进程 `BrowserWindow.setFullScreen`
-- `Capacitor.isNativePlatform()` → 本地 `Fullscreen` 插件
-- 否则 → 标准 Fullscreen API
+`src/shared/native.ts` 是业务层唯一的原生入口（对应 1.0 的 `shared/tauri.ts`）：
+Electron 走 `window.emberhub`，Capacitor 走插件，Web 兜底。
 
 ## 环境要求
 
@@ -45,8 +57,7 @@ pnpm install
 # —— Windows（Electron）——
 pnpm electron        # 构建 dist 并启动 Electron
 pnpm electron:dev    # Vite dev server + Electron（HMR）
-# 冒烟测试（加载 + 全屏 IPC，跑完自动退出）：
-#   PowerShell: $env:EMBERHUB_SMOKE="1"; .\node_modules\.bin\electron.cmd .
+pnpm open:android    # Android Studio 打开 android/
 
 # —— Android（Capacitor）——
 pnpm build && pnpm sync
@@ -54,15 +65,27 @@ cd android
 $env:JAVA_HOME="$env:USERPROFILE\.jdks\jdk-21.0.2"; $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat assembleDebug     # 产物：android/app/build/outputs/apk/debug/app-debug.apk
 
-# 浏览器预览（标准 Fullscreen API）
+# —— 浏览器预览 ——
 pnpm dev
 ```
 
-> **Electron 二进制没装成功时**：`node node_modules/electron/install.js`
-> （配合 `.npmrc` 里的 `electron_mirror`）。pnpm 10+ 默认不跑依赖构建脚本，本仓库用
-> `pnpm-workspace.yaml` 的 `onlyBuiltDependencies: [electron]` 声明；若仍被跳过，手动执行上面这句即可。
+### 冒烟测试
+
+自动跑「加载 → 全屏 IPC → WebDAV（列根目录 / 读 manifest / 读某平台 games.json）」并退出：
+
+```powershell
+cd app2.0
+$env:EMBERHUB_SMOKE="1"
+$env:EMBERHUB_DAV_ROOT="http://127.0.0.1:5244/dav/EmberHub_Baidu"
+$env:EMBERHUB_DAV_USER="admin"
+$env:EMBERHUB_DAV_PASS="12345"
+.\node_modules\.bin\electron.cmd .
+```
+
+> **Electron 二进制没装成功时**：`node node_modules/electron/install.js`（配合 `.npmrc` 的镜像）。
+> pnpm 10+ 默认不跑依赖构建脚本，本仓库用 `pnpm-workspace.yaml` 的 `onlyBuiltDependencies: [electron]` 声明；若仍被跳过，手动执行上面这句即可。
 
 ## 与 1.0 的关系
 
-`app/`（Tauri 版）保持不动。后续会把 `app/src/domain`、`shared` 等纯 TS 逻辑逐步移植到
-`app2.0`，平台相关部分走各自的壳（Electron IPC / Capacitor 插件）。
+`app/`（Tauri 版）保持不动。`domain/`、`shared/`、`storage/` 的纯 TS 部分从 1.0 逐步移植过来
+（目前已有解析/扫描/资源约定/媒体匹配），平台相关部分由各自的壳实现。

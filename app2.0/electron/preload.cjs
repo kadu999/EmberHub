@@ -4,6 +4,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("emberhub", {
   runtime: "electron",
+
+  hostOs: () => ipcRenderer.invoke("app:host-os"),
+
   window: {
     setFullscreen: (next) => ipcRenderer.invoke("window:set-fullscreen", next),
     isFullscreen: () => ipcRenderer.invoke("window:is-fullscreen"),
@@ -12,5 +15,24 @@ contextBridge.exposeInMainWorld("emberhub", {
       ipcRenderer.on("window:fullscreen", listener);
       return () => ipcRenderer.removeListener("window:fullscreen", listener);
     },
+  },
+
+  dav: {
+    list: (auth, path) => ipcRenderer.invoke("dav:list", { ...auth, path }),
+    readText: (auth, path) => ipcRenderer.invoke("dav:readText", { ...auth, path }),
+    download: (auth, path, dest) => ipcRenderer.invoke("dav:download", { ...auth, path, dest }),
+  },
+
+  fs: {
+    defaultDownloadDir: () => ipcRenderer.invoke("fs:default-download-dir"),
+    listLocalDir: (path) => ipcRenderer.invoke("fs:list-local-dir", path),
+    listLocalFiles: (path) => ipcRenderer.invoke("fs:list-local-files", path),
+    pathExists: (path) => ipcRenderer.invoke("fs:path-exists", path),
+    fileExists: (path) => ipcRenderer.invoke("fs:file-exists", path),
+    ensureDir: (path) => ipcRenderer.invoke("fs:ensure-dir", path),
+    readTextFile: (path) => ipcRenderer.invoke("fs:read-text-file", path),
+    writeTextFile: (path, content) => ipcRenderer.invoke("fs:write-text-file", { path, content }),
+    removePath: (path) => ipcRenderer.invoke("fs:remove-path", path),
+    pathSize: (path) => ipcRenderer.invoke("fs:path-size", path),
   },
 });
