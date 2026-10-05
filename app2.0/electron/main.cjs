@@ -55,6 +55,12 @@ function broadcastFullscreen(value) {
   }
 }
 
+function broadcastDownload(dest, downloaded, total) {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send("download-progress", { path: dest, downloaded, total });
+  }
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
@@ -137,12 +143,26 @@ async function runSmoke() {
           gj.games && gj.games[0] ? gj.games[0].title : "-",
         );
 
-        // 下载到本地文件 + 自定义协议读取（等价封面链路）
+        // 下载到本地文件 + 进度事件 + 自定义协议读取（等价封面链路）
         const smokeDest = path.join(app.getPath("userData"), "downloads", "smoke-manifest.json");
+        await win.webContents.executeJavaScript(
+          `window.__prog = 0; window.emberhub.dav.onDownloadProgress((p) => { window.__prog = Math.max(window.__prog, p.downloaded); }); true`,
+        );
         const written = await win.webContents.executeJavaScript(
           `window.emberhub.dav.download(${JSON.stringify(auth)}, "manifest.json", ${JSON.stringify(smokeDest)})`,
         );
-        console.log("[smoke] dav download bytes:", written);
+        const prog = await win.webContents.executeJavaScript(`window.__prog`);
+        console.log("[smoke] dav download bytes:", written, "| progress peak:", prog);
+
+        // 断点续传：造一个 100 字节 .part，删掉 dest，再下载应从断点续传
+        const partFile = smokeDest + ".part";
+        fs.writeFileSync(partFile, Buffer.from(manifest).subarray(0, 100));
+        fs.rmSync(smokeDest, { force: true });
+        const resumed = await win.webContents.executeJavaScript(
+          `window.emberhub.dav.download(${JSON.stringify(auth)}, "manifest.json", ${JSON.stringify(smokeDest)})`,
+        );
+        const finalSize = fs.statSync(smokeDest).size;
+        console.log("[smoke] resume bytes:", resumed, "| final size:", finalSize);
         const served = await win.webContents.executeJavaScript(
           `fetch("emberhub-media://local/" + encodeURIComponent(${JSON.stringify(smokeDest)})).then((r) => r.arrayBuffer()).then((b) => b.byteLength).catch(() => -1)`,
         );
@@ -211,7 +231,7 @@ ipcMain.handle("window:is-fullscreen", () =>
 // —— 应用信息 / 文件 / WebDAV / 进程 ——
 ipcMain.handle("app:host-os", () => hostOs());
 registerFs(ipcMain);
-registerDav(ipcMain);
+registerDav(ipcMain, broadcastDownload);
 
 // 启动外部进程（模拟器），分离运行，返回 PID。
 ipcMain.handle("proc:launch", (_e, { exe, args, workdir }) => {

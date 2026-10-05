@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld("emberhub", {
     list: (auth, path) => ipcRenderer.invoke("dav:list", { ...auth, path }),
     readText: (auth, path) => ipcRenderer.invoke("dav:readText", { ...auth, path }),
     download: (auth, path, dest) => ipcRenderer.invoke("dav:download", { ...auth, path, dest }),
+    onDownloadProgress: (cb) => {
+      const listener = (_e, p) => cb(p);
+      ipcRenderer.on("download-progress", listener);
+      return () => ipcRenderer.removeListener("download-progress", listener);
+    },
   },
 
   fs: {

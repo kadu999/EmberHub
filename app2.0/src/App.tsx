@@ -5,6 +5,8 @@ import type { SourceConfig, StorageProvider } from "./storage/types";
 import { scanLibrary, type Game } from "./domain/scan";
 import { launchGame } from "./domain/launch";
 import { Cover } from "./components/Cover";
+import { native } from "./shared/native";
+import { basename } from "./shared/path";
 
 const LS_KEY = "emberhub2.source";
 
@@ -41,6 +43,19 @@ export function App() {
   const [status, setStatus] = useState("未连接");
 
   useEffect(() => onFullscreenChange(setFull), []);
+
+  // 下载进度（封面等媒体不刷状态，避免刷屏）
+  useEffect(
+    () =>
+      native.dav.onDownloadProgress((p) => {
+        if (/[\\/]\.cache[\\/]media[\\/]/.test(p.path)) return;
+        const mb = (n: number) => (n / 1048576).toFixed(1);
+        const pct = p.total ? ` ${Math.floor((p.downloaded / p.total) * 100)}%` : "";
+        const total = p.total ? `/${mb(p.total)}MB` : "";
+        setStatus(`下载 ${basename(p.path)} ${mb(p.downloaded)}MB${total}${pct}`);
+      }),
+    [],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

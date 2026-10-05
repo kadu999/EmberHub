@@ -26,6 +26,9 @@ export const native = {
       bridge ? bridge.dav.readText(auth, path) : unavailable("WebDAV"),
     download: (auth: DavAuth, path: string, dest: string): Promise<number> =>
       bridge ? bridge.dav.download(auth, path, dest) : unavailable("WebDAV"),
+    onDownloadProgress: (
+      cb: (p: { path: string; downloaded: number; total: number | null }) => void,
+    ): (() => void) => (bridge ? bridge.dav.onDownloadProgress(cb) : () => {}),
   },
 
   // ---- 本地文件系统 ----

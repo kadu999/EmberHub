@@ -14,6 +14,9 @@ declare global {
     list(auth: DavAuth, path: string): Promise<DavEntry[]>;
     readText(auth: DavAuth, path: string): Promise<string>;
     download(auth: DavAuth, path: string, dest: string): Promise<number>;
+    onDownloadProgress(
+      cb: (p: { path: string; downloaded: number; total: number | null }) => void,
+    ): () => void;
   }
 
   interface EmberHubFsBridge {
