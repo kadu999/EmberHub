@@ -92,3 +92,8 @@ pub fn android_launch_app(
 ) -> Result<(), String> {
     Err("Android Intent 仅在 Android 平台可用。".to_string())
 }
+
+/// 桌面端没有 Android 安装器。
+pub fn android_install_apk(_app: &tauri::AppHandle, _path: String) -> Result<(), String> {
+    Err("Android APK 安装仅在 Android 平台可用。".to_string())
+}

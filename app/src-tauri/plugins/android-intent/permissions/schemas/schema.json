@@ -295,6 +295,18 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the install command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-install",
+          "markdownDescription": "Enables the install command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the install command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-install",
+          "markdownDescription": "Denies the install command without any pre-configured scope."
+        },
+        {
           "description": "Enables the launch command without any pre-configured scope.",
           "type": "string",
           "const": "allow-launch",
@@ -307,10 +319,10 @@
           "markdownDescription": "Denies the launch command without any pre-configured scope."
         },
         {
-          "description": "EmberHub Android Intent 插件默认权限（启动目标 App 并传入 ROM）\n#### This default permission set includes:\n\n- `allow-launch`",
+          "description": "EmberHub Android Intent 插件默认权限（启动目标 App / 用系统安装器安装 APK）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "EmberHub Android Intent 插件默认权限（启动目标 App 并传入 ROM）\n#### This default permission set includes:\n\n- `allow-launch`"
+          "markdownDescription": "EmberHub Android Intent 插件默认权限（启动目标 App / 用系统安装器安装 APK）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`"
         }
       ]
     }

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 从网盘下载 APK 后用系统安装器安装 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -10,6 +12,11 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="*/*" />
+        </intent>
+        <!-- APK 安装器可见性 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.android.package-archive" />
         </intent>
     </queries>
 

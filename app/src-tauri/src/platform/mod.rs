@@ -10,6 +10,6 @@ mod desktop;
 mod android;
 
 #[cfg(not(target_os = "android"))]
-pub use desktop::{android_launch_app, launch_emulator};
+pub use desktop::{android_install_apk, android_launch_app, launch_emulator};
 #[cfg(target_os = "android")]
-pub use android::{android_launch_app, launch_emulator};
+pub use android::{android_install_apk, android_launch_app, launch_emulator};

@@ -25,6 +25,12 @@ pub struct LaunchPayload {
     pub action: Option<String>,
 }
 
+/// 传给 Kotlin `install` 命令的参数（本地 APK 路径）。
+#[derive(serde::Serialize, Clone)]
+pub struct InstallPayload {
+    pub path: String,
+}
+
 /// 插件运行时状态：持有移动端插件句柄。
 pub struct AndroidIntent<R: Runtime> {
     #[cfg(target_os = "android")]
@@ -65,6 +71,25 @@ impl<R: Runtime> AndroidIntent<R> {
         _path: Option<&str>,
         _mime: Option<&str>,
     ) -> Result<(), String> {
+        Err("Android Intent 仅在 Android 平台可用。".to_string())
+    }
+
+    /// 用系统安装器安装本地 APK。
+    /// - `path`：本地 APK 绝对路径（App 私有目录亦可，FileProvider 会暴露成 content://）。
+    #[cfg(target_os = "android")]
+    pub fn install(&self, path: &str) -> Result<(), String> {
+        self.handle
+            .run_mobile_plugin::<()>(
+                "install",
+                InstallPayload {
+                    path: path.to_string(),
+                },
+            )
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn install(&self, _path: &str) -> Result<(), String> {
         Err("Android Intent 仅在 Android 平台可用。".to_string())
     }
 }

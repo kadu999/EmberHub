@@ -25,3 +25,11 @@ pub fn android_launch_app(
     app.android_intent()
         .launch(&package, path.as_deref(), mime.as_deref())
 }
+
+/// 用系统安装器安装本地 APK（App 私有目录里的 APK 由 FileProvider 暴露为 content://）。
+pub fn android_install_apk(app: &AppHandle, path: String) -> Result<(), String> {
+    if path.trim().is_empty() {
+        return Err("缺少 APK 路径。".to_string());
+    }
+    app.android_intent().install(&path)
+}

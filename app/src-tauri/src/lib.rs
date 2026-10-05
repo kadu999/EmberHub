@@ -132,6 +132,12 @@ fn android_launch_app(
     platform::android_launch_app(&app, package, path, mime)
 }
 
+/// Android：用系统安装器安装本地 APK（会弹安装确认）。
+#[tauri::command]
+fn android_install_apk(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    platform::android_install_apk(&app, path)
+}
+
 /// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
 #[tauri::command]
 fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
@@ -647,6 +653,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             launch_emulator,
             android_launch_app,
+            android_install_apk,
             list_local_dir,
             list_local_files,
             webdav_list,

@@ -23,6 +23,12 @@ class LaunchArgs {
     var action: String? = null
 }
 
+/** Rust 侧 `run_mobile_plugin("install", ...)` 的参数。 */
+@InvokeArg
+class InstallArgs {
+    var path: String? = null
+}
+
 /**
  * 用 Intent 启动目标模拟器 App：
  * - 有 `path`：用 FileProvider 把 ROM 暴露为 `content://` 并随 Intent 传入；
@@ -71,6 +77,42 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.resolve()
         } catch (ex: Exception) {
             invoke.reject(ex.message ?: "启动模拟器失败")
+        }
+    }
+
+    /**
+     * 用系统安装器安装本地 APK：
+     * 把 App 私有目录里的 APK 用 FileProvider 暴露成 content://，
+     * 以 `application/vnd.android.package-archive` 交给系统包安装器（会弹安装确认）。
+     */
+    @Command
+    fun install(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(InstallArgs::class.java)
+            val path = args.path
+            if (path.isNullOrEmpty()) {
+                invoke.reject("缺少 APK 路径")
+                return
+            }
+            val file = File(path)
+            if (!file.exists()) {
+                invoke.reject("APK 不存在：$path")
+                return
+            }
+            val uri: Uri = FileProvider.getUriForFile(
+                activity,
+                "${activity.packageName}.fileprovider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            activity.applicationContext.startActivity(intent)
+            invoke.resolve()
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "安装 APK 失败")
         }
     }
 }
