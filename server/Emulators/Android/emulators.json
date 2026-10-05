@@ -20,13 +20,13 @@
         "ROM": "{file.path}"
       },
       "platformExtras": {
-        "GBA": { "LIBRETRO": "mgba_libretro_android" },
-        "GBA hack": { "LIBRETRO": "mgba_libretro_android" },
-        "GBA vib": { "LIBRETRO": "mgba_libretro_android" },
-        "NDS": { "LIBRETRO": "melondsds_libretro_android" },
-        "PS1": { "LIBRETRO": "swanstation_libretro_android" },
-        "DC": { "LIBRETRO": "flycast_libretro_android" },
-        "SS": { "LIBRETRO": "yabasanshiro_libretro_android" }
+        "GBA": { "LIBRETRO": "/data/user/0/com.retroarch/cores/mgba_libretro_android.so" },
+        "GBA hack": { "LIBRETRO": "/data/user/0/com.retroarch/cores/mgba_libretro_android.so" },
+        "GBA vib": { "LIBRETRO": "/data/user/0/com.retroarch/cores/mgba_libretro_android.so" },
+        "NDS": { "LIBRETRO": "/data/user/0/com.retroarch/cores/melondsds_libretro_android.so" },
+        "PS1": { "LIBRETRO": "/data/user/0/com.retroarch/cores/swanstation_libretro_android.so" },
+        "DC": { "LIBRETRO": "/data/user/0/com.retroarch/cores/flycast_libretro_android.so" },
+        "SS": { "LIBRETRO": "/data/user/0/com.retroarch/cores/yabasanshiro_libretro_android.so" }
       }
     },
     "AetherSX2": {
