@@ -308,6 +308,9 @@ async function runSmoke() {
     } catch (e) {
       console.error("[smoke] error:", e && e.message ? e.message : e);
     }
+    if (process.env.EMBERHUB_WAIT) {
+      await new Promise((r) => setTimeout(r, Number(process.env.EMBERHUB_WAIT) || 5000));
+    }
     app.quit();
   });
 }

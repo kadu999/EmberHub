@@ -234,6 +234,35 @@ async function doScan(provider: StorageProvider, romsPath: string): Promise<Scan
   return { collections, games, warnings };
 }
 
+/** 懒加载会话：打开库后复用（资源约定 + 变体正则 + media 目录索引缓存）。 */
+export interface LibrarySession {
+  cfg: ResourceConfig;
+  variantRe: RegExp | null;
+  mediaCache: Map<string, Map<string, string>>;
+}
+
+/** 打开游戏库：读取并应用 manifest，返回可复用会话（供按平台懒加载）。 */
+export async function openLibrary(provider: StorageProvider): Promise<LibrarySession> {
+  clearMediaCache();
+  clearResourceConfigCache();
+  const cfg = await loadResourceConfig(provider, true);
+  setActiveResourceConfig(cfg);
+  const variantRe = buildVariantRegex(
+    cfg.mediaVariants.length ? cfg.mediaVariants : DEFAULT_MEDIA_VARIANTS,
+  );
+  return { cfg, variantRe, mediaCache: new Map() };
+}
+
+/** 扫描单个平台（懒加载：切到哪个平台才扫哪个）。 */
+export function scanPlatformOf(
+  session: LibrarySession,
+  provider: StorageProvider,
+  romsPath: string,
+  platform: string,
+): Promise<{ games: Game[]; warnings: string[] }> {
+  return scanPlatform(provider, romsPath, platform, session.variantRe, session.mediaCache, session.cfg);
+}
+
 /** 扫描资源服务器，构建游戏库。romsPath 默认 "Roms"。 */
 export function scanLibrary(provider: StorageProvider, romsPath = "Roms"): Promise<ScanResult> {
   const key = `${provider.key}|${romsPath}`;

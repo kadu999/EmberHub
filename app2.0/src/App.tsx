@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isFullscreen, onFullscreenChange, setFullscreen } from "./platform/window";
 import { createProvider } from "./storage";
 import type { SourceConfig, StorageProvider } from "./storage/types";
-import { scanLibrary, type Game } from "./domain/scan";
+import { openLibrary, scanPlatformOf, scanLibrary, type Game, type LibrarySession } from "./domain/scan";
 import { launchGame } from "./domain/launch";
 import { ensureEmulator, ensureLocalMedia, ensureRom } from "./domain/ensure";
 import { listDownloadedGames } from "./domain/local";
@@ -84,12 +84,15 @@ export function App() {
   const [provider, setProvider] = useState<StorageProvider | null>(null);
   const [connected, setConnected] = useState(false);
 
-  const [games, setGames] = useState<Game[]>([]);
+  const [gamesMap, setGamesMap] = useState<Map<string, Game[]>>(new Map());
   const [collections, setCollections] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [collection, setCollection] = useState("");
   const [selected, setSelected] = useState<Game | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [platformLoading, setPlatformLoading] = useState<string | null>(null);
+  const gamesMapRef = useRef<Map<string, Game[]>>(new Map());
+  const sessionRef = useRef<LibrarySession | null>(null);
 
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -174,7 +177,7 @@ export function App() {
     return () => {
       alive = false;
     };
-  }, [connected, src, games]);
+  }, [connected, src, gamesMap]);
 
   // 选中游戏的视频预览（懒加载：列 media 目录 → 挑视频 → 按需下载）
   useEffect(() => {
@@ -201,17 +204,36 @@ export function App() {
     };
   }, [selected, provider]);
 
-  const byCollection = useMemo(() => {
-    const m = new Map<string, Game[]>();
-    for (const g of games) {
-      const arr = m.get(g.collection) ?? [];
-      arr.push(g);
-      m.set(g.collection, arr);
-    }
-    return m;
-  }, [games]);
+  const filtered = gamesMap.get(collection) ?? [];
 
-  const filtered = byCollection.get(collection) ?? [];
+  /** 懒加载某平台（已加载则跳过）。 */
+  async function ensurePlatform(
+    platform: string,
+    p: StorageProvider | null = provider,
+    session: LibrarySession | null = sessionRef.current,
+  ): Promise<Game[]> {
+    if (!platform || !p || !session) return [];
+    const existing = gamesMapRef.current.get(platform);
+    if (existing) return existing;
+    setPlatformLoading(platform);
+    try {
+      const r = await scanPlatformOf(session, p, src.romsPath || "Roms", platform);
+      gamesMapRef.current.set(platform, r.games);
+      setGamesMap(new Map(gamesMapRef.current));
+      if (r.warnings.length) setWarnings((w) => [...w, ...r.warnings]);
+      return r.games;
+    } catch (e) {
+      gamesMapRef.current.set(platform, []);
+      setGamesMap(new Map(gamesMapRef.current));
+      setWarnings((w) => [
+        ...w,
+        `${platform} 加载失败：${e instanceof Error ? e.message : String(e)}`,
+      ]);
+      return [];
+    } finally {
+      setPlatformLoading(null);
+    }
+  }
 
   async function connect(cfg: SourceConfig = src) {
     setStatus("连接中…");
@@ -221,35 +243,36 @@ export function App() {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(cfg));
       const p = await createCachedProvider(createProvider(cfg), cfg);
-      const res = await scanLibrary(p, cfg.romsPath || "Roms");
+      const session = await openLibrary(p);
+      sessionRef.current = session;
+      gamesMapRef.current = new Map();
+      setGamesMap(new Map());
       setProvider(p);
-      setCollections(res.collections);
-      setGames(res.games);
-      setWarnings(res.warnings);
-      let sel = res.games[0] ?? null;
+      setCollections(session.cfg.platforms);
+      setConnected(true);
+      setShowSettings(false);
+
+      let remembered: { id?: string; collection?: string } | null = null;
       try {
-        const remembered = JSON.parse(localStorage.getItem(LS_LAST) || "null") as {
-          id?: string;
-          collection?: string;
-        } | null;
-        if (remembered) {
-          const hit =
-            res.games.find((g) => g.id === remembered.id) ??
-            res.games.find((g) => g.collection === remembered.collection);
-          if (hit) {
-            sel = hit;
-            pendingScrollId.current = hit.id;
-          }
-        }
+        remembered = JSON.parse(localStorage.getItem(LS_LAST) || "null");
       } catch {
         /* ignore */
       }
-      setSelected(sel);
-      setCollection(sel ? sel.collection : (res.collections[0] ?? ""));
-      if (sel) selectGame(sel);
-      setConnected(true);
-      setShowSettings(false);
-      setStatus(`已加载 ${res.games.length} 个游戏 / ${res.collections.length} 个平台`);
+      const first =
+        (remembered?.collection && session.cfg.platforms.includes(remembered.collection)
+          ? remembered.collection
+          : session.cfg.platforms[0]) ?? "";
+      setCollection(first);
+      const list = await ensurePlatform(first, p, session);
+      const hit = remembered?.id ? list.find((g) => g.id === remembered?.id) : undefined;
+      const sel = hit ?? list[0] ?? null;
+      if (sel) {
+        if (hit) pendingScrollId.current = hit.id;
+        selectGame(sel);
+      } else {
+        setSelected(null);
+      }
+      setStatus(`已加载 ${session.cfg.platforms.length} 个平台`);
     } catch (e) {
       setStatus(`失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -297,8 +320,10 @@ export function App() {
 
   function selectCollection(c: string) {
     setCollection(c);
-    const first = games.find((g) => g.collection === c);
-    if (first) selectGame(first);
+    void ensurePlatform(c).then((list) => {
+      const g = list[0];
+      if (g) selectGame(g);
+    });
   }
 
   // 恢复上次位置：扫描完成后滚动到选中项
@@ -333,10 +358,7 @@ export function App() {
     if (collections.length === 0) return;
     const i = collections.indexOf(collection);
     const next = (i + delta + collections.length) % collections.length;
-    const c = collections[next];
-    setCollection(c);
-    const first = games.find((g) => g.collection === c);
-    if (first) selectGame(first);
+    selectCollection(collections[next]);
   }
 
   // 手柄：导航 / 确认启动 / 切换平台 / 菜单 / 全屏
@@ -581,7 +603,9 @@ export function App() {
                   onClick={() => selectCollection(c)}
                 >
                   {c}
-                  <span className="muted"> {byCollection.get(c)?.length ?? 0}</span>
+                  <span className="muted">
+                    {gamesMap.has(c) ? ` ${gamesMap.get(c)?.length ?? 0}` : ""}
+                  </span>
                 </button>
               ))}
               {scanning && <span className="refresh-badge">刷新中…</span>}
@@ -597,6 +621,10 @@ export function App() {
                   ))}
                 </ul>
               </details>
+            )}
+
+            {platformLoading === collection && filtered.length === 0 && (
+              <div className="refresh-badge">加载中…</div>
             )}
 
             <VirtualGrid
