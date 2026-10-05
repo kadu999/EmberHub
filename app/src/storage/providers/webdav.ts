@@ -1,6 +1,6 @@
 // WebDavProvider：对接 OpenList / NAS / Nextcloud。
 // 通过 Rust 侧发送 PROPFIND / GET，绕过浏览器 CORS 与自定义方法限制。
-import { tauri, type DavAuth } from "../../lib/tauri";
+import { tauri, type DavAuth } from "../../shared/tauri";
 import type { RemoteEntry, StorageProvider } from "../types";
 
 export class WebDavProvider implements StorageProvider {

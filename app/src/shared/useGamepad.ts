@@ -2,7 +2,7 @@
 // 标准 Gamepad API 按键索引（Xbox 布局，PlayStation 位置对应）。
 // 映射可在 src/config.json 的 gamepad 段调整，无需改代码。
 import { useEffect, useRef, useState } from "react";
-import { APP_CONFIG } from "../config";
+import { APP_CONFIG } from "../config/config";
 
 export type GamepadAction =
   | "up"

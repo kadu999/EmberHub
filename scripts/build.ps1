@@ -32,3 +32,17 @@ Set-Location $appRoot
 
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 cmd /c "`"$vcvars`" >nul && pnpm tauri build"
+
+# 导出安装包到仓库根 release/desktop/（与编译缓存 target/ 解耦，cargo clean 不影响已发布包）
+$repoRoot   = Split-Path $PSScriptRoot -Parent
+$bundleDir  = Join-Path $repoRoot 'app\src-tauri\target\release\bundle'
+$releaseDir = Join-Path $repoRoot 'release\desktop'
+if (Test-Path $bundleDir) {
+  New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+  Get-ChildItem -Path $bundleDir -Recurse -File |
+    Where-Object { $_.Extension -in '.exe', '.msi', '.dmg', '.deb', '.AppImage' } |
+    ForEach-Object { Copy-Item -Force $_.FullName $releaseDir }
+  Write-Host "已导出安装包到 release\desktop\" -ForegroundColor Green
+} else {
+  Write-Host "未找到安装包目录（构建可能失败）：$bundleDir" -ForegroundColor Yellow
+}

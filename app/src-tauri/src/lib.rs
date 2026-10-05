@@ -2,7 +2,6 @@
 // 只暴露少量系统操作命令，业务逻辑尽量放在前端 TypeScript。
 // 详见 docs/ARCHITECTURE.md
 
-use std::process::Command;
 use std::sync::OnceLock;
 
 use futures_util::StreamExt;
@@ -11,6 +10,8 @@ use serde::Serialize;
 use tauri::{Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 use url::Url;
+
+mod platform;
 
 /// 全局复用的 HTTP 客户端：连接池 + 连接超时。
 /// 之前每次请求都 `Client::new()`，无法复用 TCP/TLS 连接，扫描时请求一多就明显变慢。
@@ -39,23 +40,14 @@ pub struct LocalEntry {
 }
 
 /// 启动外部模拟器并传入参数（如 ROM 路径），返回进程 PID。
+/// 平台差异交由 `platform` 模块处理（桌面用 Command，移动端用 Intent）。
 #[tauri::command]
 fn launch_emulator(
     exe_path: String,
     args: Vec<String>,
     workdir: Option<String>,
 ) -> Result<u32, String> {
-    let mut cmd = Command::new(&exe_path);
-    cmd.args(&args);
-    if let Some(dir) = workdir {
-        if !dir.trim().is_empty() {
-            cmd.current_dir(dir);
-        }
-    }
-    match cmd.spawn() {
-        Ok(child) => Ok(child.id()),
-        Err(e) => Err(format!("failed to launch `{}`: {}", exe_path, e)),
-    }
+    platform::launch_emulator(exe_path, args, workdir)
 }
 
 /// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
@@ -519,13 +511,13 @@ async fn webdav_download(
 // 应用信息
 // ---------------------------------------------------------------------------
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 /// 当前运行平台（编译目标 OS）：windows / linux / macos / android / ios
 #[tauri::command]
 fn host_os() -> String {
     std::env::consts::OS.to_string()
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

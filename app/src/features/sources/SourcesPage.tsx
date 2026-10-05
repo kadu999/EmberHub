@@ -1,11 +1,11 @@
 // 设置页：OpenList 资源源配置 + 下载目录 + 媒体缓存。
 // 默认隐藏，按 F1 打开。
 import { useEffect, useState } from "react";
-import { useStore } from "../../store";
-import { APP_CONFIG } from "../../config";
+import { useStore } from "../../state/store";
+import { APP_CONFIG } from "../../config/config";
 import { createProvider } from "../../storage";
-import { tauri } from "../../lib/tauri";
-import { mediaCacheRoot } from "../../library/ensure";
+import { tauri } from "../../shared/tauri";
+import { mediaCacheRoot } from "../../domain/ensure";
 import type { SourceConfig } from "../../storage/types";
 
 interface Props {

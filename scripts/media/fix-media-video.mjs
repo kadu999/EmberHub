@@ -3,10 +3,10 @@
 // 转成 H.264 后替换回服务器。
 //
 // 用法：
-//   node scripts/fix-media-video.mjs SS DC                 # 只检测，列出来
-//   node scripts/fix-media-video.mjs SS DC --apply         # 转码并上传替换
-//   node scripts/fix-media-video.mjs SS --limit 20         # 只处理前 20 个
-//   node scripts/fix-media-video.mjs SS --ffmpeg <path> --ffprobe <path>
+//   node scripts/media/fix-media-video.mjs SS DC                 # 只检测，列出来
+//   node scripts/media/fix-media-video.mjs SS DC --apply         # 转码并上传替换
+//   node scripts/media/fix-media-video.mjs SS --limit 20         # 只处理前 20 个
+//   node scripts/media/fix-media-video.mjs SS --ffmpeg <path> --ffprobe <path>
 //
 // 需要 ffmpeg / ffprobe（默认走 PATH）。
 
@@ -44,7 +44,7 @@ let VIDEO_EXTS = ["mp4", "webm", "mkv", "avi", "mov", "m4v"];
 const GOOD_CODECS = new Set(["avc1", "hvc1", "hev1", "av01", "vp09"]);
 
 if (positional.length === 0) {
-  console.error("用法: node scripts/fix-media-video.mjs <平台...> [--apply] [--limit N] [--ffmpeg PATH] [--ffprobe PATH]");
+  console.error("用法: node scripts/media/fix-media-video.mjs <平台...> [--apply] [--limit N] [--ffmpeg PATH] [--ffprobe PATH]");
   process.exit(1);
 }
 

@@ -1,7 +1,7 @@
 // 全局状态：唯一资源源（OpenList/WebDAV）与下载目录（持久化到 localStorage）。
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { SourceConfig } from "./storage/types";
+import type { SourceConfig } from "../storage/types";
 
 /** 从旧的 WebDAV 完整地址解析出 server 与挂载路径。 */
 function parseDavUrl(url: string): { server: string; mountPath: string } {

@@ -1,7 +1,7 @@
 // 模拟器管理：列出该运行平台下的模拟器，支持下载 / 更新 / 删除 / 直接打开。
 // 打开模拟器 = 启动它自己的界面（用于配置），不启动游戏。
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useStore } from "../../store";
+import { useStore } from "../../state/store";
 import { createProvider } from "../../storage";
 import {
   ensureEmulator,
@@ -9,7 +9,7 @@ import {
   openEmulator,
   removeEmulator,
   type EmulatorInfo,
-} from "../../library/ensure";
+} from "../../domain/ensure";
 
 interface Props {
   onClose?: () => void;

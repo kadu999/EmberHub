@@ -169,30 +169,28 @@ export interface EmulatorAdapter {
 
 ## 8. 目录结构
 
+> 完整结构、变更清单与移动端扩展点见 [`PROJECT_LAYOUT.md`](PROJECT_LAYOUT.md)。
+
 ```
 EmberHub/                     # 仓库根（项目）
 ├── app/                      # 应用（Tauri 2 + React + TS）
 │   ├── src/                  # 前端 Web UI（TypeScript）
-│   │   ├── components/       # 通用组件（封面等）
-│   │   ├── features/
-│   │   │   ├── library/      # 游戏库页
-│   │   │   └── sources/      # 存储源配置页
-│   │   ├── storage/          # 存储抽象层
-│   │   │   ├── types.ts
-│   │   │   └── providers/    # local / webdav / aliyundrive ...
-│   │   ├── library/          # Pegasus 解析与库扫描
-│   │   ├── lib/              # Tauri invoke 封装、路径工具
-│   │   └── main.tsx
-│   ├── src-tauri/            # Rust 薄壳（启动/文件/WebDAV 命令）
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── tsconfig.json
-├── openlist/                 # 中转站（gitignore，不提交）
-├── scripts/                  # 一键脚本
-│   ├── dev.ps1 / build.ps1
-│   └── openlist.bat / .ps1
+│   │   ├── main.tsx  App.tsx
+│   │   ├── config/           # 应用配置（config.ts / config.json）
+│   │   ├── state/            # 全局状态 store.ts
+│   │   ├── shared/           # 平台无关工具（path / media / tauri / gamepad）
+│   │   ├── components/       # 通用组件（Cover / VirtualGrid）
+│   │   ├── features/         # 页面：library / sources / emulators
+│   │   ├── domain/           # 领域逻辑：解析、扫描、下载、模拟器适配
+│   │   └── storage/          # 存储抽象层（types + providers）
+│   ├── src-tauri/            # Rust 薄壳
+│   │   └── src/              # lib.rs + platform（桌面/移动分叉）
+│   └── index.html  package.json  vite.config.ts  tsconfig.json
 ├── docs/
+├── scripts/                  # dev/build + openlist/ + media/
+├── data/                     # 本地运行时数据（gitignore）
+├── release/                  # 导出的安装包（gitignore）
+├── openlist/                 # 中转站（gitignore，不提交）
 └── README.md
 ```
 

@@ -1,7 +1,7 @@
 // 游戏库扫描：读取自定义 JSON 资源（manifest.json + Roms/<平台>/games.json）。
 // 封面/视频不在扫描阶段解析（避免大量目录请求），改为显示时懒加载并缓存。
 import type { StorageProvider } from "../storage/types";
-import { basename, isAbsolute, joinPath, stripExt } from "../lib/path";
+import { basename, isAbsolute, joinPath, stripExt } from "../shared/path";
 import { parsePlatformGames } from "./parse";
 import { DEFAULT_MEDIA_VARIANTS, buildVariantRegex, matchMediaDir } from "./media-match";
 import { clearMediaCache } from "./media-cache";

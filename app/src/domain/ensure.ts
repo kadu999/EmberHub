@@ -1,7 +1,7 @@
 // 确保资源就位：模拟器（按平台，带版本比对）与 ROM（断点续传 + 自动解压）。
-import { tauri } from "../lib/tauri";
-import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../lib/path";
-import { useStore } from "../store";
+import { tauri } from "../shared/tauri";
+import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
+import { useStore } from "../state/store";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { parseEmulatorConfig, parseEmulators, parsePlatformMap } from "./parse";
 import type { EmulatorsFile } from "./parse";

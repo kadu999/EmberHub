@@ -1,6 +1,6 @@
 // 媒体文件名识别（封面 / 视频）。
 // 关键字与扩展名来自 manifest.json（见 resource-config.ts），不写死。
-import { getActiveResourceConfig } from "../library/resource-config";
+import { getActiveResourceConfig } from "../domain/resource-config";
 import { extname } from "./path";
 
 /** 从目录文件名列表中挑一个封面 */

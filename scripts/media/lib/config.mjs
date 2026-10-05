@@ -1,5 +1,5 @@
 // Node 脚本共用的默认参数与参数读取。
-// 默认值可在 scripts/config.json 覆盖（server / user / pass / mount / romsDir），
+// 默认值可在 scripts/media/config.json 覆盖（server / user / pass / mount / romsDir），
 // 也可继续用命令行参数覆盖。
 import fs from "node:fs";
 

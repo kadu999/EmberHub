@@ -1,5 +1,5 @@
 // 媒体目录匹配算法（Node 脚本共用）。
-// 与 app/src/library/media-match.ts 保持同一套规则：
+// 与 app/src/domain/media-match.ts 保持同一套规则：
 //   games.json 的 media 字段 > 按标题自动匹配（会先去掉 mediaVariants 后缀）
 
 /** 媒体变体后缀（可在 manifest.json 的 mediaVariants 覆盖）。 */

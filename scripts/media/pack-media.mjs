@@ -3,10 +3,10 @@
 // 整理成 EmberHub 的结构：<输出目录>/<游戏名>/{boxFront,logo,video}.<ext>
 //
 // 用法：
-//   node scripts/pack-media.mjs <源目录> <输出目录>
+//   node scripts/media/pack-media.mjs <源目录> <输出目录>
 //
 // 例：
-//   node scripts/pack-media.mjs "D:\天马媒体包\downloaded_media\nds" "D:\天马媒体包\nds-media"
+//   node scripts/media/pack-media.mjs "D:\天马媒体包\downloaded_media\nds" "D:\天马媒体包\nds-media"
 //   # 之后把 <输出目录> 里的所有 <游戏名>/ 文件夹上传到 Roms/<平台>/media/
 
 import fs from "node:fs";
@@ -33,7 +33,7 @@ const TYPE_MAP = {
 
 const [src, out] = process.argv.slice(2);
 if (!src || !out) {
-  console.error("用法: node scripts/pack-media.mjs <源目录> <输出目录>");
+  console.error("用法: node scripts/media/pack-media.mjs <源目录> <输出目录>");
   process.exit(1);
 }
 if (!fs.existsSync(src)) {

@@ -9,13 +9,14 @@
   1. 在下面「填写参数」区域填入 APP_KEY / SECRET_KEY（可选 APP_ID）
   2. 在百度开放平台控制台 → 你的应用 → 安全设置 → OAuth 回调地址，
      填成与 REDIRECT_URI 完全一致的值（默认 oob）
-  3. 运行：python scripts/baidu_token.py
+  3. 运行：python scripts/media/baidu_token.py
   4. 浏览器登录并授权后，把地址栏整条 URL（或只把 code）粘回终端
 
 拿到 refresh_token 后，填进 OpenList 的百度网盘存储，并【取消勾选】「使用在线 API」。
 """
 
 import json
+import os
 import re
 import sys
 import urllib.error
@@ -238,9 +239,11 @@ def main():
         "access_token": access_token,
     }
     try:
-        with open("baidu_token.json", "w", encoding="utf-8") as f:
+        out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "secrets")
+        os.makedirs(out_dir, exist_ok=True)
+        with open(os.path.join(out_dir, "baidu_token.json"), "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
-        print("\n已保存到 baidu_token.json（注意：含密钥，已被 .gitignore 排除）")
+        print("\n已保存到 data/secrets/baidu_token.json（注意：含密钥，已被 .gitignore 排除）")
     except Exception as e:
         print("\n保存文件失败（不影响使用）：", e)
 

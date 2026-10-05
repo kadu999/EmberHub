@@ -7,14 +7,14 @@
 // 支持子文件夹（多盘 / 多卷游戏）：递归列目录（跳过 media/），按文件名匹配。
 //
 // 用法：
-//   node scripts/check-resources.mjs all                    # 只检测，写报告
-//   node scripts/check-resources.mjs all --fix              # 修正可修复的引用
-//   node scripts/check-resources.mjs all --add              # 收录孤儿 ROM
-//   node scripts/check-resources.mjs all --prune            # 移除服务器上不存在的条目
-//   node scripts/check-resources.mjs all --reconcile        # = --fix + --add + --prune（完全对齐）
-//   node scripts/check-resources.mjs all --server http://127.0.0.1:5244 --user admin --pass 12345 --mount /EmberHub_Baidu
+//   node scripts/media/check-resources.mjs all                    # 只检测，写报告
+//   node scripts/media/check-resources.mjs all --fix              # 修正可修复的引用
+//   node scripts/media/check-resources.mjs all --add              # 收录孤儿 ROM
+//   node scripts/media/check-resources.mjs all --prune            # 移除服务器上不存在的条目
+//   node scripts/media/check-resources.mjs all --reconcile        # = --fix + --add + --prune（完全对齐）
+//   node scripts/media/check-resources.mjs all --server http://127.0.0.1:5244 --user admin --pass 12345 --mount /EmberHub_Baidu
 //
-// 报告写到 resource-report-<平台>.txt（UTF-8）。
+// 报告写到 data/reports/resource-report-<平台>.txt（UTF-8）。
 // 任何写操作都会先把原 games.json 备份为 games.json.bak。
 
 import fs from "node:fs";
@@ -23,7 +23,7 @@ import { SCRIPT_DEFAULTS, getArg, trimUrl } from "./lib/config.mjs";
 const target = process.argv[2];
 if (!target || target.startsWith("--")) {
   console.error(
-    "用法: node scripts/check-resources.mjs <平台|all> [--fix|--add|--prune|--reconcile] [--server URL] [--user U] [--pass P] [--mount /path]",
+    "用法: node scripts/media/check-resources.mjs <平台|all> [--fix|--add|--prune|--reconcile] [--server URL] [--user U] [--pass P] [--mount /path]",
   );
   process.exit(1);
 }
@@ -303,6 +303,8 @@ for (const platform of platforms) {
   );
 }
 
-const reportPath = `resource-report-${target}.txt`;
+const REPORT_DIR = new URL("../../data/reports/", import.meta.url);
+fs.mkdirSync(REPORT_DIR, { recursive: true });
+const reportPath = new URL(`resource-report-${target}.txt`, REPORT_DIR);
 fs.writeFileSync(reportPath, lines.join("\n"), "utf8");
-console.log(`报告已写入 ${reportPath}`);
+console.log(`报告已写入 data/reports/resource-report-${target}.txt`);

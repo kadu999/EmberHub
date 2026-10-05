@@ -1,7 +1,7 @@
 // 本地已下载状态：扫描下载目录下的 Roms，得到「已完成下载」的游戏 id 集合。
 // 游戏 id 与 scan.ts 一致，为相对资源源根的 posix 路径，如 `Roms/GBA/xxx.gba`。
-import { tauri } from "../lib/tauri";
-import { joinPath } from "../lib/path";
+import { tauri } from "../shared/tauri";
+import { joinPath } from "../shared/path";
 import type { SourceConfig } from "../storage/types";
 import { getDownloadDir } from "./ensure";
 

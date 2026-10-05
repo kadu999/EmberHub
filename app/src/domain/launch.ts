@@ -1,8 +1,8 @@
 // 启动 + 按需下载。
 // 启动命令来源：Roms 的 launch 优先 → 否则用 Emulators 的 emulators.json。
 // 不配置模拟器、不管理模拟器生命周期（不关闭、不重启）。
-import { tauri } from "../lib/tauri";
-import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../lib/path";
+import { tauri } from "../shared/tauri";
+import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { ensureEmulator, ensureRom, getDownloadDir } from "./ensure";
 import type { Game } from "./scan";

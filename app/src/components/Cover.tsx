@@ -2,10 +2,10 @@
 import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { StorageProvider } from "../storage/types";
-import { joinPath } from "../lib/path";
-import { pickCoverName } from "../lib/media";
-import { ensureLocalMedia } from "../library/ensure";
-import { getCachedMediaPath, listMediaNames, rememberMediaPath } from "../library/media-cache";
+import { joinPath } from "../shared/path";
+import { pickCoverName } from "../shared/media";
+import { ensureLocalMedia } from "../domain/ensure";
+import { getCachedMediaPath, listMediaNames, rememberMediaPath } from "../domain/media-cache";
 
 interface Props {
   provider: StorageProvider;

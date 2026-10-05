@@ -1,6 +1,12 @@
 # 中转站（OpenList）：只提交脚本，不提交程序与数据
 /openlist/
 
+# 本地运行时数据（脚本报告 / 密钥）
+/data/
+
+# 导出的发布产物（安装包 / APK）
+/release/
+
 # 压缩包 / 存档
 *.zip
 *.7z
@@ -10,16 +16,9 @@
 .DS_Store
 Thumbs.db
 
-# 本地令牌 / 密钥（百度网盘 token 等）
-baidu_token.json
-
 # 脚本本地配置（含账号，复制 config.example.json 后使用）
-/scripts/config.json
+/scripts/media/config.json
 
 # Python
 __pycache__/
 *.pyc
-
-# 媒体检测报告
-media-report-*.txt
-resource-report-*.txt

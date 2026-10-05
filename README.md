@@ -42,6 +42,7 @@
 
 > 详细的模块划分、存储接口与路线图见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 > 网盘接入（OpenList / WebDAV）与天马G 元数据格式见 [`docs/CLOUD_DRIVE.md`](docs/CLOUD_DRIVE.md)。
+> 目录结构与整理规范见 [`docs/PROJECT_LAYOUT.md`](docs/PROJECT_LAYOUT.md)。
 
 ## 🚀 快速开始
 
@@ -56,11 +57,14 @@
 ```
 EmberHub/                 # 仓库根（项目）
 ├─ app/                   # 应用（Tauri 2 + React + TS）
-├─ openlist/              # 中转站（OpenList，已 gitignore，不提交）
+├─ docs/                  # 设计与目录规范
 ├─ scripts/               # 一键脚本
 │  ├─ dev.ps1 / build.ps1     # 应用开发 / 打包（自动加载 VS 环境）
-│  └─ openlist.bat / .ps1     # 中转站一键管理
-├─ docs/
+│  ├─ openlist/               # 中转站一键管理（openlist.bat / .ps1）
+│  └─ media/                  # 资源内容流水线（检测 / 打包 / 转换）
+├─ data/                  # 本地运行时数据：报告 / 密钥（已 gitignore）
+├─ release/               # 导出的安装包（已 gitignore）
+├─ openlist/              # 中转站（OpenList，已 gitignore，不提交）
 └─ README.md
 ```
 
@@ -96,11 +100,11 @@ pnpm tauri build    # 打包安装包
 ```
 EmberHub/
 ├─ app/
-├─ openlist/     ← 中转站（gitignore）
-└─ scripts/
+├─ openlist/              ← 中转站（gitignore）
+└─ scripts/openlist/      ← 管理脚本
 ```
 
-**双击 `scripts\openlist.bat`** 即可一键安装/启动/停止。
+**双击 `scripts\openlist\openlist.bat`** 即可一键安装/启动/停止。
 
 详见 [`docs/CLOUD_DRIVE.md`](docs/CLOUD_DRIVE.md)。
 

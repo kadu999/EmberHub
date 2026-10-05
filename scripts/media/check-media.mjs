@@ -4,15 +4,15 @@
 //   - 哪些 media 目录没被任何游戏用到
 //   - 哪些 media 目录被多个游戏共用（可能是模糊匹配过宽）
 //
-// 匹配逻辑与 app/src/library/scan.ts 一致：
+// 匹配逻辑与 app/src/domain/scan.ts 一致：
 //   games.json 的 media 字段 > 按标题自动匹配（含去掉 mediaVariants 后缀）
 //
 // 用法：
-//   node scripts/check-media.mjs PS1
-//   node scripts/check-media.mjs all
-//   node scripts/check-media.mjs PS1 --server http://127.0.0.1:5244 --user admin --pass 12345 --mount /EmberHub_Baidu
+//   node scripts/media/check-media.mjs PS1
+//   node scripts/media/check-media.mjs all
+//   node scripts/media/check-media.mjs PS1 --server http://127.0.0.1:5244 --user admin --pass 12345 --mount /EmberHub_Baidu
 //
-// 报告写到 media-report-<平台>.txt（UTF-8，避免控制台乱码）。
+// 报告写到 data/reports/media-report-<平台>.txt（UTF-8，避免控制台乱码）。
 
 import fs from "node:fs";
 import { SCRIPT_DEFAULTS, getArg, trimUrl } from "./lib/config.mjs";
@@ -20,7 +20,7 @@ import { DEFAULT_MEDIA_VARIANTS, buildVariantRegex, matchMediaDir } from "./lib/
 
 const target = process.argv[2];
 if (!target || target.startsWith("--")) {
-  console.error("用法: node scripts/check-media.mjs <平台|all> [--server URL] [--user U] [--pass P] [--mount /path]");
+  console.error("用法: node scripts/media/check-media.mjs <平台|all> [--server URL] [--user U] [--pass P] [--mount /path]");
   process.exit(1);
 }
 
@@ -135,6 +135,8 @@ for (const platform of platforms) {
   console.log(`${platform}: 未匹配 ${r.unmatched.length} | 未使用 media ${r.unused.length} | 共用 ${r.shared.length}`);
 }
 
-const reportPath = `media-report-${target}.txt`;
+const REPORT_DIR = new URL("../../data/reports/", import.meta.url);
+fs.mkdirSync(REPORT_DIR, { recursive: true });
+const reportPath = new URL(`media-report-${target}.txt`, REPORT_DIR);
 fs.writeFileSync(reportPath, lines.join("\n"), "utf8");
-console.log(`报告已写入 ${reportPath}`);
+console.log(`报告已写入 data/reports/media-report-${target}.txt`);

@@ -16,18 +16,18 @@ EmberHub 采用「直连优先」的存储适配器架构。当前已实现：
 EmberHub\                 ← 仓库根（项目）
 ├─ app\                   ← 应用
 ├─ openlist\              ← 中转站（脚本安装到这里）
-├─ scripts\
+├─ scripts\               ← dev/build + openlist\ + media\
 ├─ docs\
 └─ README.md
 ```
 
-**双击 `scripts\openlist.bat`**，选择「1) 安装 / 更新」即可自动下载并初始化到 `openlist/`。
+**双击 `scripts\openlist\openlist.bat`**，选择「1) 安装 / 更新」即可自动下载并初始化到 `openlist/`。
 菜单还提供：启动、停止、打开管理页面、查看状态。
 
 也可以命令行调用：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\openlist.ps1 -Action setup
+powershell -ExecutionPolicy Bypass -File scripts\openlist\openlist.ps1 -Action setup
 # -Action: menu | setup | update | start | stop | restart | open | status
 # -Password: 初始管理员密码（默认 12345）
 # -Force: 强制重新下载
@@ -163,9 +163,9 @@ A：这些驱动走本地代理，需 OpenList 所在机器带宽足够；优先
 
 ## 六、维护脚本（可选）
 
-`scripts/` 下有若干资源维护脚本。**默认参数统一放在 `scripts/config.json`**（也可继续用命令行参数覆盖），键：`server` / `user` / `pass` / `mount` / `romsDir` / `ffmpeg` / `ffprobe`。
+`scripts/media/` 下有若干资源维护脚本。**默认参数统一放在 `scripts/media/config.json`**（也可继续用命令行参数覆盖），键：`server` / `user` / `pass` / `mount` / `romsDir` / `ffmpeg` / `ffprobe`。
 
-> 首次使用先复制模板：`copy scripts\config.example.json scripts\config.json`（该文件已被 gitignore，不会提交账号）。
+> 首次使用先复制模板：`copy scripts\media\config.example.json scripts\media\config.json`（该文件已被 gitignore，不会提交账号）。
 
 | 脚本 | 作用 |
 |---|---|
@@ -175,4 +175,4 @@ A：这些驱动走本地代理，需 OpenList 所在机器带宽足够；优先
 | `pack-media.mjs <源目录> <输出目录>` | 整理天马风格媒体包为 EmberHub 目录结构 |
 | `pegasus-to-json.mjs <metadata.pegasus.txt> <平台> <games.json>` | 天马 metadata → games.json |
 
-媒体匹配算法在 `scripts/lib/media-match.mjs`，与 app 侧（`app/src/library/media-match.ts`）规则一致。
+媒体匹配算法在 `scripts/media/lib/media-match.mjs`，与 app 侧（`app/src/domain/media-match.ts`）规则一致。

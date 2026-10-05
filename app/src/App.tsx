@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LibraryPage } from "./features/library/LibraryPage";
 import { SourcesPage } from "./features/sources/SourcesPage";
 import { EmulatorsPage } from "./features/emulators/EmulatorsPage";
-import { useStore } from "./store";
+import { useStore } from "./state/store";
 import "./App.css";
 
 function App() {

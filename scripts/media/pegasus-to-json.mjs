@@ -1,10 +1,10 @@
 // Pegasus / 天马G 的 metadata.pegasus.txt → EmberHub 的 games.json
 //
 // 用法:
-//   node scripts/pegasus-to-json.mjs <metadata.pegasus.txt> <平台名> <输出 games.json>
+//   node scripts/media/pegasus-to-json.mjs <metadata.pegasus.txt> <平台名> <输出 games.json>
 //
 // 例:
-//   node scripts/pegasus-to-json.mjs "D:\Roms\GBA\metadata.pegasus.txt" "GBA" "D:\Roms\GBA\games.json"
+//   node scripts/media/pegasus-to-json.mjs "D:\Roms\GBA\metadata.pegasus.txt" "GBA" "D:\Roms\GBA\games.json"
 
 import fs from "node:fs";
 
@@ -110,7 +110,7 @@ function convert(text, platform) {
 
 const [metaPath, platform, outPath] = process.argv.slice(2);
 if (!metaPath || !platform || !outPath) {
-  console.error("用法: node scripts/pegasus-to-json.mjs <metadata.pegasus.txt> <平台名> <输出 games.json>");
+  console.error("用法: node scripts/media/pegasus-to-json.mjs <metadata.pegasus.txt> <平台名> <输出 games.json>");
   process.exit(1);
 }
 
