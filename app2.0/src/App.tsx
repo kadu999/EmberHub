@@ -6,6 +6,7 @@ import { scanLibrary, type Game } from "./domain/scan";
 import { launchGame } from "./domain/launch";
 import { ensureEmulator, ensureLocalMedia, ensureRom } from "./domain/ensure";
 import { listDownloadedGames } from "./domain/local";
+import { createCachedProvider } from "./domain/library-cache";
 import { listMediaNames } from "./domain/media-cache";
 import { Cover } from "./components/Cover";
 import { VirtualGrid, type VirtualGridHandle } from "./components/VirtualGrid";
@@ -219,7 +220,7 @@ export function App() {
     setConnected(false);
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(cfg));
-      const p = createProvider(cfg);
+      const p = await createCachedProvider(createProvider(cfg), cfg);
       const res = await scanLibrary(p, cfg.romsPath || "Roms");
       setProvider(p);
       setCollections(res.collections);
@@ -379,7 +380,7 @@ export function App() {
       },
       prepare: async (platform: string) => {
         try {
-          const p = createProvider(srcRef.current);
+          const p = await createCachedProvider(createProvider(srcRef.current), srcRef.current);
           const res = await scanLibrary(p, srcRef.current.romsPath || "Roms");
           const game = res.games.find((g) => g.collection === platform);
           if (!game) return { error: `没有 ${platform} 的游戏` };
@@ -399,7 +400,7 @@ export function App() {
       },
       play: async (platform: string) => {
         try {
-          const p = createProvider(srcRef.current);
+          const p = await createCachedProvider(createProvider(srcRef.current), srcRef.current);
           const res = await scanLibrary(p, srcRef.current.romsPath || "Roms");
           const game = res.games.find((g) => g.collection === platform);
           if (!game) return { error: `没有 ${platform} 的游戏` };
@@ -410,7 +411,7 @@ export function App() {
         }
       },
       list: async () => {
-        const p = createProvider(srcRef.current);
+        const p = await createCachedProvider(createProvider(srcRef.current), srcRef.current);
         const res = await scanLibrary(p, srcRef.current.romsPath || "Roms");
         return {
           collections: res.collections,
