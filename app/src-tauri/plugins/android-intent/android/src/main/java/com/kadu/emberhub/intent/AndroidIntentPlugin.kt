@@ -129,7 +129,7 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
             val sd = dirs.drop(1).firstOrNull { it != null && Environment.isExternalStorageRemovable(it) }
                 ?: dirs.drop(1).firstOrNull { it != null }
             if (sd != null) {
-                invoke.resolve(sd.absolutePath)
+                invoke.resolveObject(sd.absolutePath)
             } else {
                 invoke.resolve()
             }
@@ -143,7 +143,7 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
     fun shared_storage_dir(invoke: Invoke) {
         try {
             val root = Environment.getExternalStorageDirectory()
-            invoke.resolve(File(root, "EmberHub").absolutePath)
+            invoke.resolveObject(File(root, "EmberHub").absolutePath)
         } catch (ex: Exception) {
             invoke.reject(ex.message ?: "获取共享存储目录失败")
         }
@@ -159,7 +159,7 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
                 activity.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
                     android.content.pm.PackageManager.PERMISSION_GRANTED
             }
-            invoke.resolve(ok)
+            invoke.resolveObject(ok)
         } catch (ex: Exception) {
             invoke.reject(ex.message ?: "检查存储权限失败")
         }

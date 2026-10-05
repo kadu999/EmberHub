@@ -49,58 +49,6 @@ Denies the external_files_dir command without any pre-configured scope.
 <tr>
 <td>
 
-`android-intent:allow-external-files-dir`
-
-</td>
-<td>
-
-Enables the external_files_dir command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`android-intent:deny-external-files-dir`
-
-</td>
-<td>
-
-Denies the external_files_dir command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`android-intent:allow-has-all-files-access`
-
-</td>
-<td>
-
-Enables the has_all_files_access command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`android-intent:deny-has-all-files-access`
-
-</td>
-<td>
-
-Denies the has_all_files_access command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `android-intent:allow-has-all-files-access`
 
 </td>
@@ -198,58 +146,6 @@ Enables the request_all_files_access command without any pre-configured scope.
 <td>
 
 Denies the request_all_files_access command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`android-intent:allow-request-all-files-access`
-
-</td>
-<td>
-
-Enables the request_all_files_access command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`android-intent:deny-request-all-files-access`
-
-</td>
-<td>
-
-Denies the request_all_files_access command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`android-intent:allow-shared-storage-dir`
-
-</td>
-<td>
-
-Enables the shared_storage_dir command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`android-intent:deny-shared-storage-dir`
-
-</td>
-<td>
-
-Denies the shared_storage_dir command without any pre-configured scope.
 
 </td>
 </tr>
