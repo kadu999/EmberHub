@@ -17,6 +17,7 @@
 
 # Tauri 移动端 dev 生成的辅助程序
 /updater-server.exe
+/updater-server/
 
 # 系统文件
 .DS_Store
