@@ -24,14 +24,9 @@ export default defineConfig(() => ({
   server: {
     port: 5185,
     strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 5186,
-        }
-      : undefined,
+    // 有 TAURI_DEV_HOST 时绑定所有网卡，让模拟器/真机连得上；
+    // HMR 用默认（同端口、按页面 host 连接），避免去绑定设备侧地址（如 10.0.2.2）而启动失败。
+    host: host ? "0.0.0.0" : false,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
