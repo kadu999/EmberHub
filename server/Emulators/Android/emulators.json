@@ -1,0 +1,25 @@
+{
+  "platforms": {
+    "GBA": "RetroArch",
+    "GBA hack": "RetroArch",
+    "GBA vib": "RetroArch",
+    "NDS": "RetroArch",
+    "PS1": "RetroArch",
+    "PS2": "AetherSX2",
+    "DC": "RetroArch",
+    "SS": "RetroArch"
+  },
+  "emulators": {
+    "RetroArch": {
+      "platform": "RetroArch",
+      "exe": "com.retroarch",
+      "package": "com.retroarch"
+    },
+    "AetherSX2": {
+      "platform": "AetherSX2",
+      "exe": "xyz.aethersx2.android",
+      "package": "xyz.aethersx2.android",
+      "mime": "application/octet-stream"
+    }
+  }
+}
