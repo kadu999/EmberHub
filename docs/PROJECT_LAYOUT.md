@@ -191,11 +191,19 @@ Tauri 2 的模型是**一套前端 + 一份 `src-tauri`**：桌面走 `main.rs`�
 
 ### 7.4 构建与发布
 
-- 依赖：Android SDK / NDK / JDK。
-- 命令：`pnpm tauri android init`（生成并提交 `gen/android`）、`android dev` / `android build`。
-- 产物：`src-tauri/gen/android/app/build/outputs/apk/...`，由 `scripts/android/` 构建后导出到 `release/android/`（`.apk` / `.aab`）。
-- 签名 keystore **不入库**（由生成的 Android 工程自带规则排除）。
-- CI：桌面与 Android 分两个 workflow（`.github/workflows/desktop.yml`、`android.yml`），共享同一份前端构建。
+前置（本机一次性）：
+
+1. JDK 17+、Android SDK（设 `ANDROID_HOME`）、Android NDK（设 `NDK_HOME`）；
+2. `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`；
+3. 在 `app/` 执行 `pnpm tauri android init`，生成 `src-tauri/gen/android`（**需提交**）。
+
+日常命令：
+
+- 开发到设备 / 模拟器：`powershell -ExecutionPolicy Bypass -File scripts/android/dev.ps1`
+- 打包：`powershell -ExecutionPolicy Bypass -File scripts/android/build.ps1`，APK/AAB 自动导出到 `release/android/`
+- 产物原始路径：`src-tauri/gen/android/app/build/outputs/{apk,bundle}/...`
+- 签名 keystore **不入库**（生成的 Android 工程自带 ignore 规则）
+- CI：桌面与 Android 分两个 workflow，共享同一份前端构建
 
 ### 7.5 动手前的检查项
 
