@@ -14,6 +14,7 @@ function registerFs(ipcMain) {
   ipcMain.handle("fs:default-download-dir", () => defaultDownloadDir);
 
   ipcMain.handle("fs:list-local-dir", async (_e, p) => {
+    if (!fs.existsSync(p)) return [];
     const entries = await fsp.readdir(p, { withFileTypes: true });
     return entries.map((e) => {
       const full = nodePath.join(p, e.name);
