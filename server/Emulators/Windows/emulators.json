@@ -1,0 +1,67 @@
+{
+  "platforms": {
+    "GBA": "RetroArch",
+    "GBA hack": "RetroArch",
+    "GBA vib": "RetroArch",
+    "NDS": "RetroArch",
+    "PS1": "RetroArch",
+    "PS2": "PS2",
+    "DC": "RetroArch",
+    "SS": "RetroArch"
+  },
+  "emulators": {
+    "RetroArch": {
+      "platform": "RetroArch",
+      "version": "1.22.2.1",
+      "archive": "RetroArch.zip",
+      "exe": "retroarch.exe",
+      "extract": false,
+      "configs": [
+        { "to": "portable.ini", "content": "" },
+        { "to": "retroarch.cfg", "from": "retroarch.cfg" }
+      ]
+    },
+    "PS2": {
+      "platform": "PS2",
+      "version": "2026.09.12",
+      "archive": "PS2.zip",
+      "exe": "PS2/pcsx2-qt.exe",
+      "args": [
+        "{file.path}"
+      ],
+      "configs": [
+        { "to": "PS2/portable.ini", "content": "" },
+        { "to": "PS2/inis/PCSX2.ini", "from": "PCSX2.ini" }
+      ]
+    },
+    "3DS": {
+      "platform": "3DS",
+      "version": "2126.1.2",
+      "archive": "azahar-windows-mxe-2126.1.2.zip",
+      "exe": "azahar-windows-mxe-2126.1.2/azahar.exe",
+      "args": [
+        "{file.path}"
+      ],
+      "extract": true
+    },
+    "PSP": {
+      "platform": "PSP",
+      "version": "1.19",
+      "archive": "ppsspp_win.zip",
+      "exe": "PPSSPPWindows64.exe",
+      "args": [
+        "{file.path}"
+      ],
+      "extract": true
+    }
+  },
+  "platformArgs": {
+    "GBA": ["-L", "cores/mgba_libretro.dll", "{file.path}"],
+    "GBA hack": ["-L", "cores/mgba_libretro.dll", "{file.path}"],
+    "GBA vib": ["-L", "cores/mgba_libretro.dll", "{file.path}"],
+    "NDS": ["-L", "cores/melonds_libretro.dll", "{file.path}"],
+    "PS1": ["-L", "cores/swanstation_libretro.dll", "{file.path}"],
+    "DC": ["-L", "cores/flycast_libretro.dll", "{file.path}"],
+    "SS": ["-L", "cores/kronos_libretro.dll", "{file.path}"]
+  }
+}
