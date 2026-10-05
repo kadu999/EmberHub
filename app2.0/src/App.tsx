@@ -7,6 +7,7 @@ import { launchGame } from "./domain/launch";
 import { ensureEmulator, ensureRom } from "./domain/ensure";
 import { listDownloadedGames } from "./domain/local";
 import { Cover } from "./components/Cover";
+import { VirtualGrid } from "./components/VirtualGrid";
 import { native } from "./shared/native";
 import { basename } from "./shared/path";
 
@@ -370,10 +371,15 @@ export function App() {
               </details>
             )}
 
-            <div className="grid">
-              {filtered.map((g) => (
+            <VirtualGrid
+              items={filtered}
+              minColWidth={150}
+              aspect={4 / 3}
+              extraHeight={46}
+              gap={18}
+              overscan={3}
+              renderItem={(g) => (
                 <button
-                  key={g.id}
                   className={[
                     "game-card",
                     g.id === selected?.id ? "active" : "",
@@ -393,8 +399,8 @@ export function App() {
                     {g.title}
                   </span>
                 </button>
-              ))}
-            </div>
+              )}
+            />
           </main>
         </div>
       )}

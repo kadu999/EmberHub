@@ -254,6 +254,14 @@ button.primary {
   padding-bottom: 30px;
 }
 
+.vgrid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+  padding-bottom: 30px;
+}
+
 .game-card {
   position: relative;
   display: flex;
