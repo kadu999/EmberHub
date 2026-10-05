@@ -2,6 +2,7 @@
 // 启动命令来源：Roms 的 launch 优先 → 否则用 Emulators 的 emulators.json。
 // 不配置模拟器、不管理模拟器生命周期（不关闭、不重启）。
 import { tauri } from "../shared/tauri";
+import { platform } from "../platform";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { ensureEmulator, ensureRom, getDownloadDir } from "./ensure";
@@ -119,7 +120,7 @@ export async function launchGame(
       title: game.title,
     });
     onStatus?.("启动中…");
-    await tauri.launchEmulator(plan.exe, plan.args, plan.workdir);
+    await platform.launchEmulator(plan.exe, plan.args, plan.workdir);
     return;
   }
 
@@ -131,5 +132,5 @@ export async function launchGame(
   const args = (cfgArgs ?? []).map((a) => substitute(a, romAbs, vars));
   const workdir = nativePath(config.workdir ? joinPath(dir, config.workdir) : dirname(exe));
   onStatus?.("启动中…");
-  await tauri.launchEmulator(exe, args, workdir);
+  await platform.launchEmulator(exe, args, workdir);
 }

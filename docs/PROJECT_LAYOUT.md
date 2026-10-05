@@ -2,7 +2,7 @@
 
 > 状态：草案 v0.1 ｜ 最后更新：2026-10-05
 > 本文是仓库目录结构与整理的执行基线，配合 [ARCHITECTURE.md](ARCHITECTURE.md) 使用。
-> 执行进度：**阶段 1–4 已完成**；阶段 5 已修 `mobile_entry_point`、拆分 `launch_emulator`、调整 `gen` 忽略规则，前端 `platform/` 缝与 Android 工程尚未创建。
+> 执行进度：**阶段 1–4 已完成**；阶段 5 已完成 `mobile_entry_point` 归位、`launch_emulator` 拆分、`gen` 忽略规则调整、前端 `platform/` 缝；Android 工程（`gen/android`）待执行 `tauri android init`。
 > 落地细节与勾选状态见第 6 节。
 
 ## 1. 设计原则
@@ -161,8 +161,8 @@ EmberHub/
 - [ ] **阶段 5 — 移动端预留（可选，见第 7 节）**
   - [x] 修 `mobile_entry_point` 位置；拆分 `launch_emulator` 到 `src-tauri/src/platform/`
   - [x] 调整 `src-tauri/.gitignore` 的 `gen` 规则（`/gen/` → `/gen/schemas`）
-  - [ ] 建 `app/src/platform/` 前端缝（待真正开发 Android 时再做）
-  - [ ] `tauri android init` 生成并提交 `gen/android`
+  - [x] 建 `app/src/platform/` 前端缝，并接入 `domain/launch.ts` 的启动路径
+  - [ ] `tauri android init` 生成并提交 `gen/android`（需 JDK + Android SDK/NDK）
 
 ## 7. 移动端（Android）扩展点
 
