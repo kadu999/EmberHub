@@ -391,6 +391,14 @@ export function LibraryPage({
                   <p className="detail-missing">服务器上没有该游戏文件，无法启动。</p>
                 )}
 
+                {selected.available !== false && (
+                  <div className="actions">
+                    <button onClick={() => void launch(selected)} disabled={launching}>
+                      {launching ? "启动中…" : "启动游戏"}
+                    </button>
+                  </div>
+                )}
+
                 <dl>
                   {selected.developer && (
                     <>
@@ -448,6 +456,9 @@ export function LibraryPage({
               </button>
             ))}
             {scanning && <span className="refresh-badge">刷新中…</span>}
+            <button className="ghost small" style={{ marginLeft: "auto" }} onClick={onOpenMenu}>
+              菜单
+            </button>
           </div>
 
           {result && result.warnings.length > 0 && (

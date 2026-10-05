@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { onBackButtonPress } from "@tauri-apps/api/app";
 import { LibraryPage } from "./features/library/LibraryPage";
 import { SourcesPage } from "./features/sources/SourcesPage";
 import { EmulatorsPage } from "./features/emulators/EmulatorsPage";
@@ -8,6 +9,7 @@ import { useStore } from "./state/store";
 import { tauri } from "./shared/tauri";
 import { getDownloadDir } from "./domain/ensure";
 import { joinPath } from "./shared/path";
+import { platform } from "./platform";
 import "./App.css";
 
 function App() {
@@ -79,8 +81,25 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [requestScan, fullscreen, setFullscreen, showSettings, showEmulators, showCache]);
 
-  const anyPanel = showSettings || showEmulators || showCache;
+  // Android 返回键：等价 Esc（逐层关闭面板）；都关了就退出应用
+  useEffect(() => {
+    if (!platform.isMobile) return;
+    let unlisten: (() => void) | undefined;
+    void onBackButtonPress(() => {
+      if (showSettings) setShowSettings(false);
+      else if (showEmulators) setShowEmulators(false);
+      else if (showCache) setShowCache(false);
+      else if (showMenu) setShowMenu(false);
+      else void getCurrentWindow().close();
+    })
+      .then((l) => {
+        unlisten = () => void l.unregister();
+      })
+      .catch(() => undefined);
+    return () => unlisten?.();
+  }, [showSettings, showEmulators, showCache, showMenu]);
 
+  const anyPanel = showSettings || showEmulators || showCache;
   return (
     <div className="app">
       <LibraryPage

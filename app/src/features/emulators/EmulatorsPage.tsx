@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useStore } from "../../state/store";
 import { createProvider, type StorageProvider } from "../../storage";
 import { createCachedProvider } from "../../domain/library-cache";
+import { platform } from "../../platform";
 import {
   ensureEmulator,
   listEmulators,
@@ -18,6 +19,7 @@ interface Props {
 
 export function EmulatorsPage({ onClose }: Props) {
   const source = useStore((s) => s.source);
+  const mobile = platform.isMobile;
   const [provider, setProvider] = useState<StorageProvider | null>(null);
 
   const [list, setList] = useState<EmulatorInfo[]>([]);
@@ -112,8 +114,9 @@ export function EmulatorsPage({ onClose }: Props) {
         </div>
       </div>
       <p className="hint">
-        下载 / 更新 / 删除模拟器，或直接「打开模拟器」进入它自己的设置界面（不会启动游戏）。
-        打开此页用本地缓存，不联网；点「从服务器刷新」才会重新拉配置。
+        {mobile
+          ? "模拟器是设备上已安装的 App；点「打开」进入它自己的界面（不会启动游戏）。"
+          : "下载 / 更新 / 删除模拟器，或直接「打开模拟器」进入它自己的设置界面（不会启动游戏）。打开此页用本地缓存，不联网；点「从服务器刷新」才会重新拉配置。"}
       </p>
 
       {error && <p className="error">{error}</p>}
@@ -129,38 +132,50 @@ export function EmulatorsPage({ onClose }: Props) {
               <div className="emu-info">
                 <span className="emu-name">{e.platform}</span>
                 <span className="emu-meta">
-                  版本 {e.version}
-                  {!e.installed && " · 未安装"}
-                  {upToDate && " · 已安装"}
-                  {e.installed && !upToDate && ` · 可更新（本地 ${e.installedVersion}）`}
+                  {mobile ? (
+                    <>
+                      App：<code>{e.exe}</code>
+                    </>
+                  ) : (
+                    <>
+                      版本 {e.version}
+                      {!e.installed && " · 未安装"}
+                      {upToDate && " · 已安装"}
+                      {e.installed && !upToDate && ` · 可更新（本地 ${e.installedVersion}）`}
+                    </>
+                  )}
                 </span>
               </div>
               <div className="emu-actions">
+                {!mobile && (
+                  <button
+                    className="ghost small"
+                    disabled={busy !== null}
+                    onClick={() =>
+                      run(e.platform, () =>
+                        ensureEmulator(provider!, source!, e.platform, setStatus, upToDate),
+                      )
+                    }
+                  >
+                    {busy === e.platform ? "处理中…" : label}
+                  </button>
+                )}
                 <button
                   className="ghost small"
                   disabled={busy !== null}
-                  onClick={() =>
-                    run(e.platform, () =>
-                      ensureEmulator(provider!, source!, e.platform, setStatus, upToDate),
-                    )
-                  }
-                >
-                  {busy === e.platform ? "处理中…" : label}
-                </button>
-                <button
-                  className="ghost small"
-                  disabled={busy !== null || !e.installed}
                   onClick={() => run(e.platform, () => openEmulator(provider!, source!, e.platform, setStatus))}
                 >
                   打开
                 </button>
-                <button
-                  className="ghost small"
-                  disabled={busy !== null || !e.installed}
-                  onClick={() => run(e.platform, () => removeEmulator(provider!, source!, e.platform))}
-                >
-                  删除
-                </button>
+                {!mobile && (
+                  <button
+                    className="ghost small"
+                    disabled={busy !== null || !e.installed}
+                    onClick={() => run(e.platform, () => removeEmulator(provider!, source!, e.platform))}
+                  >
+                    删除
+                  </button>
+                )}
               </div>
             </li>
           );

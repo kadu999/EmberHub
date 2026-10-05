@@ -233,15 +233,18 @@ export async function listEmulators(
   }
 
   const out: EmulatorInfo[] = [];
+  const mobile = appPlatform.isMobile;
   for (const [platform, config] of entries) {
-    const { stampPath } = await emulatorLocal(source, platform, cfg);
-    const ver = await installedVersion(stampPath);
+    // 移动端模拟器是「已安装的 App」：没有本地安装目录 / 版本戳
+    const ver = mobile
+      ? config.version
+      : await installedVersion((await emulatorLocal(source, platform, cfg)).stampPath);
     out.push({
       platform,
       version: config.version,
       archive: config.archive,
       exe: config.exe,
-      installed: ver !== undefined,
+      installed: mobile ? true : ver !== undefined,
       installedVersion: ver,
     });
   }
