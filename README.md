@@ -56,8 +56,8 @@
 
 ```
 EmberHub/                 # 仓库根（项目）
-├─ app/                   # 应用 1.0（Tauri 2 + React + TS）
-├─ app2.0/                # 应用 2.0（Capacitor 壳，逐步移植中）
+├─ app/                   # 应用（Tauri 2 + React + TS）
+├─ server/                # 资源服务器（OpenList）资源源文件
 ├─ docs/                  # 设计与目录规范
 ├─ scripts/               # 一键脚本
 │  ├─ dev.ps1 / build.ps1     # 应用开发 / 打包（自动加载 VS 环境）

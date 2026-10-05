@@ -1,6 +1,0 @@
-# pnpm 10+ 默认不执行依赖的构建脚本，这里显式声明放行/忽略。
-# - electron：postinstall 需要下载 Electron 二进制 → 放行
-# - electron-winstaller：只用于 Squirrel 安装器（我们打 zip 便携版用不到）→ 忽略
-allowBuilds:
-  electron: true
-  electron-winstaller: false
