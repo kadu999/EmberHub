@@ -39,6 +39,20 @@ const isSmoke = process.env.EMBERHUB_SMOKE === "1";
 
 let win = null;
 
+// —— 应用单实例：已经开着一个就聚焦它，不再开第二个 ——
+const isPrimary = app.requestSingleInstanceLock();
+if (!isPrimary) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (win && !win.isDestroyed()) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  });
+}
+
 function hostOs() {
   switch (process.platform) {
     case "win32":
@@ -349,8 +363,70 @@ ipcMain.handle("shell:open-path", (_e, p) => shell.openPath(p));
 registerFs(ipcMain);
 registerDav(ipcMain, broadcastDownload);
 
-// 启动外部进程（模拟器），分离运行，返回 PID。
-ipcMain.handle("proc:launch", (_e, { exe, args, workdir }) => {
+// —— 模拟器进程：同一时间只允许一个；同一目标不重复启动，换目标先关旧的 ——
+let emulator = null; // { pid, key }
+
+/** 启动目标标识：exe + 参数（同一游戏 = 同一 key）。 */
+function procKey(exe, args) {
+  return `${(exe || "").toLowerCase()}\u0000${(args || []).join("\u0000")}`;
+}
+
+function pidAlive(pid) {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 结束进程树：Windows 先软关（让模拟器正常退出、保存配置/存档），超时再强杀。 */
+function killTree(pid) {
+  return new Promise((resolve) => {
+    if (!pidAlive(pid)) return resolve();
+    if (process.platform !== "win32") {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        /* ignore */
+      }
+      return resolve();
+    }
+    const done = () => resolve();
+    const soft = spawn("taskkill", ["/pid", String(pid), "/t"], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    soft.on("error", done);
+    soft.on("close", () => {
+      const deadline = Date.now() + 1500;
+      const tick = () => {
+        if (!pidAlive(pid)) return resolve();
+        if (Date.now() >= deadline) {
+          const hard = spawn("taskkill", ["/pid", String(pid), "/t", "/f"], {
+            windowsHide: true,
+            stdio: "ignore",
+          });
+          hard.on("error", done);
+          hard.on("close", done);
+          return;
+        }
+        setTimeout(tick, 150);
+      };
+      tick();
+    });
+  });
+}
+
+async function launchEmulator({ exe, args, workdir }) {
+  const key = procKey(exe, args);
+  if (emulator && pidAlive(emulator.pid)) {
+    if (emulator.key === key) return emulator.pid; // 同一目标：不重复启动
+    await killTree(emulator.pid); // 换目标：先关旧的
+  }
+  emulator = null;
+
   const child = spawn(exe, args || [], {
     cwd: workdir || undefined,
     detached: true,
@@ -358,10 +434,27 @@ ipcMain.handle("proc:launch", (_e, { exe, args, workdir }) => {
     windowsHide: true,
   });
   child.unref();
-  return child.pid ?? 0;
+  const pid = child.pid ?? 0;
+  emulator = { pid, key };
+  child.on("exit", () => {
+    if (emulator && emulator.pid === pid) emulator = null;
+  });
+  return pid;
+}
+
+// 串行化启动请求，避免连点导致并发开两个模拟器。
+let launchQueue = Promise.resolve();
+ipcMain.handle("proc:launch", (_e, opts) => {
+  const run = launchQueue.then(() => launchEmulator(opts));
+  launchQueue = run.then(
+    () => {},
+    () => {},
+  );
+  return run;
 });
 
 app.whenReady().then(() => {
+  if (!isPrimary) return;
   // 便携模式：打包后数据放在 exe 同级的 downloads/（解压即用）；开发时放用户数据目录。
   const base = app.isPackaged ? path.dirname(app.getPath("exe")) : app.getPath("userData");
   const downloadDir = path.join(base, "downloads");
@@ -395,4 +488,16 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+// 退出应用时一并结束模拟器（避免残留进程，保证“同一时间只有一个”）。
+let quitting = false;
+app.on("before-quit", (e) => {
+  if (quitting) return;
+  if (!emulator || !pidAlive(emulator.pid)) return;
+  e.preventDefault();
+  quitting = true;
+  const pid = emulator.pid;
+  emulator = null;
+  killTree(pid).finally(() => app.quit());
 });
