@@ -459,7 +459,13 @@ export function App() {
       {showSettings && (
         <div className="overlay" onClick={() => setShowSettings(false)}>
           <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-            <SourcesPage source={src} onSave={onSaveSource} onClose={() => setShowSettings(false)} />
+            <SourcesPage
+              source={src}
+              onSave={onSaveSource}
+              onClose={() => setShowSettings(false)}
+              fullscreen={full}
+              onToggleFullscreen={() => void setFullscreen().then(applyFull)}
+            />
           </div>
         </div>
       )}
@@ -499,9 +505,6 @@ export function App() {
               }}
             >
               设置
-            </button>
-            <button onClick={() => void setFullscreen().then(applyFull)}>
-              {full ? "退出全屏" : "全屏"}
             </button>
             <button
               onClick={() => {

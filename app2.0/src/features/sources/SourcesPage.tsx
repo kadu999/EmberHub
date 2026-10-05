@@ -27,9 +27,11 @@ interface Props {
   source: SourceConfig;
   onSave: (cfg: SourceConfig) => void;
   onClose: () => void;
+  fullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
-export function SourcesPage({ source, onSave, onClose }: Props) {
+export function SourcesPage({ source, onSave, onClose, fullscreen, onToggleFullscreen }: Props) {
   const [defaultDir, setDefaultDir] = useState("");
   useEffect(() => {
     native.fs.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
@@ -123,9 +125,14 @@ export function SourcesPage({ source, onSave, onClose }: Props) {
     <div className="settings">
       <div className="settings-head">
         <h2>设置</h2>
-        <button className="ghost small" onClick={onClose}>
-          关闭（Esc）
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="ghost small" onClick={onToggleFullscreen}>
+            {fullscreen ? "退出全屏" : "全屏"}
+          </button>
+          <button className="ghost small" onClick={onClose}>
+            关闭（Esc）
+          </button>
+        </div>
       </div>
       <p className="hint">
         通过 OpenList（WebDAV）读取游戏库。游戏库放在「游戏目录」（默认 Roms）下。
