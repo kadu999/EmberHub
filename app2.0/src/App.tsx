@@ -5,6 +5,7 @@ import type { SourceConfig, StorageProvider } from "./storage/types";
 import { scanLibrary, type Game } from "./domain/scan";
 import { launchGame } from "./domain/launch";
 import { ensureEmulator, ensureRom } from "./domain/ensure";
+import { listDownloadedGames } from "./domain/local";
 import { Cover } from "./components/Cover";
 import { native } from "./shared/native";
 import { basename } from "./shared/path";
@@ -32,31 +33,34 @@ function loadSource(): SourceConfig {
   return DEFAULT_SOURCE;
 }
 
-/** App2.0 游戏库：连接 OpenList(WebDAV) → 扫描 → 平台切换 + 封面网格。 */
+interface Progress {
+  path: string;
+  downloaded: number;
+  total: number | null;
+}
+
+/** App2.0 游戏库：连接 OpenList → 扫描 → 详情面板 + 封面网格 + 启动。 */
 export function App() {
   const [full, setFull] = useState(isFullscreen());
   const [src, setSrc] = useState<SourceConfig>(loadSource);
+  const [showSettings, setShowSettings] = useState(true);
   const [provider, setProvider] = useState<StorageProvider | null>(null);
+  const [connected, setConnected] = useState(false);
+
   const [games, setGames] = useState<Game[]>([]);
   const [collections, setCollections] = useState<string[]>([]);
-  const [selected, setSelected] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [collection, setCollection] = useState("");
+  const [selected, setSelected] = useState<Game | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [launching, setLaunching] = useState(false);
+  const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [status, setStatus] = useState("未连接");
 
   useEffect(() => onFullscreenChange(setFull), []);
-
-  // 下载进度（封面等媒体不刷状态，避免刷屏）
-  useEffect(
-    () =>
-      native.dav.onDownloadProgress((p) => {
-        if (/[\\/]\.cache[\\/]media[\\/]/.test(p.path)) return;
-        const mb = (n: number) => (n / 1048576).toFixed(1);
-        const pct = p.total ? ` ${Math.floor((p.downloaded / p.total) * 100)}%` : "";
-        const total = p.total ? `/${mb(p.total)}MB` : "";
-        setStatus(`下载 ${basename(p.path)} ${mb(p.downloaded)}MB${total}${pct}`);
-      }),
-    [],
-  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,26 +73,30 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  async function connect() {
-    setStatus("连接中…");
-    setWarnings([]);
-    setProvider(null);
-    setGames([]);
-    setCollections([]);
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(src));
-      const p = createProvider(src);
-      const res = await scanLibrary(p, src.romsPath || "Roms");
-      setProvider(p);
-      setCollections(res.collections);
-      setGames(res.games);
-      setWarnings(res.warnings);
-      setSelected(res.collections[0] ?? "");
-      setStatus(`已加载 ${res.games.length} 个游戏 / ${res.collections.length} 个平台`);
-    } catch (e) {
-      setStatus(`失败：${e instanceof Error ? e.message : String(e)}`);
+  // 下载进度（媒体缓存静默）
+  useEffect(
+    () =>
+      native.dav.onDownloadProgress((p) => {
+        if (/[\\/]\.cache[\\/]media[\\/]/.test(p.path)) return;
+        setProgress({ path: p.path, downloaded: p.downloaded, total: p.total });
+      }),
+    [],
+  );
+
+  // 本地已下载集合
+  useEffect(() => {
+    if (!connected) {
+      setDownloaded(new Set());
+      return;
     }
-  }
+    let alive = true;
+    void listDownloadedGames(src, src.romsPath || "Roms").then((s) => {
+      if (alive) setDownloaded(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [connected, src, games]);
 
   const byCollection = useMemo(() => {
     const m = new Map<string, Game[]>();
@@ -100,11 +108,68 @@ export function App() {
     return m;
   }, [games]);
 
-  // 测试钩子：供打包/冒烟脚本调用，验证「确保模拟器 + 确保 ROM」的完整下载链路。
+  const filtered = byCollection.get(collection) ?? [];
+
+  async function connect() {
+    setStatus("连接中…");
+    setWarnings([]);
+    setScanning(true);
+    setConnected(false);
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(src));
+      const p = createProvider(src);
+      const res = await scanLibrary(p, src.romsPath || "Roms");
+      setProvider(p);
+      setCollections(res.collections);
+      setGames(res.games);
+      setWarnings(res.warnings);
+      setCollection(res.collections[0] ?? "");
+      setSelected(res.games[0] ?? null);
+      setConnected(true);
+      setShowSettings(false);
+      setStatus(`已加载 ${res.games.length} 个游戏 / ${res.collections.length} 个平台`);
+    } catch (e) {
+      setStatus(`失败：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function launch(g: Game) {
+    if (!provider) return;
+    if (g.available === false) {
+      setLaunchMsg({ ok: false, text: "该游戏文件未上传，无法启动。" });
+      return;
+    }
+    setSelected(g);
+    setLaunchMsg(null);
+    setProgress(null);
+    setLaunching(true);
+    try {
+      await launchGame(g, provider, src, (s) => setLaunchMsg({ ok: true, text: s }));
+      setLaunching(false);
+      setProgress(null);
+      setLaunchMsg({ ok: true, text: `已启动：${g.title}` });
+      void listDownloadedGames(src, src.romsPath || "Roms").then(setDownloaded);
+    } catch (e) {
+      setLaunching(false);
+      setProgress(null);
+      setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  function selectCollection(c: string) {
+    setCollection(c);
+    const first = games.find((g) => g.collection === c);
+    if (first) setSelected(first);
+  }
+
+  // 测试钩子：供打包/冒烟脚本调用
   const srcRef = useRef(src);
   srcRef.current = src;
   useEffect(() => {
     (window as unknown as { __emberhub2?: unknown }).__emberhub2 = {
+      connect: () => connect(),
       prepare: async (platform: string) => {
         try {
           const p = createProvider(srcRef.current);
@@ -152,18 +217,7 @@ export function App() {
     };
   }, []);
 
-  async function play(g: Game) {
-    if (!provider) return;
-    try {
-      setStatus(`准备启动 ${g.title}…`);
-      await launchGame(g, provider, src, (s) => setStatus(`${g.title}：${s}`));
-      setStatus(`已启动：${g.title}`);
-    } catch (e) {
-      setStatus(`启动失败：${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
-  const shown = byCollection.get(selected) ?? [];
+  const showLaunchPanel = launching || progress !== null || (launchMsg !== null && !launchMsg.ok);
 
   return (
     <div className="app2">
@@ -171,86 +225,220 @@ export function App() {
         <h1>
           EmberHub <span>2.0</span>
         </h1>
-        <button onClick={() => void setFullscreen().then(setFull)}>
-          {full ? "退出全屏" : "全屏"}
-        </button>
+        <div className="header-actions">
+          <button onClick={() => setShowSettings((v) => !v)}>设置</button>
+          <button onClick={() => void setFullscreen().then(setFull)}>
+            {full ? "退出全屏" : "全屏"}
+          </button>
+        </div>
       </header>
 
-      <section className="panel">
-        <div className="grid2">
-          <label>
-            OpenList 地址
-            <input
-              value={src.server ?? ""}
-              onChange={(e) => setSrc({ ...src, server: e.currentTarget.value })}
-              placeholder="127.0.0.1:5244"
-            />
-          </label>
-          <label>
-            资源源挂载
-            <input
-              value={src.mountPath ?? ""}
-              onChange={(e) => setSrc({ ...src, mountPath: e.currentTarget.value })}
-              placeholder="/EmberHub_Baidu"
-            />
-          </label>
-          <label>
-            用户名
-            <input
-              value={src.username ?? ""}
-              onChange={(e) => setSrc({ ...src, username: e.currentTarget.value })}
-            />
-          </label>
-          <label>
-            密码
-            <input
-              type="password"
-              value={src.password ?? ""}
-              onChange={(e) => setSrc({ ...src, password: e.currentTarget.value })}
-            />
-          </label>
-        </div>
-        <div className="actions">
-          <button className="primary" onClick={connect}>
-            连接并扫描
-          </button>
-          <span className="muted">{status}</span>
-        </div>
-        {warnings.length > 0 && (
-          <ul className="warn">
-            {warnings.slice(0, 8).map((w, i) => (
-              <li key={i}>{w}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {collections.length > 0 && (
-        <nav className="tabs">
-          {collections.map((c) => (
-            <button
-              key={c}
-              className={c === selected ? "tab active" : "tab"}
-              onClick={() => setSelected(c)}
-            >
-              {c} <span className="muted">{byCollection.get(c)?.length ?? 0}</span>
+      {showSettings && (
+        <section className="panel">
+          <div className="grid2">
+            <label>
+              OpenList 地址
+              <input
+                value={src.server ?? ""}
+                onChange={(e) => setSrc({ ...src, server: e.currentTarget.value })}
+                placeholder="127.0.0.1:5244"
+              />
+            </label>
+            <label>
+              资源源挂载
+              <input
+                value={src.mountPath ?? ""}
+                onChange={(e) => setSrc({ ...src, mountPath: e.currentTarget.value })}
+                placeholder="/EmberHub_Baidu"
+              />
+            </label>
+            <label>
+              用户名
+              <input
+                value={src.username ?? ""}
+                onChange={(e) => setSrc({ ...src, username: e.currentTarget.value })}
+              />
+            </label>
+            <label>
+              密码
+              <input
+                type="password"
+                value={src.password ?? ""}
+                onChange={(e) => setSrc({ ...src, password: e.currentTarget.value })}
+              />
+            </label>
+          </div>
+          <div className="actions">
+            <button className="primary" onClick={connect}>
+              连接并扫描
             </button>
-          ))}
-        </nav>
+            <span className="muted">{status}</span>
+          </div>
+        </section>
       )}
 
-      <main>
-        <div className="grid">
-          {shown.map((g) => (
-            <div key={g.id} className="card" title={g.title} onClick={() => void play(g)}>
-              {provider ? (
-                <Cover provider={provider} path={g.coverPath} dir={g.mediaDir} title={g.title} />
-              ) : null}
-              <span className="card-title">{g.title}</span>
+      {connected && (
+        <div className="library-layout">
+          <aside className="detail-panel">
+            {selected ? (
+              <>
+                <div className="detail-media">
+                  <Cover
+                    provider={provider!}
+                    path={selected.coverPath}
+                    dir={selected.mediaDir}
+                    title={selected.title}
+                  />
+                </div>
+                <div className="detail-scroll">
+                  <h3 className="detail-title">{selected.title}</h3>
+                  <div className="detail-platform">
+                    {selected.platformName ?? selected.collection}
+                    {selected.available !== false && downloaded.has(selected.id) && (
+                      <span className="detail-downloaded">已下载</span>
+                    )}
+                  </div>
+                  {selected.available === false && (
+                    <p className="detail-missing">服务器上没有该游戏文件，无法启动。</p>
+                  )}
+                  <dl>
+                    {selected.developer && (
+                      <>
+                        <dt>开发商</dt>
+                        <dd>{selected.developer}</dd>
+                      </>
+                    )}
+                    {selected.genre && (
+                      <>
+                        <dt>类型</dt>
+                        <dd>{selected.genre}</dd>
+                      </>
+                    )}
+                    {selected.players && (
+                      <>
+                        <dt>玩家人数</dt>
+                        <dd>{selected.players}</dd>
+                      </>
+                    )}
+                    {selected.release && (
+                      <>
+                        <dt>发行日期</dt>
+                        <dd>{selected.release}</dd>
+                      </>
+                    )}
+                    {selected.rating !== undefined && (
+                      <>
+                        <dt>评分</dt>
+                        <dd>{Math.round(selected.rating * 100)}%</dd>
+                      </>
+                    )}
+                  </dl>
+                  {selected.description && <p className="desc">{selected.description}</p>}
+                  <button className="primary launch-btn" onClick={() => void launch(selected)}>
+                    启动游戏
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="muted">选择一个游戏</p>
+            )}
+          </aside>
+
+          <main className="library-main">
+            <div className="filters">
+              {collections.map((c) => (
+                <button
+                  key={c}
+                  className={collection === c ? "chip active" : "chip"}
+                  onClick={() => selectCollection(c)}
+                >
+                  {c}
+                  <span className="muted"> {byCollection.get(c)?.length ?? 0}</span>
+                </button>
+              ))}
+              {scanning && <span className="refresh-badge">刷新中…</span>}
             </div>
-          ))}
+
+            {warnings.length > 0 && (
+              <details className="warnings">
+                <summary>{warnings.length} 条警告</summary>
+                <ul>
+                  {warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            <div className="grid">
+              {filtered.map((g) => (
+                <button
+                  key={g.id}
+                  className={[
+                    "game-card",
+                    g.id === selected?.id ? "active" : "",
+                    g.available === false ? "unavailable" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => setSelected(g)}
+                  onDoubleClick={() => void launch(g)}
+                >
+                  <Cover provider={provider!} path={g.coverPath} dir={g.mediaDir} title={g.title} />
+                  {g.available === false && <span className="game-badge">未上传</span>}
+                  {g.available !== false && downloaded.has(g.id) && (
+                    <span className="game-badge downloaded">已下载</span>
+                  )}
+                  <span className="game-title" title={g.title}>
+                    {g.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </main>
         </div>
-      </main>
+      )}
+
+      {showLaunchPanel && (
+        <div
+          className="launch-overlay"
+          onClick={() => {
+            if (launchMsg && !launchMsg.ok) setLaunchMsg(null);
+          }}
+        >
+          <div className="launch-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="launch-title">{selected?.title ?? "正在启动"}</div>
+            <div className="dl-track">
+              <div
+                className={progress ? "dl-fill" : "dl-fill indeterminate"}
+                style={
+                  progress
+                    ? {
+                        width: progress.total
+                          ? `${Math.min(100, (progress.downloaded / progress.total) * 100)}%`
+                          : "100%",
+                      }
+                    : undefined
+                }
+              />
+            </div>
+            {progress && (
+              <div className="launch-meta">
+                {basename(progress.path)}
+                {progress.total
+                  ? ` · ${(progress.downloaded / 1048576).toFixed(1)} / ${(progress.total / 1048576).toFixed(1)} MB`
+                  : ` · ${(progress.downloaded / 1048576).toFixed(1)} MB`}
+              </div>
+            )}
+            {launchMsg && (
+              <div className={launchMsg.ok ? "launch-status" : "launch-status is-error"}>
+                {launchMsg.text}
+              </div>
+            )}
+            {launchMsg && !launchMsg.ok && <div className="muted">点击空白处关闭</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -221,7 +221,7 @@ async function runSmoke() {
         if (process.env.EMBERHUB_PREPARE) {
           const platform = process.env.EMBERHUB_PREPARE;
           const diag = await win.webContents.executeJavaScript(
-            `JSON.stringify({ has: !!window.__emberhub2, h1: document.querySelector("h1") ? document.querySelector("h1").textContent : null, cards: document.querySelectorAll(".card").length, keys: Object.keys(window).filter((k) => k.startsWith("__")), rootLen: (document.getElementById("root") || {}).innerHTML ? document.getElementById("root").innerHTML.length : -1, scripts: [...document.scripts].map((s) => s.getAttribute("src")), jsRes: performance.getEntriesByType("resource").map((r) => r.name).filter((n) => n.includes(".js")) })`,
+            `JSON.stringify({ has: !!window.__emberhub2, h1: document.querySelector("h1") ? document.querySelector("h1").textContent : null, cards: document.querySelectorAll(".game-card").length, keys: Object.keys(window).filter((k) => k.startsWith("__")), rootLen: (document.getElementById("root") || {}).innerHTML ? document.getElementById("root").innerHTML.length : -1, scripts: [...document.scripts].map((s) => s.getAttribute("src")), jsRes: performance.getEntriesByType("resource").map((r) => r.name).filter((n) => n.includes(".js")) })`,
           );
           console.log("[smoke] prepare diag:", diag);
           const hasHook = JSON.parse(diag).has;
@@ -236,9 +236,15 @@ async function runSmoke() {
           }
         }
 
-        // 列出游戏库（可选）：真实扫描后打印平台与游戏
+        // 列出游戏库（可选）：驱动真实 UI 连接 → 打印平台与游戏
         if (process.env.EMBERHUB_LIST) {
           const t0 = Date.now();
+          await win.webContents.executeJavaScript(`window.__emberhub2.connect()`);
+          await new Promise((r) => setTimeout(r, 1500));
+          const ui = await win.webContents.executeJavaScript(
+            `JSON.stringify({ title: document.querySelector(".detail-title") ? document.querySelector(".detail-title").textContent : null, cards: document.querySelectorAll(".game-card").length, chips: document.querySelectorAll(".chip").length })`,
+          );
+          console.log("[list] ui:", ui);
           const lib = await win.webContents.executeJavaScript(`window.__emberhub2.list()`);
           console.log("[list] platforms:", lib.collections.join(", "));
           const byC = {};
