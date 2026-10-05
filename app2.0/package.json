@@ -34,7 +34,8 @@
     "win": {
       "target": [
         "zip"
-      ]
+      ],
+      "icon": "build/icon.ico"
     }
   },
   "dependencies": {
