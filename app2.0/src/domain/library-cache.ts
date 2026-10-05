@@ -83,6 +83,7 @@ class CachedProvider implements StorageProvider {
       try {
         const o = JSON.parse(raw) as Record<string, unknown>;
         if (typeof o.version === "string" && o.version !== "") version = o.version;
+        else if (typeof o.version === "number") version = String(o.version);
         const files = o.files as Record<string, unknown> | undefined;
         if (files && typeof files.games === "string" && files.games !== "") {
           this.gamesFile = files.games;

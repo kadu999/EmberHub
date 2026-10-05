@@ -16,7 +16,7 @@
 - **WebDAV**：列目录（PROPFIND）、读文本、下载 —— Electron 走主进程 Node `http`，绕过 CORS
 - **本地文件系统**：目录/文件读写、递归列举、大小统计 —— Electron 主进程 Node `fs`
 - **游戏库**：连接 OpenList → `scanLibrary()` 扫描 → 平台 chips + **虚拟滚动**封面网格
-- **库缓存**：`manifest.json` 每次都取；其 `version` 变化时才重新拉各平台 `games.json`；网络失败回退本地旧缓存（按源隔离，存 `<下载目录>/.cache/library/`）
+- **库缓存**：`manifest.json` 每次都取；其 `version`（**语义化版本，如 `1.0.0`**）变化时才重新拉各平台 `games.json`；网络失败回退本地旧缓存（按源隔离，存 `<下载目录>/.cache/library/`）。改了 `games.json` 记得升 `manifest.json` 的 `version`。
 - **详情面板**：封面/视频预览、开发商/类型/人数/发行/评分/简介、已下载/未上传徽标
 - **搜索与交互**：单选选中、双击启动、启动进度覆盖层、**手柄导航**
 - **设置页**：获取资源源 / 测试连接 / 保存、下载目录、媒体缓存占用与清理
