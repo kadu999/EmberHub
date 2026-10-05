@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isFullscreen, onFullscreenChange, setFullscreen } from "./platform/window";
 import { createProvider } from "./storage";
 import type { SourceConfig, StorageProvider } from "./storage/types";
 import { scanLibrary, type Game } from "./domain/scan";
 import { launchGame } from "./domain/launch";
+import { ensureEmulator, ensureRom } from "./domain/ensure";
 import { Cover } from "./components/Cover";
 import { native } from "./shared/native";
 import { basename } from "./shared/path";
@@ -98,6 +99,37 @@ export function App() {
     }
     return m;
   }, [games]);
+
+  // 测试钩子：供打包/冒烟脚本调用，验证「确保模拟器 + 确保 ROM」的完整下载链路。
+  const srcRef = useRef(src);
+  srcRef.current = src;
+  useEffect(() => {
+    (window as unknown as { __emberhub2?: unknown }).__emberhub2 = {
+      prepare: async (platform: string) => {
+        try {
+          const p = createProvider(srcRef.current);
+          const res = await scanLibrary(p, srcRef.current.romsPath || "Roms");
+          const game = res.games.find((g) => g.collection === platform);
+          if (!game) return { error: `没有 ${platform} 的游戏` };
+          const emu = await ensureEmulator(p, srcRef.current, platform, (s) => setStatus(s));
+          const rom = await ensureRom(p, srcRef.current, game, (s) => setStatus(s));
+          return {
+            platform,
+            title: game.title,
+            emuDir: emu.dir,
+            emuExe: emu.config.exe,
+            args: emu.args,
+            romPath: rom,
+          };
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : String(e) };
+        }
+      },
+    };
+    return () => {
+      delete (window as unknown as { __emberhub2?: unknown }).__emberhub2;
+    };
+  }, []);
 
   async function play(g: Game) {
     if (!provider) return;

@@ -80,6 +80,13 @@ function createWindow() {
   win.on("enter-full-screen", () => broadcastFullscreen(true));
   win.on("leave-full-screen", () => broadcastFullscreen(false));
 
+  // 把渲染进程 console 转发到主进程，便于排查
+  win.webContents.on("console-message", (...args) => {
+    const d = args[0];
+    const msg = d && typeof d === "object" && "message" in d ? d.message : args[2];
+    console.log("[renderer]", msg);
+  });
+
   if (devUrl) {
     win.loadURL(devUrl);
   } else {
@@ -209,6 +216,25 @@ async function runSmoke() {
           `window.emberhub.proc.launch(${JSON.stringify(process.env.ComSpec || "cmd.exe")}, ["/c", "exit"], undefined)`,
         );
         console.log("[smoke] proc pid:", pid);
+
+        // 完整准备链路（可选，下载量较大）：确保模拟器 + 确保 ROM
+        if (process.env.EMBERHUB_PREPARE) {
+          const platform = process.env.EMBERHUB_PREPARE;
+          const diag = await win.webContents.executeJavaScript(
+            `JSON.stringify({ has: !!window.__emberhub2, h1: document.querySelector("h1") ? document.querySelector("h1").textContent : null, cards: document.querySelectorAll(".card").length, keys: Object.keys(window).filter((k) => k.startsWith("__")), rootLen: (document.getElementById("root") || {}).innerHTML ? document.getElementById("root").innerHTML.length : -1, scripts: [...document.scripts].map((s) => s.getAttribute("src")), jsRes: performance.getEntriesByType("resource").map((r) => r.name).filter((n) => n.includes(".js")) })`,
+          );
+          console.log("[smoke] prepare diag:", diag);
+          const hasHook = JSON.parse(diag).has;
+          if (hasHook) {
+            console.log(`[smoke] prepare ${platform}: 下载模拟器 + ROM …`);
+            const t0 = Date.now();
+            const result = await win.webContents.executeJavaScript(
+              `window.__emberhub2.prepare(${JSON.stringify(platform)})`,
+            );
+            console.log("[smoke] prepare result:", JSON.stringify(result));
+            console.log("[smoke] prepare took", ((Date.now() - t0) / 1000).toFixed(1), "s");
+          }
+        }
       }
     } catch (e) {
       console.error("[smoke] error:", e && e.message ? e.message : e);
