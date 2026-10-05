@@ -15,9 +15,13 @@
 - **窗口 / 全屏**：Electron（`BrowserWindow.setFullScreen`）/ Capacitor（`FullscreenPlugin`）/ Web（Fullscreen API）
 - **WebDAV**：列目录（PROPFIND）、读文本、下载 —— Electron 走主进程 Node `http`，绕过 CORS
 - **本地文件系统**：目录/文件读写、递归列举、大小统计 —— Electron 主进程 Node `fs`
-- **游戏库**：连接 OpenList → `scanLibrary()` 扫描 `manifest.json` + `Roms/<平台>/games.json` → 列出平台与游戏
+- **游戏库**：连接 OpenList → `scanLibrary()` 扫描 `manifest.json` + `Roms/<平台>/games.json` → 平台切换 + 封面网格
+- **封面/媒体**：本地缓存，经 `emberhub-media://` 自定义协议供 `<img>` 加载
+- **ROM 下载 + 解压**：下载 ROM → `7za` 解压 zip/7z（`7zip-bin` 内置）
+- **启动游戏**：点击卡片 → 确保 ROM/模拟器就位 → `child_process.spawn` 拉起模拟器
 
 > 浏览器（`pnpm dev`）没有文件系统/原生网络，部分功能会提示「当前运行环境未实现」。
+> 下载目前是整文件写入（断点续传、进度事件为后续项）。
 
 ## 结构
 

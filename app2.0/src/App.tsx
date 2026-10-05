@@ -3,6 +3,7 @@ import { isFullscreen, onFullscreenChange, setFullscreen } from "./platform/wind
 import { createProvider } from "./storage";
 import type { SourceConfig, StorageProvider } from "./storage/types";
 import { scanLibrary, type Game } from "./domain/scan";
+import { launchGame } from "./domain/launch";
 import { Cover } from "./components/Cover";
 
 const LS_KEY = "emberhub2.source";
@@ -83,6 +84,17 @@ export function App() {
     return m;
   }, [games]);
 
+  async function play(g: Game) {
+    if (!provider) return;
+    try {
+      setStatus(`准备启动 ${g.title}…`);
+      await launchGame(g, provider, src, (s) => setStatus(`${g.title}：${s}`));
+      setStatus(`已启动：${g.title}`);
+    } catch (e) {
+      setStatus(`启动失败：${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   const shown = byCollection.get(selected) ?? [];
 
   return (
@@ -162,7 +174,7 @@ export function App() {
       <main>
         <div className="grid">
           {shown.map((g) => (
-            <div key={g.id} className="card" title={g.title}>
+            <div key={g.id} className="card" title={g.title} onClick={() => void play(g)}>
               {provider ? (
                 <Cover provider={provider} path={g.coverPath} dir={g.mediaDir} title={g.title} />
               ) : null}

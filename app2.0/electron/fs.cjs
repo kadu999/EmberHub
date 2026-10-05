@@ -2,6 +2,7 @@
 const fs = require("node:fs");
 const fsp = fs.promises;
 const nodePath = require("node:path");
+const { spawn } = require("node:child_process");
 
 // 默认下载目录（由 main 设置，通常为 userData/downloads）
 let defaultDownloadDir = "";
@@ -100,6 +101,20 @@ function registerFs(ipcMain) {
       }
     }
     return total;
+  });
+
+  ipcMain.handle("fs:extract-archive", async (_e, { path: archive, destDir }) => {
+    await fsp.mkdir(destDir, { recursive: true });
+    const path7za = require("7zip-bin").path7za;
+    await new Promise((resolve, reject) => {
+      const child = spawn(path7za, ["x", archive, "-o" + destDir, "-y", "-bso0", "-bsp0"], {
+        windowsHide: true,
+      });
+      child.on("error", reject);
+      child.on("close", (code) =>
+        code === 0 ? resolve() : reject(new Error(`解压失败（7za 退出码 ${code}）：${archive}`)),
+      );
+    });
   });
 }
 

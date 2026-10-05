@@ -152,6 +152,10 @@ main {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  cursor: pointer;
+}
+.card:hover .cover {
+  border-color: var(--ember);
 }
 
 .cover {

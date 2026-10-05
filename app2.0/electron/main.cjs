@@ -4,6 +4,7 @@
 const { app, BrowserWindow, ipcMain, protocol } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
+const { spawn } = require("node:child_process");
 const { registerFs, setDefaultDownloadDir } = require("./fs.cjs");
 const { registerDav } = require("./dav.cjs");
 
@@ -156,6 +157,36 @@ async function runSmoke() {
           `new Promise((resolve) => { const img = new Image(); img.onload = () => resolve(img.naturalWidth); img.onerror = () => resolve(-1); img.src = "emberhub-media://local/" + encodeURIComponent(${JSON.stringify(pngPath)}); })`,
         );
         console.log("[smoke] media image width:", imgWidth);
+
+        // 解压链路：7za 造包 → fs.extractArchive
+        const dlDir = path.join(app.getPath("userData"), "downloads");
+        const srcTxt = path.join(dlDir, "smoke-src.txt");
+        fs.writeFileSync(srcTxt, "hello emberhub");
+        const zipPath = path.join(dlDir, "smoke.zip");
+        await new Promise((resolve, reject) => {
+          const c = spawn(require("7zip-bin").path7za, ["a", "-tzip", zipPath, srcTxt], {
+            windowsHide: true,
+          });
+          c.on("error", reject);
+          c.on("close", (code) => (code === 0 ? resolve() : reject(new Error("zip create " + code))));
+        });
+        const outDir = path.join(dlDir, "smoke-out");
+        await win.webContents.executeJavaScript(
+          `window.emberhub.fs.removePath(${JSON.stringify(outDir)})`,
+        );
+        await win.webContents.executeJavaScript(
+          `window.emberhub.fs.extractArchive(${JSON.stringify(zipPath)}, ${JSON.stringify(outDir)})`,
+        );
+        const extracted = await win.webContents.executeJavaScript(
+          `window.emberhub.fs.listLocalFiles(${JSON.stringify(outDir)})`,
+        );
+        console.log("[smoke] extract files:", extracted.join(", "));
+
+        // 启动进程链路
+        const pid = await win.webContents.executeJavaScript(
+          `window.emberhub.proc.launch(${JSON.stringify(process.env.ComSpec || "cmd.exe")}, ["/c", "exit"], undefined)`,
+        );
+        console.log("[smoke] proc pid:", pid);
       }
     } catch (e) {
       console.error("[smoke] error:", e && e.message ? e.message : e);
@@ -175,10 +206,22 @@ ipcMain.handle("window:is-fullscreen", () =>
   win && !win.isDestroyed() ? win.isFullScreen() : false,
 );
 
-// —— 应用信息 / 文件 / WebDAV ——
+// —— 应用信息 / 文件 / WebDAV / 进程 ——
 ipcMain.handle("app:host-os", () => hostOs());
 registerFs(ipcMain);
 registerDav(ipcMain);
+
+// 启动外部进程（模拟器），分离运行，返回 PID。
+ipcMain.handle("proc:launch", (_e, { exe, args, workdir }) => {
+  const child = spawn(exe, args || [], {
+    cwd: workdir || undefined,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  child.unref();
+  return child.pid ?? 0;
+});
 
 app.whenReady().then(() => {
   const downloadDir = path.join(app.getPath("userData"), "downloads");

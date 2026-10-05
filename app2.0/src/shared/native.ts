@@ -50,6 +50,14 @@ export const native = {
       bridge ? bridge.fs.removePath(path) : unavailable("文件系统"),
     pathSize: (path: string): Promise<number> =>
       bridge ? bridge.fs.pathSize(path) : unavailable("文件系统"),
+    extractArchive: (path: string, destDir: string): Promise<void> =>
+      bridge ? bridge.fs.extractArchive(path, destDir) : unavailable("解压"),
+  },
+
+  // ---- 启动外部进程（桌面） ----
+  proc: {
+    launch: (exe: string, args: string[], workdir?: string): Promise<number> =>
+      bridge ? bridge.proc.launch(exe, args, workdir) : unavailable("启动进程"),
   },
 
   // ---- 媒体（本地文件 → 可被 <img>/<video> 加载的 URL） ----

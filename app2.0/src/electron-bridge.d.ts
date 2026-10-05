@@ -27,6 +27,11 @@ declare global {
     writeTextFile(path: string, content: string): Promise<void>;
     removePath(path: string): Promise<void>;
     pathSize(path: string): Promise<number>;
+    extractArchive(path: string, destDir: string): Promise<void>;
+  }
+
+  interface EmberHubProcBridge {
+    launch(exe: string, args: string[], workdir?: string): Promise<number>;
   }
 
   interface EmberHubBridge {
@@ -35,6 +40,7 @@ declare global {
     window: EmberHubWindowBridge;
     dav: EmberHubDavBridge;
     fs: EmberHubFsBridge;
+    proc: EmberHubProcBridge;
   }
 
   interface Window {

@@ -34,5 +34,10 @@ contextBridge.exposeInMainWorld("emberhub", {
     writeTextFile: (path, content) => ipcRenderer.invoke("fs:write-text-file", { path, content }),
     removePath: (path) => ipcRenderer.invoke("fs:remove-path", path),
     pathSize: (path) => ipcRenderer.invoke("fs:path-size", path),
+    extractArchive: (path, destDir) => ipcRenderer.invoke("fs:extract-archive", { path, destDir }),
+  },
+
+  proc: {
+    launch: (exe, args, workdir) => ipcRenderer.invoke("proc:launch", { exe, args, workdir }),
   },
 });
