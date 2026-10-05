@@ -428,14 +428,6 @@ export function App() {
 
   return (
     <div className="app2">
-      <header>
-        <div className="brand">
-          <h1>
-            <span className="flame">🔥</span> EmberHub <span>2.0</span>
-          </h1>
-        </div>
-      </header>
-
       {showSettings && (
         <div className="overlay" onClick={() => setShowSettings(false)}>
           <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
