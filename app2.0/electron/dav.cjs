@@ -121,28 +121,50 @@ const PROPFIND_BODY =
   "<d:resourcetype/><d:getcontentlength/><d:getlastmodified/>\n" +
   "</d:prop></d:propfind>";
 
+/** 对网络类错误 / 5xx 自动重试（百度 CDN 偶发抽风时很有用）。 */
+async function withRetry(fn, attempts = 3) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      const msg = String((e && e.message) || e);
+      const transient =
+        /ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|EPIPE|socket hang up|HTTP 5\d\d/i.test(msg);
+      if (!transient || i === attempts - 1) throw e;
+      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 async function davList({ root, username, password, path: relPath }) {
   const url = joinUrl(root, relPath);
-  const res = await request(url, "PROPFIND", {
-    username,
-    password,
-    headers: { Depth: "1", "Content-Type": "application/xml; charset=utf-8" },
-    body: PROPFIND_BODY,
+  return withRetry(async () => {
+    const res = await request(url, "PROPFIND", {
+      username,
+      password,
+      headers: { Depth: "1", "Content-Type": "application/xml; charset=utf-8" },
+      body: PROPFIND_BODY,
+    });
+    if (res.status === 401) throw new Error("认证失败：用户名或密码错误（HTTP 401）");
+    if (res.status !== 207 && (res.status < 200 || res.status >= 300)) {
+      throw new Error(`WebDAV 返回 HTTP ${res.status}：${url}`);
+    }
+    return parseMultistatus(res.body.toString("utf8"), root);
   });
-  if (res.status === 401) throw new Error("认证失败：用户名或密码错误（HTTP 401）");
-  if (res.status !== 207 && (res.status < 200 || res.status >= 300)) {
-    throw new Error(`WebDAV 返回 HTTP ${res.status}：${url}`);
-  }
-  return parseMultistatus(res.body.toString("utf8"), root);
 }
 
 async function davReadText({ root, username, password, path: relPath }) {
   const url = joinUrl(root, relPath);
-  const res = await request(url, "GET", { username, password });
-  if (res.status < 200 || res.status >= 300) {
-    throw new Error(`WebDAV 返回 HTTP ${res.status}：${url}`);
-  }
-  return res.body.toString("utf8");
+  return withRetry(async () => {
+    const res = await request(url, "GET", { username, password });
+    if (res.status < 200 || res.status >= 300) {
+      throw new Error(`WebDAV 返回 HTTP ${res.status}：${url}`);
+    }
+    return res.body.toString("utf8");
+  });
 }
 
 /**
