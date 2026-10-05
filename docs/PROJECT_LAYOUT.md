@@ -194,7 +194,7 @@ Tauri 2 的模型是**一套前端 + 一份 `src-tauri`**：桌面走 `main.rs`�
 前置（本机一次性）：
 
 1. JDK 17+、Android SDK（设 `ANDROID_HOME`）、Android NDK（设 `NDK_HOME`）；
-2. `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`；
+2. `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`（国内可先设 `$env:RUSTUP_DIST_SERVER='https://rsproxy.cn'` 加速）；
 3. 在 `app/` 执行 `pnpm tauri android init`，生成 `src-tauri/gen/android`（**需提交**）。
 
 日常命令：
