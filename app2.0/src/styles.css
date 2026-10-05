@@ -14,6 +14,26 @@
   box-sizing: border-box;
 }
 
+/* 滚动条样式（可见、主题化） */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ember);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 html,
 body,
 #root {
