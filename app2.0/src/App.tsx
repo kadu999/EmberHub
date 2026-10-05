@@ -501,18 +501,18 @@ export function App() {
             <button
               onClick={() => {
                 setShowMenu(false);
-                setShowSettings(true);
-              }}
-            >
-              设置
-            </button>
-            <button
-              onClick={() => {
-                setShowMenu(false);
                 setShowCache(true);
               }}
             >
               资源缓存
+            </button>
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                setShowSettings(true);
+              }}
+            >
+              设置
             </button>
             <button onClick={() => window.close()}>退出</button>
           </div>
