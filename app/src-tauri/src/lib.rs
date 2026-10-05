@@ -2,7 +2,7 @@
 // 只暴露少量系统操作命令，业务逻辑尽量放在前端 TypeScript。
 // 详见 docs/ARCHITECTURE.md
 
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
@@ -24,6 +24,75 @@ fn http_client() -> &'static reqwest::Client {
             .build()
             .expect("failed to build HTTP client")
     })
+}
+
+// ---------------------------------------------------------------------------
+// 失败日志：同时写 stderr 与 <下载目录>/logs/emberhub.log
+// ---------------------------------------------------------------------------
+
+/// 日志目录（由前端在启动 / 切换下载目录时用 `log_init` 指定）。
+static LOG_DIR: Mutex<String> = Mutex::new(String::new());
+
+/// 当前 UTC 时间的 ISO8601（毫秒），不引入额外依赖。
+fn iso_now() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let d = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = d.as_secs() as i64;
+    let millis = d.subsec_millis();
+    let days = secs.div_euclid(86400);
+    let rem = secs.rem_euclid(86400);
+    let (h, mi, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
+    // civil_from_days（Howard Hinnant 算法）
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if month <= 2 { y + 1 } else { y };
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        year, month, day, h, mi, s, millis
+    )
+}
+
+/// 追加一行日志到 stderr 与日志文件（日志目录未设置时只写 stderr）。
+fn log_line(level: &str, tag: &str, message: &str) {
+    let line = format!("{} {} [{}] {}\n", iso_now(), level, tag, message);
+    eprint!("{}", line);
+    let dir = LOG_DIR.lock().map(|g| g.clone()).unwrap_or_default();
+    if dir.is_empty() {
+        return;
+    }
+    let path = std::path::Path::new(&dir).join("emberhub.log");
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        use std::io::Write;
+        let _ = f.write_all(line.as_bytes());
+    }
+}
+
+fn log_error(tag: &str, message: &str) {
+    log_line("ERROR", tag, message);
+}
+
+/// 前端指定日志目录（`<下载目录>/logs`）；下载目录变化时重新调用。
+#[tauri::command]
+fn log_init(dir: String) {
+    if let Ok(mut g) = LOG_DIR.lock() {
+        *g = dir;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,19 +302,29 @@ async fn webdav_list(
         )
         .send()
         .await
-        .map_err(|e| format!("WebDAV request failed: {}", e))?;
+        .map_err(|e| {
+            let m = format!("WebDAV request failed: {}", e);
+            log_error("dav.list", &m);
+            m
+        })?;
 
     let status = resp.status();
     if status.as_u16() == 401 {
         return Err("认证失败：用户名或密码错误（HTTP 401）".to_string());
     }
     if !status.is_success() && status.as_u16() != 207 {
-        return Err(format!("WebDAV 返回 HTTP {}：{}", status, url));
+        let m = format!("WebDAV 返回 HTTP {}：{}", status, url);
+        log_error("dav.list", &m);
+        return Err(m);
     }
     let body = resp
         .text()
         .await
-        .map_err(|e| format!("WebDAV 响应读取失败: {}", e))?;
+        .map_err(|e| {
+            let m = format!("WebDAV 响应读取失败: {}", e);
+            log_error("dav.list", &m);
+            m
+        })?;
     parse_multistatus(&body, &root)
 }
 
@@ -264,13 +343,21 @@ async fn webdav_read_text(
         .basic_auth(&username, Some(&password))
         .send()
         .await
-        .map_err(|e| format!("WebDAV request failed: {}", e))?;
+        .map_err(|e| {
+            let m = format!("WebDAV request failed: {}", e);
+            log_error("dav.readText", &m);
+            m
+        })?;
     if !resp.status().is_success() {
-        return Err(format!("WebDAV 返回 HTTP {}：{}", resp.status(), url));
+        let m = format!("WebDAV 返回 HTTP {}：{}", resp.status(), url);
+        log_error("dav.readText", &m);
+        return Err(m);
     }
-    resp.text()
-        .await
-        .map_err(|e| format!("WebDAV 响应读取失败: {}", e))
+    resp.text().await.map_err(|e| {
+        let m = format!("WebDAV 响应读取失败: {}", e);
+        log_error("dav.readText", &m);
+        m
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -461,7 +548,11 @@ async fn webdav_download(
     if existing > 0 {
         req = req.header("Range", format!("bytes={}-", existing));
     }
-    let resp = req.send().await.map_err(|e| format!("WebDAV 请求失败: {}", e))?;
+    let resp = req.send().await.map_err(|e| {
+        let m = format!("WebDAV 请求失败: {}", e);
+        log_error("dav.download", &m);
+        m
+    })?;
     let status = resp.status();
 
     if status.as_u16() == 416 {
@@ -471,7 +562,9 @@ async fn webdav_download(
         return Ok(existing);
     }
     if !status.is_success() {
-        return Err(format!("WebDAV 返回 HTTP {}：{}", status, url));
+        let m = format!("WebDAV 返回 HTTP {}：{}", status, url);
+        log_error("dav.download", &m);
+        return Err(m);
     }
 
     let append = existing > 0 && status.as_u16() == 206;
@@ -501,7 +594,11 @@ async fn webdav_download(
     let mut last = std::time::Instant::now();
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("下载中断: {}", e))?;
+        let chunk = chunk.map_err(|e| {
+            let m = format!("下载中断: {}", e);
+            log_error("dav.download", &m);
+            m
+        })?;
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
         total += chunk.len() as u64;
         if last.elapsed().as_millis() >= 200 {
@@ -532,9 +629,21 @@ fn host_os() -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_android_intent::init())
+        .plugin(tauri_plugin_android_intent::init());
+
+    // 桌面单实例：再次启动时聚焦已有窗口，而不是再开一个。
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.unminimize();
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+    }));
+
+    builder
         .invoke_handler(tauri::generate_handler![
             launch_emulator,
             android_launch_app,
@@ -552,7 +661,8 @@ pub fn run() {
             write_text_file,
             remove_path,
             extract_archive,
-            host_os
+            host_os,
+            log_init
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

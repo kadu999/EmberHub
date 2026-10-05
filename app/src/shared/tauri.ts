@@ -54,6 +54,9 @@ export const tauri = {
   extractArchive: (path: string, destDir: string) =>
     invoke<void>("extract_archive", { path, destDir }),
 
+  /** 指定失败日志目录（<下载目录>/logs）；下载目录变化时重新调用。 */
+  logInit: (dir: string) => invoke<void>("log_init", { dir }),
+
   /** 启动外部模拟器，返回进程 PID */
   launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>
     invoke<number>("launch_emulator", { exePath, args, workdir }),

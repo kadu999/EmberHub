@@ -36,6 +36,10 @@ tokio = { version = "1", features = ["fs", "io-util"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sevenz-rust2 = "0.23"
 
+# 桌面单实例（移动端是单 Activity，天然单实例）
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
