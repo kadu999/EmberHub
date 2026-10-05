@@ -77,8 +77,9 @@ interface Progress {
 export function App() {
   const [full, setFull] = useState(isFullscreen());
   const [src, setSrc] = useState<SourceConfig>(loadSource);
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [showEmulators, setShowEmulators] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [provider, setProvider] = useState<StorageProvider | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -121,13 +122,32 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "F11") {
+      if (e.key === "F1") {
+        e.preventDefault();
+        setShowMenu(false);
+        setShowSettings((v) => !v);
+      } else if (e.key === "F5") {
+        e.preventDefault();
+        void connect();
+      } else if (e.key === "F11") {
         e.preventDefault();
         void setFullscreen().then(applyFull);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        if (showSettings) setShowSettings(false);
+        else if (showEmulators) setShowEmulators(false);
+        else setShowMenu((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSettings, showEmulators]);
+
+  // 启动时若已配置资源源，自动扫描（对齐 1.0）
+  useEffect(() => {
+    if (src.server && src.mountPath) void connect(src);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 下载进度（媒体缓存静默）
@@ -351,6 +371,12 @@ export function App() {
       connect: () => connect(),
       openSettings: () => setShowSettings(true),
       openEmulators: () => setShowEmulators(true),
+      openMenu: () => setShowMenu(true),
+      closeAll: () => {
+        setShowSettings(false);
+        setShowEmulators(false);
+        setShowMenu(false);
+      },
       prepare: async (platform: string) => {
         try {
           const p = createProvider(srcRef.current);
@@ -409,13 +435,7 @@ export function App() {
           </h1>
           <span className="muted status-text">{status}</span>
         </div>
-        <div className="header-actions">
-          <button onClick={() => setShowSettings(true)}>设置</button>
-          <button onClick={() => setShowEmulators(true)}>模拟器</button>
-          <button onClick={() => void setFullscreen().then(setFull)}>
-            {full ? "退出全屏" : "全屏"}
-          </button>
-        </div>
+        <span className="muted hint-esc">Esc 菜单</span>
       </header>
 
       {showSettings && (
@@ -431,6 +451,55 @@ export function App() {
           <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
             <EmulatorsPage source={src} onClose={() => setShowEmulators(false)} />
           </div>
+        </div>
+      )}
+
+      {showMenu && !showSettings && !showEmulators && (
+        <div className="menu-overlay" onClick={() => setShowMenu(false)}>
+          <div className="menu-panel" onClick={(e) => e.stopPropagation()}>
+            <button
+              autoFocus
+              onClick={() => {
+                setShowMenu(false);
+                setShowEmulators(true);
+              }}
+            >
+              模拟器
+            </button>
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                setShowSettings(true);
+              }}
+            >
+              设置
+            </button>
+            <button onClick={() => void setFullscreen().then(applyFull)}>
+              {full ? "退出全屏" : "全屏"}
+            </button>
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                void connect(src);
+              }}
+            >
+              扫描游戏库
+            </button>
+            <button onClick={() => window.close()}>退出</button>
+          </div>
+        </div>
+      )}
+
+      {!connected && !showSettings && (
+        <div className="page centered">
+          <div className="brand big">
+            <span className="flame">🔥</span>
+            <span>EmberHub 2.0</span>
+          </div>
+          <button className="primary" onClick={() => setShowSettings(true)}>
+            打开设置
+          </button>
+          <p className="muted">用 OpenList（WebDAV）连接游戏库</p>
         </div>
       )}
 
@@ -505,9 +574,6 @@ export function App() {
                     )}
                   </dl>
                   {selected.description && <p className="desc">{selected.description}</p>}
-                  <button className="primary launch-btn" onClick={() => void launch(selected)}>
-                    启动游戏
-                  </button>
                 </div>
               </>
             ) : (

@@ -257,6 +257,13 @@ async function runSmoke() {
             `JSON.stringify({ panels: document.querySelectorAll(".settings-panel").length, items: document.querySelectorAll(".emu-list li").length, names: [...document.querySelectorAll(".emu-name")].map((e) => e.textContent) })`,
           );
           console.log("[list] emulators overlay:", emu);
+          await win.webContents.executeJavaScript(`window.__emberhub2.closeAll()`);
+          await win.webContents.executeJavaScript(`window.__emberhub2.openMenu()`);
+          await new Promise((r) => setTimeout(r, 300));
+          const menu = await win.webContents.executeJavaScript(
+            `JSON.stringify({ panel: document.querySelectorAll(".menu-panel").length, buttons: [...document.querySelectorAll(".menu-panel button")].map((b) => b.textContent) })`,
+          );
+          console.log("[list] menu overlay:", menu);
           const lib = await win.webContents.executeJavaScript(`window.__emberhub2.list()`);
           console.log("[list] platforms:", lib.collections.join(", "));
           const byC = {};
