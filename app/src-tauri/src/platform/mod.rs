@@ -10,6 +10,12 @@ mod desktop;
 mod android;
 
 #[cfg(not(target_os = "android"))]
-pub use desktop::{android_install_apk, android_launch_app, launch_emulator};
+pub use desktop::{
+    android_has_all_files_access, android_install_apk, android_launch_app,
+    android_request_all_files_access, android_shared_storage_dir, launch_emulator,
+};
 #[cfg(target_os = "android")]
-pub use android::{android_install_apk, android_launch_app, launch_emulator};
+pub use android::{
+    android_has_all_files_access, android_install_apk, android_launch_app,
+    android_request_all_files_access, android_shared_storage_dir, launch_emulator,
+};

@@ -67,4 +67,11 @@ export const tauri = {
 
   /** Android：用系统安装器安装本地 APK（会弹安装确认） */
   installApk: (path: string) => invoke<void>("android_install_apk", { path }),
+
+  /** Android：共享存储根下的 EmberHub 目录（如 /sdcard/EmberHub） */
+  sharedStorageDir: () => invoke<string>("android_shared_storage_dir"),
+  /** Android：是否已获得「所有文件访问（共享存储）」权限 */
+  hasAllFilesAccess: () => invoke<boolean>("android_has_all_files_access"),
+  /** Android：跳转系统设置请求「所有文件访问（共享存储）」权限 */
+  requestAllFilesAccess: () => invoke<void>("android_request_all_files_access"),
 };

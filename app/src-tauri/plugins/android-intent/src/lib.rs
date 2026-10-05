@@ -31,6 +31,10 @@ pub struct InstallPayload {
     pub path: String,
 }
 
+/// 传给 Kotlin `external_files_dir` 命令的参数（当前无参）。
+#[derive(serde::Serialize, Clone)]
+pub struct ExternalFilesDirPayload {}
+
 /// 插件运行时状态：持有移动端插件句柄。
 pub struct AndroidIntent<R: Runtime> {
     #[cfg(target_os = "android")]
@@ -91,6 +95,62 @@ impl<R: Runtime> AndroidIntent<R> {
     #[cfg(not(target_os = "android"))]
     pub fn install(&self, _path: &str) -> Result<(), String> {
         Err("Android Intent 仅在 Android 平台可用。".to_string())
+    }
+
+    /// 可移除外置存储（SD 卡）上的 App 私有目录；没有 SD 卡时返回 None。
+    /// 该目录属于 App 自己，读写**不需要存储权限**。
+    #[cfg(target_os = "android")]
+    pub fn external_files_dir(&self) -> Result<Option<String>, String> {
+        self.handle
+            .run_mobile_plugin::<Option<String>>(
+                "external_files_dir",
+                ExternalFilesDirPayload {},
+            )
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn external_files_dir(&self) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+
+    /// 共享存储根下的 EmberHub 目录（如 /sdcard/EmberHub）。
+    #[cfg(target_os = "android")]
+    pub fn shared_storage_dir(&self) -> Result<String, String> {
+        self.handle
+            .run_mobile_plugin::<String>("shared_storage_dir", ExternalFilesDirPayload {})
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn shared_storage_dir(&self) -> Result<String, String> {
+        Err("共享存储仅在 Android 可用。".to_string())
+    }
+
+    /// 是否已获得「所有文件访问（共享存储）」权限。
+    #[cfg(target_os = "android")]
+    pub fn has_all_files_access(&self) -> Result<bool, String> {
+        self.handle
+            .run_mobile_plugin::<bool>("has_all_files_access", ExternalFilesDirPayload {})
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn has_all_files_access(&self) -> Result<bool, String> {
+        Ok(true)
+    }
+
+    /// 跳转系统设置，请求「所有文件访问（共享存储）」权限。
+    #[cfg(target_os = "android")]
+    pub fn request_all_files_access(&self) -> Result<(), String> {
+        self.handle
+            .run_mobile_plugin::<()>("request_all_files_access", ExternalFilesDirPayload {})
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn request_all_files_access(&self) -> Result<(), String> {
+        Err("共享存储仅在 Android 可用。".to_string())
     }
 }
 

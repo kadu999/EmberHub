@@ -3,6 +3,7 @@ package com.kadu.emberhub.intent
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
 import androidx.core.content.FileProvider
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
@@ -113,6 +114,75 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.resolve()
         } catch (ex: Exception) {
             invoke.reject(ex.message ?: "安装 APK 失败")
+        }
+    }
+
+    /**
+     * 返回可移除外置存储（SD 卡）上的 App 私有目录；没有 SD 卡时 resolve(null)。
+     * 该目录（/storage/XXXX-XXXX/Android/data/<包名>/files/…）属于 App 自己，读写**不需要存储权限**。
+     */
+    @Command
+    fun external_files_dir(invoke: Invoke) {
+        try {
+            val dirs = activity.getExternalFilesDirs(null)
+            // dirs[0] 是内置主存储；其后为可移除外置存储（SD 卡）
+            val sd = dirs.drop(1).firstOrNull { it != null && Environment.isExternalStorageRemovable(it) }
+                ?: dirs.drop(1).firstOrNull { it != null }
+            if (sd != null) {
+                invoke.resolve(sd.absolutePath)
+            } else {
+                invoke.resolve()
+            }
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "获取外置存储目录失败")
+        }
+    }
+
+    /** 共享存储根目录下的 EmberHub 目录（如 /sdcard/EmberHub）。 */
+    @Command
+    fun shared_storage_dir(invoke: Invoke) {
+        try {
+            val root = Environment.getExternalStorageDirectory()
+            invoke.resolve(File(root, "EmberHub").absolutePath)
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "获取共享存储目录失败")
+        }
+    }
+
+    /** 是否已获得「所有文件访问（共享存储）」权限。 */
+    @Command
+    fun has_all_files_access(invoke: Invoke) {
+        try {
+            val ok = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                Environment.isExternalStorageManager()
+            } else {
+                activity.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+            invoke.resolve(ok)
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "检查存储权限失败")
+        }
+    }
+
+    /** 跳转系统设置，请求「所有文件访问（共享存储）」权限。 */
+    @Command
+    fun request_all_files_access(invoke: Invoke) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val i = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                i.data = Uri.parse("package:" + activity.packageName)
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.applicationContext.startActivity(i)
+            } else {
+                activity.requestPermissions(
+                    arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    0
+                )
+            }
+            invoke.resolve()
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "请求存储权限失败")
         }
     }
 }

@@ -6,6 +6,7 @@ import { APP_CONFIG } from "../../config/config";
 import { createProvider } from "../../storage";
 import { tauri } from "../../shared/tauri";
 import { mediaCacheRoot } from "../../domain/ensure";
+import { platform } from "../../platform";
 import type { SourceConfig } from "../../storage/types";
 
 interface Props {
@@ -40,6 +41,16 @@ export function SourcesPage({ onClose }: Props) {
 
   // 打开设置时用当前资源源初始化表单（面板每次 F1 都会重新挂载）
   const initial = useStore.getState().source;
+
+  // Android：存储位置（私有目录 / 共享存储）
+  const mobile = platform.isMobile;
+  const storageMode = useStore((s) => s.storageMode);
+  const setStorageMode = useStore((s) => s.setStorageMode);
+  const [sharedDir, setSharedDir] = useState("");
+  useEffect(() => {
+    if (!mobile) return;
+    tauri.sharedStorageDir().then(setSharedDir).catch(() => undefined);
+  }, [mobile]);
 
   const [defaultDir, setDefaultDir] = useState("");
   useEffect(() => {
@@ -85,6 +96,33 @@ export function SourcesPage({ onClose }: Props) {
       setMessage({ ok: false, text: `清理失败：${String(e)}` });
     } finally {
       setClearing(false);
+    }
+  }
+
+  /** Android：切换存储位置（私有目录 / 共享存储）。共享存储需要「所有文件访问」权限。 */
+  async function chooseStorage(mode: "private" | "shared") {
+    if (mode === "private") {
+      setStorageMode("private");
+      setDownloadDir("");
+      setMessage({ ok: true, text: "已使用 App 私有目录（不需要权限）" });
+      return;
+    }
+    try {
+      if (!(await tauri.hasAllFilesAccess())) {
+        await tauri.requestAllFilesAccess();
+        setMessage({
+          ok: false,
+          text: "请在系统设置里允许 EmberHub「所有文件访问」，回来后再点一次「共享存储」",
+        });
+        return;
+      }
+      const dir = sharedDir || (await tauri.sharedStorageDir());
+      setSharedDir(dir);
+      setDownloadDir(dir);
+      setStorageMode("shared");
+      setMessage({ ok: true, text: `已使用共享存储：${dir}` });
+    } catch (e) {
+      setMessage({ ok: false, text: `切换失败：${String(e)}` });
     }
   }
 
@@ -192,6 +230,31 @@ export function SourcesPage({ onClose }: Props) {
         </div>
       </div>
       <p className="hint">通过 OpenList（WebDAV）读取游戏库。游戏库放在「游戏目录」（默认 Roms）下。</p>
+
+      {mobile && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>存储位置</h3>
+          <p className="hint">
+            <b>私有目录</b>：不需要任何权限，别的 App 读不到（ROM 用 content:// 交给模拟器）。
+            <br />
+            <b>共享存储</b>：放 <code>{sharedDir || "/sdcard/EmberHub"}</code>，需要「所有文件访问」权限，模拟器可按路径找到。
+          </p>
+          <div className="actions">
+            <button
+              className={storageMode === "private" ? "" : "ghost"}
+              onClick={() => void chooseStorage("private")}
+            >
+              私有目录
+            </button>
+            <button
+              className={storageMode === "shared" ? "" : "ghost"}
+              onClick={() => void chooseStorage("shared")}
+            >
+              共享存储
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>下载目录</h3>

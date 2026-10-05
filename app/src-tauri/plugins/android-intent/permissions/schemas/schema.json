@@ -295,6 +295,54 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the external_files_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-external-files-dir",
+          "markdownDescription": "Enables the external_files_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the external_files_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-external-files-dir",
+          "markdownDescription": "Denies the external_files_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the external_files_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-external-files-dir",
+          "markdownDescription": "Enables the external_files_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the external_files_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-external-files-dir",
+          "markdownDescription": "Denies the external_files_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the has_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-has-all-files-access",
+          "markdownDescription": "Enables the has_all_files_access command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the has_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-has-all-files-access",
+          "markdownDescription": "Denies the has_all_files_access command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the has_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-has-all-files-access",
+          "markdownDescription": "Enables the has_all_files_access command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the has_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-has-all-files-access",
+          "markdownDescription": "Denies the has_all_files_access command without any pre-configured scope."
+        },
+        {
           "description": "Enables the install command without any pre-configured scope.",
           "type": "string",
           "const": "allow-install",
@@ -319,10 +367,58 @@
           "markdownDescription": "Denies the launch command without any pre-configured scope."
         },
         {
-          "description": "EmberHub Android Intent 插件默认权限（启动目标 App / 用系统安装器安装 APK）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`",
+          "description": "Enables the request_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-request-all-files-access",
+          "markdownDescription": "Enables the request_all_files_access command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the request_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-request-all-files-access",
+          "markdownDescription": "Denies the request_all_files_access command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the request_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-request-all-files-access",
+          "markdownDescription": "Enables the request_all_files_access command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the request_all_files_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-request-all-files-access",
+          "markdownDescription": "Denies the request_all_files_access command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the shared_storage_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-shared-storage-dir",
+          "markdownDescription": "Enables the shared_storage_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the shared_storage_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-shared-storage-dir",
+          "markdownDescription": "Denies the shared_storage_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the shared_storage_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-shared-storage-dir",
+          "markdownDescription": "Enables the shared_storage_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the shared_storage_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-shared-storage-dir",
+          "markdownDescription": "Denies the shared_storage_dir command without any pre-configured scope."
+        },
+        {
+          "description": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "EmberHub Android Intent 插件默认权限（启动目标 App / 用系统安装器安装 APK）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`"
+          "markdownDescription": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`"
         }
       ]
     }

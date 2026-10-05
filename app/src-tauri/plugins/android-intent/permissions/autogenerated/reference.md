@@ -1,11 +1,15 @@
 ## Default Permission
 
-EmberHub Android Intent 插件默认权限（启动目标 App / 用系统安装器安装 APK）
+EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）
 
 #### This default permission set includes the following:
 
 - `allow-launch`
 - `allow-install`
+- `allow-external-files-dir`
+- `allow-shared-storage-dir`
+- `allow-has-all-files-access`
+- `allow-request-all-files-access`
 
 ## Permission Table
 
@@ -15,6 +19,110 @@ EmberHub Android Intent 插件默认权限（启动目标 App / 用系统安装�
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`android-intent:allow-external-files-dir`
+
+</td>
+<td>
+
+Enables the external_files_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-external-files-dir`
+
+</td>
+<td>
+
+Denies the external_files_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-external-files-dir`
+
+</td>
+<td>
+
+Enables the external_files_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-external-files-dir`
+
+</td>
+<td>
+
+Denies the external_files_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-has-all-files-access`
+
+</td>
+<td>
+
+Enables the has_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-has-all-files-access`
+
+</td>
+<td>
+
+Denies the has_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-has-all-files-access`
+
+</td>
+<td>
+
+Enables the has_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-has-all-files-access`
+
+</td>
+<td>
+
+Denies the has_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
@@ -64,6 +172,110 @@ Enables the launch command without any pre-configured scope.
 <td>
 
 Denies the launch command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-request-all-files-access`
+
+</td>
+<td>
+
+Enables the request_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-request-all-files-access`
+
+</td>
+<td>
+
+Denies the request_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-request-all-files-access`
+
+</td>
+<td>
+
+Enables the request_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-request-all-files-access`
+
+</td>
+<td>
+
+Denies the request_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-shared-storage-dir`
+
+</td>
+<td>
+
+Enables the shared_storage_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-shared-storage-dir`
+
+</td>
+<td>
+
+Denies the shared_storage_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-shared-storage-dir`
+
+</td>
+<td>
+
+Enables the shared_storage_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-shared-storage-dir`
+
+</td>
+<td>
+
+Denies the shared_storage_dir command without any pre-configured scope.
 
 </td>
 </tr>

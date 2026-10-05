@@ -1,3 +1,10 @@
 [default]
-description = "EmberHub Android Intent 插件默认权限（启动目标 App / 用系统安装器安装 APK）"
-permissions = ["allow-launch", "allow-install"]
+description = "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）"
+permissions = [
+    "allow-launch",
+    "allow-install",
+    "allow-external-files-dir",
+    "allow-shared-storage-dir",
+    "allow-has-all-files-access",
+    "allow-request-all-files-access",
+]

@@ -8,6 +8,7 @@ use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use tauri::{Emitter, Manager};
+use tauri_plugin_android_intent::AndroidIntentExt;
 use tokio::io::AsyncWriteExt;
 use url::Url;
 
@@ -136,6 +137,24 @@ fn android_launch_app(
 #[tauri::command]
 fn android_install_apk(app: tauri::AppHandle, path: String) -> Result<(), String> {
     platform::android_install_apk(&app, path)
+}
+
+/// Android：共享存储根下的 EmberHub 目录（如 /sdcard/EmberHub）。
+#[tauri::command]
+fn android_shared_storage_dir(app: tauri::AppHandle) -> Result<String, String> {
+    platform::android_shared_storage_dir(&app)
+}
+
+/// Android：是否已获得「所有文件访问（共享存储）」权限。
+#[tauri::command]
+fn android_has_all_files_access(app: tauri::AppHandle) -> Result<bool, String> {
+    platform::android_has_all_files_access(&app)
+}
+
+/// Android：跳转系统设置请求「所有文件访问（共享存储）」权限。
+#[tauri::command]
+fn android_request_all_files_access(app: tauri::AppHandle) -> Result<(), String> {
+    platform::android_request_all_files_access(&app)
 }
 
 /// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
@@ -404,6 +423,12 @@ fn default_download_dir(app: tauri::AppHandle) -> Result<String, String> {
                 }
             }
         }
+        // Android：优先用可移除外置存储（SD 卡）上的 App 私有目录（读写无需权限）
+        if let Ok(Some(dir)) = app.android_intent().external_files_dir() {
+            if is_writable(std::path::Path::new(&dir)) {
+                return Ok(dir);
+            }
+        }
         app.path()
             .app_local_data_dir()
             .map(|p| p.to_string_lossy().to_string())
@@ -654,6 +679,9 @@ pub fn run() {
             launch_emulator,
             android_launch_app,
             android_install_apk,
+            android_shared_storage_dir,
+            android_has_all_files_access,
+            android_request_all_files_access,
             list_local_dir,
             list_local_files,
             webdav_list,

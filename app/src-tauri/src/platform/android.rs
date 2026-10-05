@@ -33,3 +33,18 @@ pub fn android_install_apk(app: &AppHandle, path: String) -> Result<(), String> 
     }
     app.android_intent().install(&path)
 }
+
+/// 共享存储根下的 EmberHub 目录（如 /sdcard/EmberHub）。
+pub fn android_shared_storage_dir(app: &AppHandle) -> Result<String, String> {
+    app.android_intent().shared_storage_dir()
+}
+
+/// 是否已获得「所有文件访问（共享存储）」权限。
+pub fn android_has_all_files_access(app: &AppHandle) -> Result<bool, String> {
+    app.android_intent().has_all_files_access()
+}
+
+/// 跳转系统设置，请求「所有文件访问（共享存储）」权限。
+pub fn android_request_all_files_access(app: &AppHandle) -> Result<(), String> {
+    app.android_intent().request_all_files_access()
+}
