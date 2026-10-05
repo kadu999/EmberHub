@@ -185,6 +185,7 @@ function emulatorConfigFrom(o: Record<string, unknown>, fallbackPlatform: string
     configs: parseEmulatorFiles(o.configs),
     package: str(o.package),
     mime: str(o.mime),
+    apk: str(o.apk),
   };
 }
 

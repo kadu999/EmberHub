@@ -119,6 +119,8 @@ export interface EmulatorConfig {
   package?: string;
   /** Android：交给 Intent 的 MIME 类型（可选；缺省按 ROM 扩展名推断） */
   mime?: string;
+  /** Android：网盘上的 APK 文件名（相对 Emulators/<OS>/）；配置后可在模拟器页「下载并安装」 */
+  apk?: string;
 }
 
 /** Emulators/platforms.json：Roms 平台文件夹 → Emulators 平台文件夹 */

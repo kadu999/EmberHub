@@ -196,6 +196,8 @@ export interface EmulatorInfo {
   version: string;
   archive: string;
   exe: string;
+  /** Android：网盘上的 APK 文件名（相对 Emulators/<OS>/），有则可「下载并安装」 */
+  apk?: string;
   installed: boolean;
   installedVersion?: string;
 }
@@ -244,6 +246,7 @@ export async function listEmulators(
       version: config.version,
       archive: config.archive,
       exe: config.exe,
+      apk: config.apk,
       installed: mobile ? true : ver !== undefined,
       installedVersion: ver,
     });
@@ -346,6 +349,38 @@ export async function openEmulator(
   const workdir = nativePath(config.workdir ? joinPath(dir, config.workdir) : dirname(exe));
   onStatus?.("打开模拟器…");
   await tauri.launchEmulator(exe, [], workdir);
+}
+
+/**
+ * Android：从网盘下载模拟器 APK 并交给系统安装器安装（会弹安装确认）。
+ * 需要 emulators.json 里该模拟器配置了 `apk`（相对 Emulators/<OS>/ 的文件名）。
+ */
+export async function installEmulator(
+  provider: StorageProvider,
+  source: SourceConfig,
+  platform: string,
+  onStatus?: (s: string) => void,
+): Promise<void> {
+  if (!appPlatform.isMobile) throw new Error("仅 Android 支持 APK 安装。");
+  const cfg = await loadResourceConfig(provider);
+  const osRoot = await emulatorOsRoot(source, cfg);
+  const { platforms, emulators } = await loadEmulators(provider, osRoot, cfg);
+  const emuPlatform = platforms[platform] ?? platform;
+  const emuBase = joinPath(osRoot, emuPlatform);
+  const config =
+    emulators[emuPlatform] ??
+    parseEmulatorConfig(await provider.readText(joinPath(emuBase, cfg.files.emulatorConfig)));
+
+  const apk = config.apk?.trim();
+  if (!apk) throw new Error("该模拟器未配置 APK（emulators.json 的 apk 字段）。");
+  if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
+
+  const dl = await getDownloadDir(source);
+  const dest = joinPath(dl, cfg.emulatorsDir, emuPlatform, basename(apk));
+  onStatus?.(`下载 ${basename(apk)}…`);
+  await provider.downloadTo(joinPath(emuBase, apk), dest);
+  onStatus?.("启动安装器…");
+  await tauri.installApk(nativePath(dest));
 }
 
 /** 确保 ROM 在本地；返回本地绝对路径（压缩包会自动解压）。 */

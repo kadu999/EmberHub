@@ -7,6 +7,7 @@ import { createCachedProvider } from "../../domain/library-cache";
 import { platform } from "../../platform";
 import {
   ensureEmulator,
+  installEmulator,
   listEmulators,
   openEmulator,
   removeEmulator,
@@ -115,7 +116,7 @@ export function EmulatorsPage({ onClose }: Props) {
       </div>
       <p className="hint">
         {mobile
-          ? "模拟器是设备上已安装的 App；点「打开」进入它自己的界面（不会启动游戏）。"
+          ? "模拟器是设备上已安装的 App。「下载并安装」会从网盘拉 APK 并调系统安装器（会弹确认）；「打开」进入它自己的界面（不会启动游戏）。"
           : "下载 / 更新 / 删除模拟器，或直接「打开模拟器」进入它自己的设置界面（不会启动游戏）。打开此页用本地缓存，不联网；点「从服务器刷新」才会重新拉配置。"}
       </p>
 
@@ -158,6 +159,19 @@ export function EmulatorsPage({ onClose }: Props) {
                     }
                   >
                     {busy === e.platform ? "处理中…" : label}
+                  </button>
+                )}
+                {mobile && e.apk && (
+                  <button
+                    className="ghost small"
+                    disabled={busy !== null}
+                    onClick={() =>
+                      run(e.platform, () =>
+                        installEmulator(provider!, source!, e.platform, setStatus),
+                      )
+                    }
+                  >
+                    {busy === e.platform ? "处理中…" : "下载并安装"}
                   </button>
                 )}
                 <button
