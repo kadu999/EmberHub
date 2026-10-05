@@ -114,3 +114,13 @@ pub fn android_has_all_files_access(_app: &tauri::AppHandle) -> Result<bool, Str
 pub fn android_request_all_files_access(_app: &tauri::AppHandle) -> Result<(), String> {
     Err("Android 共享存储仅在 Android 平台可用。".to_string())
 }
+
+/// 桌面端恒为「有权限」（无意义）。
+pub fn android_can_install_packages(_app: &tauri::AppHandle) -> Result<bool, String> {
+    Ok(true)
+}
+
+/// 桌面端没有 Android 权限请求。
+pub fn android_request_install_packages(_app: &tauri::AppHandle) -> Result<(), String> {
+    Err("安装未知应用仅在 Android 平台可用。".to_string())
+}

@@ -162,6 +162,32 @@ impl<R: Runtime> AndroidIntent<R> {
     pub fn request_all_files_access(&self) -> Result<(), String> {
         Err("共享存储仅在 Android 可用。".to_string())
     }
+
+    /// 是否已允许「安装未知应用」（安装模拟器 APK 需要）。
+    #[cfg(target_os = "android")]
+    pub fn can_install_packages(&self) -> Result<bool, String> {
+        self.handle
+            .run_mobile_plugin::<bool>("can_install_packages", ExternalFilesDirPayload {})
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn can_install_packages(&self) -> Result<bool, String> {
+        Ok(true)
+    }
+
+    /// 跳转系统设置，请求「安装未知应用」权限。
+    #[cfg(target_os = "android")]
+    pub fn request_install_packages(&self) -> Result<(), String> {
+        self.handle
+            .run_mobile_plugin::<()>("request_install_packages", ExternalFilesDirPayload {})
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn request_install_packages(&self) -> Result<(), String> {
+        Err("安装未知应用仅在 Android 可用。".to_string())
+    }
 }
 
 /// 通过 `app.android_intent()` 取到插件实例。

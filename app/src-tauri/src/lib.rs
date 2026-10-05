@@ -159,6 +159,18 @@ fn android_request_all_files_access(app: tauri::AppHandle) -> Result<(), String>
     platform::android_request_all_files_access(&app)
 }
 
+/// Android：是否已允许「安装未知应用」（安装模拟器 APK 需要）。
+#[tauri::command]
+fn android_can_install_packages(app: tauri::AppHandle) -> Result<bool, String> {
+    platform::android_can_install_packages(&app)
+}
+
+/// Android：跳转系统设置请求「安装未知应用」权限。
+#[tauri::command]
+fn android_request_install_packages(app: tauri::AppHandle) -> Result<(), String> {
+    platform::android_request_install_packages(&app)
+}
+
 /// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
 #[tauri::command]
 fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
@@ -678,6 +690,8 @@ pub fn run() {
             android_shared_storage_dir,
             android_has_all_files_access,
             android_request_all_files_access,
+            android_can_install_packages,
+            android_request_install_packages,
             list_local_dir,
             list_local_files,
             webdav_list,

@@ -781,6 +781,34 @@ select:focus {
   justify-content: space-between;
 }
 
+/* ---------- 启动权限门（未授权前不进入主界面） ---------- */
+.perm-gate {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: var(--bg);
+  z-index: 30;
+}
+
+.perm-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.perm-card h2 {
+  margin: 0 0 4px;
+}
+
 /* ---------- 详情信息 ---------- */
 dl {
   display: grid;

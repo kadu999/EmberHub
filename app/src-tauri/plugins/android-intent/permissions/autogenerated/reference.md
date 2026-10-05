@@ -10,6 +10,8 @@ EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享�
 - `allow-shared-storage-dir`
 - `allow-has-all-files-access`
 - `allow-request-all-files-access`
+- `allow-can-install-packages`
+- `allow-request-install-packages`
 
 ## Permission Table
 
@@ -19,6 +21,32 @@ EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享�
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`android-intent:allow-can-install-packages`
+
+</td>
+<td>
+
+Enables the can_install_packages command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-can-install-packages`
+
+</td>
+<td>
+
+Denies the can_install_packages command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
@@ -146,6 +174,32 @@ Enables the request_all_files_access command without any pre-configured scope.
 <td>
 
 Denies the request_all_files_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-request-install-packages`
+
+</td>
+<td>
+
+Enables the request_install_packages command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-request-install-packages`
+
+</td>
+<td>
+
+Denies the request_install_packages command without any pre-configured scope.
 
 </td>
 </tr>

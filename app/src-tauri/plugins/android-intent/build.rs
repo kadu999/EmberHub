@@ -6,6 +6,8 @@ const COMMANDS: &[&str] = &[
     "shared_storage_dir",
     "has_all_files_access",
     "request_all_files_access",
+    "can_install_packages",
+    "request_install_packages",
 ];
 
 fn main() {

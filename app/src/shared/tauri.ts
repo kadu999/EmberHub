@@ -80,4 +80,8 @@ export const tauri = {
   hasAllFilesAccess: () => invoke<boolean>("android_has_all_files_access"),
   /** Android：跳转系统设置请求「所有文件访问（共享存储）」权限 */
   requestAllFilesAccess: () => invoke<void>("android_request_all_files_access"),
+  /** Android：是否已允许「安装未知应用」（安装模拟器 APK 需要） */
+  canInstallPackages: () => invoke<boolean>("android_can_install_packages"),
+  /** Android：跳转系统设置请求「安装未知应用」权限 */
+  requestInstallPackages: () => invoke<void>("android_request_install_packages"),
 };

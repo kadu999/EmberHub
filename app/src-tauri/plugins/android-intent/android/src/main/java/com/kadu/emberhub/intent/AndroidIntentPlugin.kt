@@ -204,4 +204,35 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.reject(ex.message ?: "请求存储权限失败")
         }
     }
+
+    /** 是否已允许「安装未知应用」（安装模拟器 APK 需要；Android 8.0+ 有此开关）。 */
+    @Command
+    fun can_install_packages(invoke: Invoke) {
+        try {
+            val ok = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                activity.packageManager.canRequestPackageInstalls()
+            } else {
+                true
+            }
+            invoke.resolveObject(ok)
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "检查安装权限失败")
+        }
+    }
+
+    /** 跳转系统设置，请求「安装未知应用」权限。 */
+    @Command
+    fun request_install_packages(invoke: Invoke) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val i = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                i.data = Uri.parse("package:" + activity.packageName)
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.applicationContext.startActivity(i)
+            }
+            invoke.resolve()
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "请求安装权限失败")
+        }
+    }
 }

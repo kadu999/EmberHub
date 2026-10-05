@@ -50,3 +50,13 @@ pub fn android_has_all_files_access(app: &AppHandle) -> Result<bool, String> {
 pub fn android_request_all_files_access(app: &AppHandle) -> Result<(), String> {
     app.android_intent().request_all_files_access()
 }
+
+/// 是否已允许「安装未知应用」（安装模拟器 APK 需要）。
+pub fn android_can_install_packages(app: &AppHandle) -> Result<bool, String> {
+    app.android_intent().can_install_packages()
+}
+
+/// 跳转系统设置，请求「安装未知应用」权限。
+pub fn android_request_install_packages(app: &AppHandle) -> Result<(), String> {
+    app.android_intent().request_install_packages()
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onBackButtonPress } from "@tauri-apps/api/app";
 import { LibraryPage } from "./features/library/LibraryPage";
@@ -17,11 +17,16 @@ function App() {
   const [showEmulators, setShowEmulators] = useState(false);
   const [showCache, setShowCache] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  // Android：启动权限门 —— 未授权前不进入主界面（存储 + 安装未知应用）
+  const [missingPerms, setMissingPerms] = useState({ storage: false, install: false });
+  const [permsChecked, setPermsChecked] = useState(!platform.isMobile);
   const requestScan = useStore((s) => s.requestScan);
   const fullscreen = useStore((s) => s.fullscreen);
   const setFullscreen = useStore((s) => s.setFullscreen);
   const source = useStore((s) => s.source);
   const downloadDir = useStore((s) => s.downloadDir);
+  // Android：权限门通过前，禁止任何网络 / 文件读写（未授权会 EPERM / 失败）
+  const permsReady = permsChecked && !missingPerms.storage && !missingPerms.install;
 
   const openSettings = () => {
     setShowMenu(false);
@@ -50,11 +55,34 @@ function App() {
   }, [fullscreen]);
 
   // 失败日志目录：<下载目录>/logs（下载目录变化时更新）
+  // 权限门通过前不写日志，避免未授权时写文件失败（EPERM）。
   useEffect(() => {
+    if (!permsReady) return;
     void getDownloadDir(source ?? undefined)
       .then((d) => tauri.logInit(joinPath(d, "logs")))
       .catch(() => undefined);
-  }, [source, downloadDir]);
+  }, [source, downloadDir, permsReady]);
+
+  // Android：启动即检查所需权限；缺了就停在权限门（从系统设置返回时自动复查）
+  const checkPerms = useCallback(async () => {
+    if (!platform.isMobile) return;
+    const [storage, install] = await Promise.all([
+      tauri.hasAllFilesAccess().catch(() => true),
+      tauri.canInstallPackages().catch(() => true),
+    ]);
+    setMissingPerms({ storage: !storage, install: !install });
+    setPermsChecked(true);
+  }, []);
+
+  useEffect(() => {
+    if (!platform.isMobile) return;
+    void checkPerms();
+    const onVis = () => {
+      if (document.visibilityState === "visible") void checkPerms();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [checkPerms]);
 
   // 快捷键：F1 设置 / F5 重扫 / F11 全屏 / Esc 逐层关闭
   useEffect(() => {
@@ -100,6 +128,56 @@ function App() {
   }, [showSettings, showEmulators, showCache, showMenu]);
 
   const anyPanel = showSettings || showEmulators || showCache;
+
+  // Android 权限门：未检查完 / 缺权限时**不渲染主界面**（也不做任何 I/O）
+  if (!permsReady) {
+    const checking = !permsChecked;
+    return (
+      <div className={"app" + (platform.isMobile ? " is-mobile" : "")}>
+        <div className="perm-gate">
+          <div className="perm-card">
+            {checking ? (
+              <p className="hint">正在检查权限…</p>
+            ) : (
+              <>
+                <h2>需要授予权限</h2>
+                <p className="hint">
+                  EmberHub 需要以下权限才能下载 / 安装 / 启动模拟器，请先授予：
+                </p>
+                {missingPerms.storage && (
+                  <div className="actions">
+                    <button onClick={() => void tauri.requestAllFilesAccess()}>
+                      授予「所有文件访问」
+                    </button>
+                  </div>
+                )}
+                {missingPerms.install && (
+                  <div className="actions">
+                    <button onClick={() => void tauri.requestInstallPackages()}>
+                      授予「安装未知应用」
+                    </button>
+                  </div>
+                )}
+                <p className="hint">
+                  「所有文件访问」用于把 ROM / 模拟器写入共享目录（Android 11+ 必需）；「安装未知应用」用于安装模拟器
+                  APK。授权后回到本应用会自动继续。
+                </p>
+                <div className="actions">
+                  <button className="ghost" onClick={() => void checkPerms()}>
+                    重新检查
+                  </button>
+                  <button className="ghost" onClick={() => void getCurrentWindow().close()}>
+                    退出
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={"app" + (platform.isMobile ? " is-mobile" : "")}>
       <LibraryPage
