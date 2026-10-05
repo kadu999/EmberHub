@@ -6,6 +6,6 @@ import type { Platform } from "./types";
 export const desktopPlatform: Platform = {
   os: detectOs(),
   isMobile: false,
-  launchEmulator: (exePath, args = [], workdir) =>
+  launchEmulator: (exePath, args = [], workdir, _opts) =>
     tauri.launchEmulator(exePath, args, workdir),
 };

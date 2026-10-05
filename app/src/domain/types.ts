@@ -115,6 +115,10 @@ export interface EmulatorConfig {
   extract?: boolean;
   /** 解压后要写入/覆盖到模拟器安装目录的配置文件（可选） */
   configs?: EmulatorFile[];
+  /** Android：目标 App 包名（可选；缺省用 exe 作为包名） */
+  package?: string;
+  /** Android：交给 Intent 的 MIME 类型（可选；缺省按 ROM 扩展名推断） */
+  mime?: string;
 }
 
 /** Emulators/platforms.json：Roms 平台文件夹 → Emulators 平台文件夹 */

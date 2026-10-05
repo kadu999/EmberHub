@@ -2,7 +2,7 @@
 
 > 状态：草案 v0.1 ｜ 最后更新：2026-10-05
 > 本文是仓库目录结构与整理的执行基线，配合 [ARCHITECTURE.md](ARCHITECTURE.md) 使用。
-> 执行进度：**阶段 1–4 已完成**；阶段 5 已完成 `mobile_entry_point` 归位、`launch_emulator` 拆分、`gen` 忽略规则调整、前端 `platform/` 缝；Android 工程（`gen/android`）待执行 `tauri android init`。
+> 执行进度：**阶段 1–4 已完成**；阶段 5 已完成 `mobile_entry_point` 归位、`launch_emulator` 拆分、`gen` 忽略规则调整、前端 `platform/` 缝、`gen/android` 初始化，并落地 Android 启动插件（Intent + FileProvider）。
 > 落地细节与勾选状态见第 6 节。
 
 ## 1. 设计原则
@@ -162,7 +162,8 @@ EmberHub/
   - [x] 修 `mobile_entry_point` 位置；拆分 `launch_emulator` 到 `src-tauri/src/platform/`
   - [x] 调整 `src-tauri/.gitignore` 的 `gen` 规则（`/gen/` → `/gen/schemas`）
   - [x] 建 `app/src/platform/` 前端缝，并接入 `domain/launch.ts` 的启动路径
-  - [ ] `tauri android init` 生成并提交 `gen/android`（需 JDK + Android SDK/NDK）
+  - [x] `tauri android init` 生成并提交 `gen/android`（需 JDK + Android SDK/NDK）
+  - [x] 自研 `src-tauri/plugins/android-intent`（Kotlin）：Intent + FileProvider 启动外部模拟器
 
 ## 7. 移动端（Android）扩展点
 
@@ -172,7 +173,7 @@ Tauri 2 的模型是**一套前端 + 一份 `src-tauri`**：桌面走 `main.rs`�
 
 1. **`mobile_entry_point` 属性位置**：`app/src-tauri/src/lib.rs:522` 目前把它标在 `host_os()` 上，应移到 `pub fn run()`。桌面端因 `mobile` cfg 不成立而无影响，Android 编译/启动会出问题。
 2. **`gen/` 的忽略规则**：`app/src-tauri/.gitignore` 现为 `/gen/`，会连 `gen/android` 一起忽略。Tauri 的 Android 工程位于 `src-tauri/gen/android`，官方约定**需提交**（其内部自带 `.gitignore` 排除 build 产物、keystore 等）。应改成仅忽略 `/gen/schemas`。
-3. **`launch_emulator` 是桌面专属**：`lib.rs:42-59` 用 `std::process::Command` 拉起 exe。Android 需改用 Intent + `FileProvider` 把 ROM 以 `content://` 暴露给目标模拟器，并实现 Kotlin 本地插件。这是桌面/移动最主要的逻辑分叉。
+3. **`launch_emulator` 是桌面专属**：`lib.rs:42-59` 用 `std::process::Command` 拉起 exe。Android 改用 `android_launch_app` 命令 → `platform/android.rs` → 本地插件 `src-tauri/plugins/android-intent`（Kotlin）构造 Intent，并用 `FileProvider` 把 ROM 以 `content://` 交给目标模拟器。这是桌面/移动最主要的逻辑分叉。
 
 > 其余 Rust 命令（`webdav_*`、`webdav_download`、fs、`extract_archive`）平台无关，可在 Android 复用；`default_download_dir` 在 Android 上会回退到 `app_local_data_dir`，基本可用。
 
@@ -207,9 +208,26 @@ Tauri 2 的模型是**一套前端 + 一份 `src-tauri`**：桌面走 `main.rs`�
 
 ### 7.5 动手前的检查项
 
-- [ ] 逐个体检所用 Tauri 插件在 Android 的支持情况（如 `tauri-plugin-opener`；但"启动外部模拟器并传 ROM"需自研 intent 插件）。
-- [ ] 确认 `zip`、`sevenz-rust2` 等依赖能交叉编译到 Android。
+- [x] 逐个体检所用 Tauri 插件在 Android 的支持情况（`tauri-plugin-opener` 在 Android 只能开 URL，因此"启动外部模拟器并传 ROM"用自研 `android-intent` 插件）。
+- [x] 确认 `zip`、`sevenz-rust2` 等依赖能交叉编译到 Android（已在 aarch64 上编译通过）。
 - [ ] 明确移动端 UI 的输入方案（手柄 / 触屏 / D-pad）。
+
+### 7.5.1 Android 启动约定（已实现）
+
+- **入口**：业务层调用 `platform.launchEmulator(...)`；Android 分支走 Rust 命令 `android_launch_app` → `src-tauri/src/platform/android.rs` → 插件 `plugins/android-intent`（Kotlin 构造 Intent + `FileProvider` 的 `content://`）。
+- **模拟器配置**（`Emulators/Android/emulators.json`）：Android 上模拟器是**已安装的 App**，因此：
+  - `exe` 填**包名**（如 `com.retroarch`），也可另给可选字段 `package`；
+  - `version` / `archive` 可省略（移动端不下载/解压模拟器包，`ensureEmulator` 在移动端直接返回）；
+  - 可选 `mime` 指定交给 Intent 的 MIME（缺省按 ROM 扩展名推断，见 `app/src/platform/android.ts`）。
+- **FileProvider**：`gen/android/app/src/main/AndroidManifest.xml` 已声明 provider；`res/xml/file_paths.xml` 覆盖 App 私有 `files/`（下载目录）。
+- **包可见性**：manifest 已加 `<queries>`（VIEW `*/*`），Android 11+ 才能解析/启动目标 App。
+
+### 7.6 Windows 本机构建注意
+
+- **符号链接权限**：Tauri 会把编译产物 `.so` 和资源目录**符号链接**进 `gen/android`。Windows 默认仅管理员可创建符号链接，否则报 `Creation symbolic link is not allowed for this system`。解法：开启「开发者模式」，或用**管理员终端**执行构建。非 Windows（Linux/macOS/CI）无此限制。
+- **Gradle 分发**：`services.gradle.org` 会 302 到 GitHub。网络受限时，可从镜像（如 `https://mirrors.cloud.tencent.com/gradle/`）预下载对应版本到 `~/.gradle/wrapper/dists/<dist>/<hash>/`，解压后打 `.ok` 标记；仓库中的 `distributionUrl` 保持官方地址不变。
+- **crates.io**：网络受限时可在 `~/.cargo/config.toml` 配置镜像（如 rsproxy 的 sparse index）。
+- **`node tauri` 解析**：Tauri 的 Gradle rust 任务以 `node tauri android android-studio-script` 调用 CLI（工作目录为 `src-tauri`），部分环境下 Node 无法解析裸标识符 `tauri`（tauri-apps/tauri #9536、#13892）。仓库内的 `app/src-tauri/tauri.js` 是转发 shim，用于消除该报错，无需手动干预。
 
 ## 8. `.gitignore` 目标
 

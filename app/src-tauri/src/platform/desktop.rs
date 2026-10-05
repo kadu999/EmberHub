@@ -19,3 +19,13 @@ pub fn launch_emulator(
         Err(e) => Err(format!("failed to launch `{}`: {}", exe_path, e)),
     }
 }
+
+/// 桌面端没有 Android Intent。
+pub fn android_launch_app(
+    _app: &tauri::AppHandle,
+    _package: String,
+    _path: Option<String>,
+    _mime: Option<String>,
+) -> Result<(), String> {
+    Err("Android Intent 仅在 Android 平台可用。".to_string())
+}

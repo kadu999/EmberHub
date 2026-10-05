@@ -210,6 +210,13 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 }
 ```
 
+**Android 端**：模拟器是**已安装的 App**，不是可执行文件：
+- `exe` 填目标 App 的**包名**（如 `com.retroarch`），也可用可选字段 `package` 覆盖它；
+- `version` / `archive` 可省略（App 不会下载/解压模拟器包，`ensureEmulator` 在移动端直接复用已安装 App）；
+- 可选 `mime` 指定传给 Intent 的 MIME，缺省按 ROM 扩展名推断；
+- `args` 在移动端不生效（核心等参数由模拟器 App 自行管理）；
+- 启动走 Intent + FileProvider，把 ROM 以 `content://` 交给目标 App。
+
 ---
 
 ## 4. 功能一：按需下载

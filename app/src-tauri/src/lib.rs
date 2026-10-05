@@ -50,6 +50,19 @@ fn launch_emulator(
     platform::launch_emulator(exe_path, args, workdir)
 }
 
+/// Android：把本地 ROM 通过 FileProvider 以 content:// 交给目标模拟器 App。
+/// `package` 为目标 App 包名；`path` 为空表示只打开 App（进模拟器设置）。
+/// 桌面端返回「仅 Android 可用」错误（正常不会调用到）。
+#[tauri::command]
+fn android_launch_app(
+    app: tauri::AppHandle,
+    package: String,
+    path: Option<String>,
+    mime: Option<String>,
+) -> Result<(), String> {
+    platform::android_launch_app(&app, package, path, mime)
+}
+
 /// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
 #[tauri::command]
 fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
@@ -521,8 +534,10 @@ fn host_os() -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_android_intent::init())
         .invoke_handler(tauri::generate_handler![
             launch_emulator,
+            android_launch_app,
             list_local_dir,
             list_local_files,
             webdav_list,

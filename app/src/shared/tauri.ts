@@ -57,4 +57,8 @@ export const tauri = {
   /** 启动外部模拟器，返回进程 PID */
   launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>
     invoke<number>("launch_emulator", { exePath, args, workdir }),
+
+  /** Android：用 Intent + FileProvider 启动目标 App，并把 ROM 以 content:// 传入（path 为空则只打开 App） */
+  androidLaunchApp: (pkg: string, path?: string, mime?: string) =>
+    invoke<void>("android_launch_app", { package: pkg, path, mime }),
 };

@@ -1,0 +1,19 @@
+[package]
+name = "tauri-plugin-android-intent"
+version = "0.1.0"
+description = "EmberHub: 通过 Intent + FileProvider 把本地 ROM 以 content:// 交给目标模拟器 App"
+authors = ["kadu999"]
+edition = "2021"
+# Tauri 约定：links 必须存在且与 crate 名一致，tauri-build 才会把 android/ 工程并入 tauri.settings.gradle
+links = "tauri-plugin-android-intent"
+
+[lib]
+name = "tauri_plugin_android_intent"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = { version = "2" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

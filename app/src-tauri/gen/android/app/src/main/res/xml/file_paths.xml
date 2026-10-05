@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- EmberHub 下载目录在 App 私有 files/ 下（default_download_dir 回退到 app_local_data_dir） -->
+  <files-path name="emberhub_files" path="." />
+  <external-files-path name="emberhub_external_files" path="." />
+  <!-- 保留 Tauri 模板默认项 -->
+  <external-path name="my_images" path="." />
+  <cache-path name="my_cache_images" path="." />
+</paths>

@@ -1,0 +1,8 @@
+# Rust 构建产物
+/target/
+
+# Android 构建产物（tauri build 生成）
+/android/build/
+/android/.gradle/
+# tauri 构建时拷贝进来的 tauri-api（自动生成，不提交）
+/android/.tauri/

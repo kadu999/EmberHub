@@ -14,15 +14,20 @@ edition = "2021"
 name = "emberhub_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# 本地 Kotlin 插件（Android Intent + FileProvider）作为工作区成员，共享 target/lockfile
+[workspace]
+members = ["plugins/android-intent"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
+tauri-plugin-android-intent = { path = "plugins/android-intent" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", features = ["stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["charset", "stream", "rustls-tls"] }
 roxmltree = "0.20"
 url = "2"
 percent-encoding = "2"

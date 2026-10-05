@@ -1,6 +1,7 @@
 // 确保资源就位：模拟器（按平台，带版本比对）与 ROM（断点续传 + 自动解压）。
 import { tauri } from "../shared/tauri";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
+import { platform as appPlatform } from "../platform";
 import { useStore } from "../state/store";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { parseEmulatorConfig, parseEmulators, parsePlatformMap } from "./parse";
@@ -255,6 +256,12 @@ export async function ensureEmulator(
   // 该 Roms 平台的启动参数：platformArgs 覆盖 > 模拟器自身 args
   const args = platformArgs[platform] ?? config.args;
 
+  // Android：模拟器是已安装的 App（用 package/exe 指定包名），没有可下载/解压的压缩包
+  if (appPlatform.isMobile) {
+    onStatus?.(`使用已安装的模拟器（${config.package ?? config.exe}）`);
+    return { dir: "", config, args };
+  }
+
   const dl = await getDownloadDir(source);
   const localDir = joinPath(dl, cfg.emulatorsDir, emuPlatform);
   const stampPath = joinPath(localDir, ".installed.json");
@@ -308,6 +315,13 @@ export async function openEmulator(
   onStatus?: (s: string) => void,
 ): Promise<void> {
   const { dir, config } = await ensureEmulator(provider, source, platform, onStatus);
+  // Android：直接打开模拟器 App（不带 ROM，用于进它自己的设置）
+  if (appPlatform.isMobile) {
+    const pkg = (config.package?.trim() || config.exe).trim();
+    onStatus?.("打开模拟器…");
+    await appPlatform.launchEmulator(pkg, [], undefined, { package: pkg });
+    return;
+  }
   const exe = nativePath(isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe));
   const workdir = nativePath(config.workdir ? joinPath(dir, config.workdir) : dirname(exe));
   onStatus?.("打开模拟器…");

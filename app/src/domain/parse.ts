@@ -169,11 +169,10 @@ export interface EmulatorsFile {
 }
 
 function emulatorConfigFrom(o: Record<string, unknown>, fallbackPlatform: string): EmulatorConfig {
-  const version = str(o.version);
-  const archive = str(o.archive);
+  // version / archive 可选：Android 端模拟器是「已安装的 App」，没有可下载的压缩包
+  const version = str(o.version) ?? "0";
+  const archive = str(o.archive) ?? "";
   const exe = str(o.exe);
-  if (!version) throw new Error("模拟器配置缺少 version");
-  if (!archive) throw new Error("模拟器配置缺少 archive");
   if (!exe) throw new Error("模拟器配置缺少 exe");
   return {
     platform: str(o.platform) ?? fallbackPlatform,
@@ -184,6 +183,8 @@ function emulatorConfigFrom(o: Record<string, unknown>, fallbackPlatform: string
     workdir: str(o.workdir),
     extract: typeof o.extract === "boolean" ? o.extract : undefined,
     configs: parseEmulatorFiles(o.configs),
+    package: str(o.package),
+    mime: str(o.mime),
   };
 }
 

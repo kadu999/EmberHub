@@ -110,12 +110,21 @@ export async function launchGame(
   source: SourceConfig,
   onStatus?: (s: string) => void,
 ): Promise<void> {
+  const dl = await getDownloadDir(source);
+
   // 1) Roms 的 launch 优先（自定义命令；是否解压由游戏/平台级 extract 决定，默认解压）
   if (game.launch && game.launch.trim() !== "") {
     const romAbs = nativePath(
       await ensureRom(provider, source, game, onStatus, game.extract !== false),
     );
-    const plan = await buildLaunchPlan(game.launch, romAbs, await getDownloadDir(source), {
+    // Android：桌面式命令无意义，取首 token 作为目标 App 包名，ROM 走 Intent 传入
+    if (platform.isMobile) {
+      const pkg = game.launch.trim().split(/\s+/)[0];
+      onStatus?.("启动中…");
+      await platform.launchEmulator(pkg, [], undefined, { package: pkg, romPath: romAbs });
+      return;
+    }
+    const plan = await buildLaunchPlan(game.launch, romAbs, dl, {
       platform: game.collection,
       title: game.title,
     });
@@ -127,6 +136,19 @@ export async function launchGame(
   // 2) 否则用 Emulators 的 emulators.json；是否解压由 config.extract 决定（默认解压）
   const { dir, config, args: cfgArgs } = await ensureEmulator(provider, source, game.collection, onStatus);
   const romAbs = nativePath(await ensureRom(provider, source, game, onStatus, config.extract !== false));
+
+  // Android：模拟器是已安装的 App，用包名 + Intent 启动（核心参数在移动端由模拟器自身管理）
+  if (platform.isMobile) {
+    const pkg = (config.package?.trim() || config.exe).trim();
+    onStatus?.("启动中…");
+    await platform.launchEmulator(pkg, [], undefined, {
+      package: pkg,
+      romPath: romAbs,
+      mime: config.mime,
+    });
+    return;
+  }
+
   const exe = nativePath(isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe));
   const vars: LaunchVars = { platform: game.collection, title: game.title, emulatorDir: dir };
   const args = (cfgArgs ?? []).map((a) => substitute(a, romAbs, vars));
