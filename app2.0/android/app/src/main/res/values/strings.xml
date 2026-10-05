@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EmberHub</string>
+    <string name="title_activity_main">EmberHub</string>
+    <string name="package_name">com.kadu.emberhub2</string>
+    <string name="custom_url_scheme">com.kadu.emberhub2</string>
+</resources>
