@@ -98,6 +98,8 @@ export function LibraryPage({
   }, [source]);
   // 扫描完成后待滚动的游戏 id（恢复上次位置）
   const pendingScrollId = useRef<string | null>(null);
+  /** 是否正在「启动游戏」流程：只在这时显示下载进度浮层（模拟器页下 APK 等不应弹） */
+  const launchingRef = useRef(false);
 
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -171,6 +173,8 @@ export function LibraryPage({
     const un = listen<{ path: string; downloaded: number; total: number | null }>(
       "download-progress",
       (e) => {
+        // 只在「启动游戏」流程里显示下载进度（否则模拟器页下载 APK 也会弹这个浮层）
+        if (!launchingRef.current) return;
         const p = e.payload.path.replace(/\\/g, "/");
         // 封面/视频预览（在 media/ 下）静默下载，不显示进度条
         if (p.includes("/media/")) return;
@@ -232,7 +236,7 @@ export function LibraryPage({
   }, [filtered]);
 
   // 启动中（下载/解压）或启动失败时，显示居中的进度/状态面板
-  const showLaunchPanel = launching || progress !== null || (launchMsg !== null && !launchMsg.ok);
+  const showLaunchPanel = launching || (launchMsg !== null && !launchMsg.ok);
 
   // 手柄：导航 / 确认启动 / 切换平台 / 菜单 / 全屏
   const gamepadConnected = useGamepad((action) => {
@@ -314,11 +318,14 @@ export function LibraryPage({
     setSelected(g);
     setLaunchMsg(null);
     setProgress(null);
+    launchingRef.current = true;
     setLaunching(true);
     try {
       await launchGame(g, provider!, source!, (s) => setLaunchMsg({ ok: true, text: s }));
+      launchingRef.current = false;
       await getCurrentWindow().close();
     } catch (e) {
+      launchingRef.current = false;
       setLaunching(false);
       setProgress(null);
       setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
