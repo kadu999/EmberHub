@@ -45,4 +45,8 @@ contextBridge.exposeInMainWorld("emberhub", {
   proc: {
     launch: (exe, args, workdir) => ipcRenderer.invoke("proc:launch", { exe, args, workdir }),
   },
+
+  shell: {
+    openPath: (path) => ipcRenderer.invoke("shell:open-path", path),
+  },
 });

@@ -37,6 +37,10 @@ declare global {
     launch(exe: string, args: string[], workdir?: string): Promise<number>;
   }
 
+  interface EmberHubShellBridge {
+    openPath(path: string): Promise<string>;
+  }
+
   interface EmberHubBridge {
     runtime: "electron";
     hostOs(): Promise<string>;
@@ -44,6 +48,7 @@ declare global {
     dav: EmberHubDavBridge;
     fs: EmberHubFsBridge;
     proc: EmberHubProcBridge;
+    shell: EmberHubShellBridge;
   }
 
   interface Window {

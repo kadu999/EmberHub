@@ -1,12 +1,13 @@
 // Electron 主进程（Windows 壳）。
 // 只做壳该做的事：建窗口、加载前端、暴露窗口/文件/网盘能力给渲染进程。
 // 业务逻辑都在前端（src/domain 等），这里不掺和。
-const { app, BrowserWindow, ipcMain, protocol } = require("electron");
+const { app, BrowserWindow, ipcMain, protocol, shell } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { spawn } = require("node:child_process");
 const { registerFs, setDefaultDownloadDir } = require("./fs.cjs");
 const { registerDav } = require("./dav.cjs");
+const { initLog } = require("./log.cjs");
 
 // 本地媒体（封面/视频）用一个自定义协议暴露给渲染进程（等价 1.0 的 asset protocol）。
 // 必须在 app ready 之前声明 scheme 特权。
@@ -138,6 +139,15 @@ async function runSmoke() {
         );
         const parsed = JSON.parse(manifest);
         console.log("[smoke] manifest platforms:", (parsed.platforms || []).join(", "));
+
+        // 故意触发一次失败读取，用于验证错误落盘
+        try {
+          await win.webContents.executeJavaScript(
+            `window.emberhub.dav.readText(${JSON.stringify(auth)}, "no-such-file-emberhub.json")`,
+          );
+        } catch {
+          console.log("[smoke] (expected) failing read triggered");
+        }
 
         const gamesJson = await win.webContents.executeJavaScript(
           `window.emberhub.dav.readText(${JSON.stringify(auth)}, "Roms/GBA/games.json")`,
@@ -335,6 +345,7 @@ ipcMain.handle("window:is-fullscreen", () =>
 
 // —— 应用信息 / 文件 / WebDAV / 进程 ——
 ipcMain.handle("app:host-os", () => hostOs());
+ipcMain.handle("shell:open-path", (_e, p) => shell.openPath(p));
 registerFs(ipcMain);
 registerDav(ipcMain, broadcastDownload);
 
@@ -356,6 +367,7 @@ app.whenReady().then(() => {
   const downloadDir = path.join(base, "downloads");
   fs.mkdirSync(downloadDir, { recursive: true });
   setDefaultDownloadDir(downloadDir);
+  initLog(path.join(downloadDir, "logs"));
 
   // emberhub-media://local/<url-encoded 绝对路径> → 本地文件
   protocol.handle("emberhub-media", async (request) => {

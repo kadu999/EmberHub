@@ -5,6 +5,7 @@ const https = require("node:https");
 const fs = require("node:fs");
 const nodePath = require("node:path");
 const { URL } = require("node:url");
+const { logError } = require("./log.cjs");
 
 /** 把根地址与相对路径拼成完整 URL（逐段编码）。 */
 function joinUrl(root, relPath) {
@@ -267,9 +268,27 @@ function davDownload({ root, username, password, path: relPath, dest }, onProgre
  * @param onProgress (dest, downloaded, total) => void
  */
 function registerDav(ipcMain, onProgress) {
-  ipcMain.handle("dav:list", (_e, args) => davList(args));
-  ipcMain.handle("dav:readText", (_e, args) => davReadText(args));
-  ipcMain.handle("dav:download", (_e, args) => davDownload(args, onProgress));
+  ipcMain.handle("dav:list", (_e, args) =>
+    davList(args).catch((err) => {
+      logError("dav.list", `${args.path || "/"}: ${err && err.message ? err.message : err}`);
+      throw err;
+    }),
+  );
+  ipcMain.handle("dav:readText", (_e, args) =>
+    davReadText(args).catch((err) => {
+      logError("dav.readText", `${args.path}: ${err && err.message ? err.message : err}`);
+      throw err;
+    }),
+  );
+  ipcMain.handle("dav:download", (_e, args) =>
+    davDownload(args, onProgress).catch((err) => {
+      logError(
+        "dav.download",
+        `${args.path} -> ${args.dest}: ${err && err.message ? err.message : err}`,
+      );
+      throw err;
+    }),
+  );
 }
 
 module.exports = { registerDav };

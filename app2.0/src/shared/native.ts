@@ -63,6 +63,12 @@ export const native = {
       bridge ? bridge.proc.launch(exe, args, workdir) : unavailable("启动进程"),
   },
 
+  // ---- 系统（打开文件夹等） ----
+  shell: {
+    openPath: (path: string): Promise<string> =>
+      bridge ? bridge.shell.openPath(path) : Promise.resolve(""),
+  },
+
   // ---- 媒体（本地文件 → 可被 <img>/<video> 加载的 URL） ----
   media: {
     url: (path: string): string => {

@@ -49,6 +49,11 @@ export function CachePage({ source, onClose }: Props) {
         next[it.key] = null;
       }
     }
+    try {
+      next.__log = await native.fs.pathSize(joinPath(baseDir, "logs", "emberhub.log"));
+    } catch {
+      next.__log = null;
+    }
     setSizes(next);
   }
 
@@ -82,6 +87,16 @@ export function CachePage({ source, onClose }: Props) {
       setMessage({ ok: false, text: `清理失败：${String(e)}` });
     } finally {
       setClearingKey(null);
+    }
+  }
+
+  async function clearLog() {
+    try {
+      await native.fs.writeTextFile(joinPath(baseDir, "logs", "emberhub.log"), "");
+      await refreshSizes();
+      setMessage({ ok: true, text: "已清空运行日志" });
+    } catch (e) {
+      setMessage({ ok: false, text: `清空失败：${String(e)}` });
     }
   }
 
@@ -144,6 +159,25 @@ export function CachePage({ source, onClose }: Props) {
       <p className="hint">
         「清理全部缓存」只清 <code>.cache/</code>（游戏库/媒体/模拟器包），不动已下载的 Roms 与已安装模拟器。
       </p>
+
+      <div className="card">
+        <h3>运行日志</h3>
+        <p className="hint">
+          下载 / 读取失败会写到这里：
+          <code>{joinPath(baseDir, "logs", "emberhub.log")}</code>（{formatSize(sizes.__log)}）
+        </p>
+        <div className="actions">
+          <button
+            className="ghost small"
+            onClick={() => void native.shell.openPath(joinPath(baseDir, "logs"))}
+          >
+            打开日志文件夹
+          </button>
+          <button className="ghost small" onClick={() => void clearLog()}>
+            清空日志
+          </button>
+        </div>
+      </div>
 
       {message && <p className={message.ok ? "ok" : "error"}>{message.text}</p>}
     </div>
