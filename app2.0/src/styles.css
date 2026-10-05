@@ -522,3 +522,16 @@ code {
   display: flex;
   gap: 6px;
 }
+
+.gamepad-hint {
+  position: fixed;
+  left: 12px;
+  bottom: 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: rgba(20, 16, 14, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px 8px;
+  z-index: 5;
+}

@@ -13,6 +13,32 @@ import { EmulatorsPage } from "./features/emulators/EmulatorsPage";
 import { APP_CONFIG } from "./config/config";
 import { native } from "./shared/native";
 import { basename } from "./shared/path";
+import { useGamepad } from "./shared/useGamepad";
+
+/** 某个容器内可聚焦的元素（手柄导航用）。 */
+function focusablesIn(selector: string): HTMLElement[] {
+  const root = document.querySelector(selector);
+  if (!root) return [];
+  return Array.from(
+    root.querySelectorAll<HTMLElement>("button, input, select, textarea, [tabindex]"),
+  ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+}
+
+function moveFocus(selector: string, delta: number) {
+  const els = focusablesIn(selector);
+  if (els.length === 0) return;
+  const cur = document.activeElement as HTMLElement | null;
+  const i = cur ? els.indexOf(cur) : -1;
+  const next = i < 0 ? (delta > 0 ? 0 : els.length - 1) : (i + delta + els.length) % els.length;
+  els[next]?.focus();
+}
+
+function activateFocused() {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return;
+  if (el instanceof HTMLButtonElement) el.click();
+  else el.focus();
+}
 
 const LS_KEY = "emberhub2.source";
 const LS_FULL = "emberhub2.fullscreen";
@@ -237,6 +263,58 @@ export function App() {
     return () => clearTimeout(t);
   }, [filtered]);
 
+  /** 手柄方向键：在当前平台内移动选中项 */
+  function navigate(dir: "up" | "down" | "left" | "right") {
+    if (filtered.length === 0) return;
+    const cur = selected ? filtered.findIndex((g) => g.id === selected.id) : -1;
+    const base = cur < 0 ? 0 : cur;
+    const cols = Math.max(1, gridRef.current?.cols() ?? 1);
+    const delta = dir === "left" ? -1 : dir === "right" ? 1 : dir === "up" ? -cols : cols;
+    const next = base + delta;
+    if (next < 0 || next >= filtered.length) return;
+    const g = filtered[next];
+    if (g) {
+      selectGame(g);
+      gridRef.current?.scrollToIndex(next);
+    }
+  }
+
+  /** 手柄 LB/RB：切换平台并选中第一个 */
+  function switchPlatform(delta: number) {
+    if (collections.length === 0) return;
+    const i = collections.indexOf(collection);
+    const next = (i + delta + collections.length) % collections.length;
+    const c = collections[next];
+    setCollection(c);
+    const first = games.find((g) => g.collection === c);
+    if (first) selectGame(first);
+  }
+
+  // 手柄：导航 / 确认启动 / 切换平台 / 菜单 / 全屏
+  const gamepadConnected = useGamepad((action) => {
+    if (action === "fullscreen") {
+      void setFullscreen().then(applyFull);
+      return;
+    }
+    if (showSettings || showEmulators) {
+      if (action === "menu" || action === "back") {
+        setShowSettings(false);
+        setShowEmulators(false);
+      } else if (action === "up") moveFocus(".settings-panel", -1);
+      else if (action === "down") moveFocus(".settings-panel", 1);
+      else if (action === "confirm") activateFocused();
+      return;
+    }
+    if (action === "menu") setShowSettings(true);
+    else if (action === "prev") switchPlatform(-1);
+    else if (action === "next") switchPlatform(1);
+    else if (action === "confirm") {
+      if (selected) void launch(selected);
+    } else if (action === "up" || action === "down" || action === "left" || action === "right") {
+      navigate(action);
+    }
+  });
+
   // 测试钩子：供打包/冒烟脚本调用
   const srcRef = useRef(src);
   srcRef.current = src;
@@ -455,6 +533,8 @@ export function App() {
           </main>
         </div>
       )}
+
+      {gamepadConnected && <div className="gamepad-hint">🎮 手柄已连接</div>}
 
       {showLaunchPanel && (
         <div
