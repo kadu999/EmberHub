@@ -248,7 +248,7 @@ async function runSmoke() {
           await win.webContents.executeJavaScript(`window.__emberhub2.openSettings()`);
           await new Promise((r) => setTimeout(r, 400));
           const settings = await win.webContents.executeJavaScript(
-            `JSON.stringify({ panels: document.querySelectorAll(".settings-panel").length, settings: document.querySelectorAll(".settings-panel .settings").length, fields: document.querySelectorAll(".settings-panel .field").length })`,
+            `JSON.stringify({ panels: document.querySelectorAll(".settings-panel").length, settings: document.querySelectorAll(".settings-panel .settings").length, fields: document.querySelectorAll(".settings-panel .field").length, cacheItems: document.querySelectorAll(".cache-list li").length })`,
           );
           console.log("[list] settings overlay:", settings);
           await win.webContents.executeJavaScript(`window.__emberhub2.openEmulators()`);

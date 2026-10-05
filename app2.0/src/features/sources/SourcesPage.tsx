@@ -1,9 +1,9 @@
-// 设置页：OpenList 资源源配置 + 下载目录 + 媒体缓存。
+// 设置页：OpenList 资源源配置 + 下载目录 + 缓存清理（测试用）。
 import { useEffect, useState } from "react";
 import { createProvider } from "../../storage";
 import { APP_CONFIG } from "../../config/config";
 import { native } from "../../shared/native";
-import { mediaCacheRoot } from "../../domain/ensure";
+import { joinPath } from "../../shared/path";
 import type { SourceConfig } from "../../storage/types";
 
 const DEFAULT_SERVER = APP_CONFIG.openlist.server;
@@ -17,8 +17,17 @@ interface Mount {
   name: string;
 }
 
-function formatSize(n: number | null): string {
-  if (n === null) return "—";
+/** 可清理的缓存/数据项（相对下载目录）。 */
+const CACHE_ITEMS = [
+  { key: "library", label: "游戏库缓存", desc: "manifest + 各平台 games.json", dir: ".cache/library", isCache: true },
+  { key: "media", label: "媒体缓存", desc: "封面 / 视频预览", dir: ".cache/media", isCache: true },
+  { key: "emuCache", label: "模拟器压缩包缓存", desc: "下载的模拟器 zip", dir: ".cache/Emulators", isCache: true },
+  { key: "roms", label: "已下载游戏", desc: "Roms/", dir: "Roms", isCache: false },
+  { key: "emulators", label: "已安装模拟器", desc: "Emulators/", dir: "Emulators", isCache: false },
+] as const;
+
+function formatSize(n: number | null | undefined): string {
+  if (n == null) return "—";
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(1)} MB`;
@@ -55,32 +64,55 @@ export function SourcesPage({ source, onSave, onClose }: Props) {
   const [emulatorsPath, setEmulatorsPath] = useState(source.emulatorsPath ?? DEFAULT_EMULATORS);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
-  const [cacheSize, setCacheSize] = useState<number | null>(null);
-  const [clearing, setClearing] = useState(false);
 
-  async function refreshCacheSize() {
-    try {
-      setCacheSize(await native.fs.pathSize(await mediaCacheRoot()));
-    } catch {
-      setCacheSize(null);
+  const [sizes, setSizes] = useState<Record<string, number | null>>({});
+  const [clearingKey, setClearingKey] = useState<string | null>(null);
+
+  const baseDir = (downloadDir.trim() || defaultDir).replace(/\\/g, "/");
+
+  async function refreshSizes() {
+    if (!baseDir) return;
+    const next: Record<string, number | null> = {};
+    for (const it of CACHE_ITEMS) {
+      try {
+        next[it.key] = await native.fs.pathSize(joinPath(baseDir, it.dir));
+      } catch {
+        next[it.key] = null;
+      }
     }
+    setSizes(next);
   }
 
   useEffect(() => {
-    void refreshCacheSize();
+    void refreshSizes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [downloadDir]);
+  }, [baseDir]);
 
-  async function clearMediaCache() {
-    setClearing(true);
+  async function clearDir(it: (typeof CACHE_ITEMS)[number]) {
+    setClearingKey(it.key);
     try {
-      await native.fs.removePath(await mediaCacheRoot());
-      await refreshCacheSize();
-      setMessage({ ok: true, text: "媒体缓存已清理" });
+      await native.fs.removePath(joinPath(baseDir, it.dir));
+      await refreshSizes();
+      setMessage({ ok: true, text: `已清理：${it.label}` });
     } catch (e) {
       setMessage({ ok: false, text: `清理失败：${String(e)}` });
     } finally {
-      setClearing(false);
+      setClearingKey(null);
+    }
+  }
+
+  async function clearAllCaches() {
+    setClearingKey("__all__");
+    try {
+      for (const it of CACHE_ITEMS.filter((x) => x.isCache)) {
+        await native.fs.removePath(joinPath(baseDir, it.dir));
+      }
+      await refreshSizes();
+      setMessage({ ok: true, text: "已清理全部缓存" });
+    } catch (e) {
+      setMessage({ ok: false, text: `清理失败：${String(e)}` });
+    } finally {
+      setClearingKey(null);
     }
   }
 
@@ -171,8 +203,8 @@ export function SourcesPage({ source, onSave, onClose }: Props) {
       <div className="card">
         <h3>下载目录</h3>
         <p className="hint">
-          ROM 与模拟器的存放位置（其下自动创建 <code>Roms/</code> 与 <code>Emulators/</code>
-          ）。留空则使用默认目录。
+          ROM / 模拟器 / 缓存的存放位置（其下自动创建 <code>Roms/</code>、<code>Emulators/</code>、
+          <code>.cache/</code>）。留空则使用默认目录。
         </p>
         <div className="field">
           <label>下载目录</label>
@@ -186,26 +218,44 @@ export function SourcesPage({ source, onSave, onClose }: Props) {
           <button className="ghost small" onClick={() => setDownloadDir("")}>
             重置为默认
           </button>
+          <button className="ghost small" onClick={() => void refreshSizes()}>
+            刷新占用
+          </button>
         </div>
         <p className="hint">
-          当前默认：<code>{defaultDir || "—"}</code>
+          当前基准：<code>{baseDir || "—"}</code>
         </p>
       </div>
 
       <div className="card">
-        <h3>媒体缓存</h3>
-        <p className="hint">
-          看过的封面/视频会缓存到本地，下次直接读取。当前占用：
-          <code>{formatSize(cacheSize)}</code>
-        </p>
+        <h3>缓存与数据（清理后可用于测试）</h3>
+        <ul className="cache-list">
+          {CACHE_ITEMS.map((it) => (
+            <li key={it.key}>
+              <div className="cache-info">
+                <span className="cache-name">{it.label}</span>
+                <span className="cache-meta">
+                  {it.desc} · <code>{it.dir}</code> · {formatSize(sizes[it.key])}
+                </span>
+              </div>
+              <button
+                className="ghost small"
+                disabled={clearingKey !== null}
+                onClick={() => void clearDir(it)}
+              >
+                {clearingKey === it.key ? "清理中…" : "清理"}
+              </button>
+            </li>
+          ))}
+        </ul>
         <div className="actions">
-          <button className="ghost small" onClick={() => void refreshCacheSize()}>
-            刷新
-          </button>
-          <button className="ghost small" disabled={clearing} onClick={() => void clearMediaCache()}>
-            {clearing ? "清理中…" : "清理媒体缓存"}
+          <button className="ghost small" disabled={clearingKey !== null} onClick={() => void clearAllCaches()}>
+            {clearingKey === "__all__" ? "清理中…" : "清理全部缓存"}
           </button>
         </div>
+        <p className="hint">
+          「清理全部缓存」只清 <code>.cache/</code>（游戏库/媒体/模拟器包），不动已下载的 Roms 与已安装模拟器。
+        </p>
       </div>
 
       <div className="card">
