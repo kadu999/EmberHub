@@ -18,12 +18,14 @@ pub fn android_launch_app(
     package: String,
     path: Option<String>,
     mime: Option<String>,
+    component: Option<String>,
+    extras: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(), String> {
     if package.trim().is_empty() {
         return Err("缺少目标模拟器包名。".to_string());
     }
     app.android_intent()
-        .launch(&package, path.as_deref(), mime.as_deref())
+        .launch(&package, path.as_deref(), mime.as_deref(), component.as_deref(), extras)
 }
 
 /// 用系统安装器安装本地 APK（App 私有目录里的 APK 由 FileProvider 暴露为 content://）。

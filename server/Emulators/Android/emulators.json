@@ -14,7 +14,20 @@
       "platform": "RetroArch",
       "exe": "com.retroarch",
       "package": "com.retroarch",
-      "apk": "RetroArch.apk"
+      "apk": "RetroArch.apk",
+      "activity": "com.retroarch/.browser.retroactivity.RetroActivityFuture",
+      "extras": {
+        "ROM": "{file.path}"
+      },
+      "platformExtras": {
+        "GBA": { "LIBRETRO": "mgba_libretro_android" },
+        "GBA hack": { "LIBRETRO": "mgba_libretro_android" },
+        "GBA vib": { "LIBRETRO": "mgba_libretro_android" },
+        "NDS": { "LIBRETRO": "melondsds_libretro_android" },
+        "PS1": { "LIBRETRO": "swanstation_libretro_android" },
+        "DC": { "LIBRETRO": "flycast_libretro_android" },
+        "SS": { "LIBRETRO": "yabasanshiro_libretro_android" }
+      }
     },
     "AetherSX2": {
       "platform": "AetherSX2",

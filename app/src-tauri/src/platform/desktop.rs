@@ -89,6 +89,8 @@ pub fn android_launch_app(
     _package: String,
     _path: Option<String>,
     _mime: Option<String>,
+    _component: Option<String>,
+    _extras: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(), String> {
     Err("Android Intent 仅在 Android 平台可用。".to_string())
 }

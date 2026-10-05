@@ -23,6 +23,10 @@ pub struct LaunchPayload {
     pub path: Option<String>,
     pub mime: Option<String>,
     pub action: Option<String>,
+    /// 显式 Intent 的目标组件（如 com.retroarch/.browser.retroactivity.RetroActivityFuture）
+    pub component: Option<String>,
+    /// 显式 Intent 的 string extras
+    pub extras: Option<std::collections::HashMap<String, String>>,
 }
 
 /// 传给 Kotlin `install` 命令的参数（本地 APK 路径）。
@@ -54,6 +58,8 @@ impl<R: Runtime> AndroidIntent<R> {
         package: &str,
         path: Option<&str>,
         mime: Option<&str>,
+        component: Option<&str>,
+        extras: Option<std::collections::HashMap<String, String>>,
     ) -> Result<(), String> {
         self.handle
             .run_mobile_plugin::<()>(
@@ -63,6 +69,8 @@ impl<R: Runtime> AndroidIntent<R> {
                     path: path.map(|s| s.to_string()),
                     mime: mime.map(|s| s.to_string()),
                     action: None,
+                    component: component.map(|s| s.to_string()),
+                    extras,
                 },
             )
             .map_err(|e| e.to_string())
@@ -74,6 +82,8 @@ impl<R: Runtime> AndroidIntent<R> {
         _package: &str,
         _path: Option<&str>,
         _mime: Option<&str>,
+        _component: Option<&str>,
+        _extras: Option<std::collections::HashMap<String, String>>,
     ) -> Result<(), String> {
         Err("Android Intent 仅在 Android 平台可用。".to_string())
     }

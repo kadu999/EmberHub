@@ -8,7 +8,6 @@ use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use tauri::{Emitter, Manager};
-use tauri_plugin_android_intent::AndroidIntentExt;
 use tokio::io::AsyncWriteExt;
 use url::Url;
 
@@ -120,8 +119,9 @@ fn launch_emulator(
     platform::launch_emulator(exe_path, args, workdir)
 }
 
-/// Android：把本地 ROM 通过 FileProvider 以 content:// 交给目标模拟器 App。
-/// `package` 为目标 App 包名；`path` 为空表示只打开 App（进模拟器设置）。
+/// Android：把本地 ROM 通过 FileProvider 以 content:// 交给目标模拟器 App，
+/// 或用显式组件 + extras 启动（如 RetroArch 的 RetroActivityFuture）。
+/// `path` 为空且无 component 表示只打开 App（进模拟器设置）。
 /// 桌面端返回「仅 Android 可用」错误（正常不会调用到）。
 #[tauri::command]
 fn android_launch_app(
@@ -129,8 +129,10 @@ fn android_launch_app(
     package: String,
     path: Option<String>,
     mime: Option<String>,
+    component: Option<String>,
+    extras: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(), String> {
-    platform::android_launch_app(&app, package, path, mime)
+    platform::android_launch_app(&app, package, path, mime, component, extras)
 }
 
 /// Android：用系统安装器安装本地 APK（会弹安装确认）。
@@ -421,12 +423,6 @@ fn default_download_dir(app: tauri::AppHandle) -> Result<String, String> {
                 if is_writable(dir) {
                     return Ok(dir.to_string_lossy().to_string());
                 }
-            }
-        }
-        // Android：优先用可移除外置存储（SD 卡）上的 App 私有目录（读写无需权限）
-        if let Ok(Some(dir)) = app.android_intent().external_files_dir() {
-            if is_writable(std::path::Path::new(&dir)) {
-                return Ok(dir);
             }
         }
         app.path()

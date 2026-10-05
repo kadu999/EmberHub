@@ -62,8 +62,14 @@ export const tauri = {
     invoke<number>("launch_emulator", { exePath, args, workdir }),
 
   /** Android：用 Intent + FileProvider 启动目标 App，并把 ROM 以 content:// 传入（path 为空则只打开 App） */
-  androidLaunchApp: (pkg: string, path?: string, mime?: string) =>
-    invoke<void>("android_launch_app", { package: pkg, path, mime }),
+  androidLaunchApp: (
+    pkg: string,
+    path?: string,
+    mime?: string,
+    component?: string,
+    extras?: Record<string, string>,
+  ) =>
+    invoke<void>("android_launch_app", { package: pkg, path, mime, component, extras }),
 
   /** Android：用系统安装器安装本地 APK（会弹安装确认） */
   installApk: (path: string) => invoke<void>("android_install_apk", { path }),

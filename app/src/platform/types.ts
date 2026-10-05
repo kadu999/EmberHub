@@ -10,6 +10,10 @@ export interface LaunchOptions {
   romPath?: string;
   /** Android：交给 Intent 的 MIME 类型（缺省按扩展名推断） */
   mime?: string;
+  /** Android：显式 Intent 的目标组件（如 com.retroarch/.browser.retroactivity.RetroActivityFuture） */
+  component?: string;
+  /** Android：显式 Intent 的 string extras */
+  extras?: Record<string, string>;
 }
 
 export interface Platform {

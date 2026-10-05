@@ -1,6 +1,7 @@
 package com.kadu.emberhub.intent
 
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Environment
@@ -22,6 +23,10 @@ class LaunchArgs {
     var path: String? = null
     var mime: String? = null
     var action: String? = null
+    /** 显式 Intent 的目标组件（如 com.retroarch/.browser.retroactivity.RetroActivityFuture） */
+    var component: String? = null
+    /** 显式 Intent 的 string extras（如 ROM / LIBRETRO / CONFIGFILE） */
+    var extras: Map<String, String>? = null
 }
 
 /** Rust 侧 `run_mobile_plugin("install", ...)` 的参数。 */
@@ -42,10 +47,21 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
         try {
             val args = invoke.parseArgs(LaunchArgs::class.java)
             val pkg = args.packageName?.takeIf { it.isNotEmpty() }
+            val component = args.component?.takeIf { it.isNotEmpty() }
 
             val intent: Intent
             val path = args.path
-            if (!path.isNullOrEmpty()) {
+            if (component != null) {
+                // 显式 Intent：直接指定目标组件（如 RetroArch 的 RetroActivityFuture），
+                // ROM / 核心等参数由 extras 传入。
+                val cn = ComponentName.unflattenFromString(component)
+                if (cn == null) {
+                    invoke.reject("component 格式不正确：$component")
+                    return
+                }
+                intent = Intent(args.action ?: Intent.ACTION_MAIN)
+                intent.component = cn
+            } else if (!path.isNullOrEmpty()) {
                 val file = File(path)
                 if (!file.exists()) {
                     invoke.reject("要交给模拟器的文件不存在：$path")
@@ -71,8 +87,11 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
                     }
             }
 
-            // 指定目标 App（可空：交由系统按 MIME 选择）
-            pkg?.let { intent.setPackage(it) }
+            // 显式组件时不再覆盖 package；否则指定目标 App（可空：交由系统按 MIME 选择）
+            if (component == null) {
+                pkg?.let { intent.setPackage(it) }
+            }
+            args.extras?.forEach { (k, v) -> intent.putExtra(k, v) }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             activity.applicationContext.startActivity(intent)
             invoke.resolve()

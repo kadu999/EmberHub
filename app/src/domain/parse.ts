@@ -37,6 +37,17 @@ function strMap(v: unknown): Record<string, string> | undefined {
   return out;
 }
 
+/** 解析 { 键: { 键: 字符串 } } 形式（跳过非法项）。 */
+function strMapMap(v: unknown): Record<string, Record<string, string>> | undefined {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    const m = strMap(val);
+    if (m) out[k] = m;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** 解析媒体文件名 / 扩展名约定。 */
 function parsePickSpec(v: unknown): MediaPickSpec | undefined {
   const o = asOptionalObject(v);
@@ -186,6 +197,9 @@ function emulatorConfigFrom(o: Record<string, unknown>, fallbackPlatform: string
     package: str(o.package),
     mime: str(o.mime),
     apk: str(o.apk),
+    activity: str(o.activity),
+    extras: strMap(o.extras),
+    platformExtras: strMapMap(o.platformExtras),
   };
 }
 

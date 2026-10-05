@@ -35,7 +35,13 @@ export const androidPlatform: Platform = {
     const pkg = (opts?.package ?? exePath).trim();
     if (!pkg) throw new Error("未配置 Android 模拟器包名。");
     const rom = opts?.romPath;
-    await tauri.androidLaunchApp(pkg, rom, rom ? mimeFor(rom, opts?.mime) : opts?.mime);
+    await tauri.androidLaunchApp(
+      pkg,
+      rom,
+      rom ? mimeFor(rom, opts?.mime) : opts?.mime,
+      opts?.component,
+      opts?.extras,
+    );
     return 0;
   },
 };

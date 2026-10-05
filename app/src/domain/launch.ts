@@ -6,6 +6,7 @@ import { platform } from "../platform";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
 import { ensureEmulator, ensureRom, getDownloadDir } from "./ensure";
+import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
 
 /** 按引号规则把命令行切分为 token（去掉引号）。 */
@@ -103,6 +104,26 @@ export async function buildLaunchPlan(
   return { exe: raw, args, workdir: undefined };
 }
 
+/**
+ * 汇总 Android 显式 Intent 的 extras：先 `extras`，再用 `platformExtras[平台]` 覆盖，
+ * 最后替换占位符（{file.path} / {platform} / {title} 等）。无 `activity` 时返回 undefined。
+ */
+function buildIntentExtras(
+  config: EmulatorConfig,
+  game: Game,
+  romAbs: string,
+): Record<string, string> | undefined {
+  if (!config.activity) return undefined;
+  const merged = {
+    ...(config.extras ?? {}),
+    ...(config.platformExtras?.[game.collection] ?? {}),
+  };
+  const vars: LaunchVars = { platform: game.collection, title: game.title };
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(merged)) out[k] = substitute(v, romAbs, vars);
+  return out;
+}
+
 /** 启动游戏：先确保 ROM 在本地，再按 Roms 优先 / Emulators 配置拉起模拟器。 */
 export async function launchGame(
   game: Game,
@@ -145,6 +166,9 @@ export async function launchGame(
       package: pkg,
       romPath: romAbs,
       mime: config.mime,
+      // 有 activity 时走「显式 Intent + extras」（如 RetroArch 的 RetroActivityFuture）
+      component: config.activity,
+      extras: buildIntentExtras(config, game, romAbs),
     });
     return;
   }

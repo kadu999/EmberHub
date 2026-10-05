@@ -121,6 +121,12 @@ export interface EmulatorConfig {
   mime?: string;
   /** Android：网盘上的 APK 文件名（相对 Emulators/<OS>/）；配置后可在模拟器页「下载并安装」 */
   apk?: string;
+  /** Android：显式 Intent 的目标组件，如 com.retroarch/.browser.retroactivity.RetroActivityFuture */
+  activity?: string;
+  /** Android：显式 Intent 的 string extras（值支持 {file.path} 等占位符） */
+  extras?: Record<string, string>;
+  /** Android：按 Roms 平台覆盖 extras（合并到 extras 之上，键为 Roms 平台名） */
+  platformExtras?: Record<string, Record<string, string>>;
 }
 
 /** Emulators/platforms.json：Roms 平台文件夹 → Emulators 平台文件夹 */
