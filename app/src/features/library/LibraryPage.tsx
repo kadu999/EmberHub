@@ -12,7 +12,7 @@ import { scanLibrary, type Game, type ScanResult } from "../../domain/scan";
 import { Cover } from "../../components/Cover";
 import { VirtualGrid, type VirtualGridHandle } from "../../components/VirtualGrid";
 import { launchGame } from "../../domain/launch";
-import { ensureLocalMedia } from "../../domain/ensure";
+import { ensureLocalMedia, warmEmulatorConfig } from "../../domain/ensure";
 import { listDownloadedGames } from "../../domain/local";
 import { listMediaNames } from "../../domain/media-cache";
 import { joinPath } from "../../shared/path";
@@ -123,6 +123,8 @@ export function LibraryPage({
     try {
       const r = await scanLibrary(provider, scanRoot);
       setResult(r);
+      // 预热模拟器配置缓存：让「模拟器」页之后打开时完全离线
+      if (source) void warmEmulatorConfig(provider, source).catch(() => undefined);
       // 恢复上次选中的游戏/平台；找不到则回退到该平台第一个或全局第一个
       const { lastGameId, lastCollection } = useStore.getState();
       const remembered = lastGameId ? r.games.find((g) => g.id === lastGameId) : undefined;

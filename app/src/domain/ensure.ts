@@ -100,6 +100,23 @@ async function loadEmulators(
   return file;
 }
 
+/**
+ * 预热模拟器配置缓存（连接/扫描时调用一次）：
+ * 让「模拟器」页之后打开时完全读本地缓存、不联网。
+ */
+export async function warmEmulatorConfig(
+  provider: StorageProvider,
+  source: SourceConfig,
+): Promise<void> {
+  try {
+    const cfg = await loadResourceConfig(provider);
+    const osRoot = await emulatorOsRoot(source, cfg);
+    await provider.readText(joinPath(osRoot, cfg.files.emulators));
+  } catch {
+    /* 忽略：模拟器页仍会按需自行获取 */
+  }
+}
+
 /** 本地模拟器安装目录 + 版本戳路径。 */
 async function emulatorLocal(source: SourceConfig, platform: string, cfg: ResourceConfig) {
   const dl = await getDownloadDir(source);
