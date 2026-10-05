@@ -15,6 +15,9 @@
 # 构建日志（如 Android 构建输出重定向的 error.log）
 *.log
 
+# Gradle/Kotlin 构建缓存
+.kotlin/
+
 # Tauri 移动端 dev 生成的辅助程序
 /updater-server.exe
 /updater-server/
