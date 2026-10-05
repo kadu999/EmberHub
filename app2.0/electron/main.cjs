@@ -264,6 +264,13 @@ async function runSmoke() {
             `JSON.stringify({ panel: document.querySelectorAll(".menu-panel").length, buttons: [...document.querySelectorAll(".menu-panel button")].map((b) => b.textContent) })`,
           );
           console.log("[list] menu overlay:", menu);
+          await win.webContents.executeJavaScript(`window.__emberhub2.closeAll()`);
+          await win.webContents.executeJavaScript(`window.__emberhub2.openCache()`);
+          await new Promise((r) => setTimeout(r, 500));
+          const cache = await win.webContents.executeJavaScript(
+            `JSON.stringify({ title: document.querySelector(".settings-panel .settings-head h2") ? document.querySelector(".settings-panel .settings-head h2").textContent : null, items: document.querySelectorAll(".cache-list li").length })`,
+          );
+          console.log("[list] cache overlay:", cache);
           const lib = await win.webContents.executeJavaScript(`window.__emberhub2.list()`);
           console.log("[list] platforms:", lib.collections.join(", "));
           const byC = {};

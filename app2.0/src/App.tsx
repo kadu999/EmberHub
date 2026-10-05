@@ -12,6 +12,7 @@ import { Cover } from "./components/Cover";
 import { VirtualGrid, type VirtualGridHandle } from "./components/VirtualGrid";
 import { SourcesPage } from "./features/sources/SourcesPage";
 import { EmulatorsPage } from "./features/emulators/EmulatorsPage";
+import { CachePage } from "./features/cache/CachePage";
 import { APP_CONFIG } from "./config/config";
 import { native } from "./shared/native";
 import { basename, joinPath } from "./shared/path";
@@ -81,6 +82,7 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showEmulators, setShowEmulators] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showCache, setShowCache] = useState(false);
   const [provider, setProvider] = useState<StorageProvider | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -140,13 +142,14 @@ export function App() {
         e.preventDefault();
         if (showSettings) setShowSettings(false);
         else if (showEmulators) setShowEmulators(false);
+        else if (showCache) setShowCache(false);
         else setShowMenu((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showSettings, showEmulators]);
+  }, [showSettings, showEmulators, showCache]);
 
   // 启动时若已配置资源源，自动扫描（对齐 1.0）
   useEffect(() => {
@@ -395,10 +398,12 @@ export function App() {
       openSettings: () => setShowSettings(true),
       openEmulators: () => setShowEmulators(true),
       openMenu: () => setShowMenu(true),
+      openCache: () => setShowCache(true),
       closeAll: () => {
         setShowSettings(false);
         setShowEmulators(false);
         setShowMenu(false);
+        setShowCache(false);
       },
       prepare: async (platform: string) => {
         try {
@@ -467,7 +472,15 @@ export function App() {
         </div>
       )}
 
-      {showMenu && !showSettings && !showEmulators && (
+      {showCache && (
+        <div className="overlay" onClick={() => setShowCache(false)}>
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <CachePage source={src} onClose={() => setShowCache(false)} />
+          </div>
+        </div>
+      )}
+
+      {showMenu && !showSettings && !showEmulators && !showCache && (
         <div className="menu-overlay" onClick={() => setShowMenu(false)}>
           <div className="menu-panel" onClick={(e) => e.stopPropagation()}>
             <button
@@ -489,6 +502,14 @@ export function App() {
             </button>
             <button onClick={() => void setFullscreen().then(applyFull)}>
               {full ? "退出全屏" : "全屏"}
+            </button>
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                setShowCache(true);
+              }}
+            >
+              资源缓存
             </button>
             <button onClick={() => window.close()}>退出</button>
           </div>

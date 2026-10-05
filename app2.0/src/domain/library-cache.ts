@@ -57,7 +57,43 @@ class CachedProvider implements StorageProvider {
   }
 
   list(path: string): Promise<RemoteEntry[]> {
-    return this.base.list(path);
+    return this.cachedList(path);
+  }
+
+  private listCache(path: string) {
+    const name = path === "" ? "_root" : path.replace(/[\\/]+/g, "__");
+    return joinPath(this.cacheRoot, "lists", `${name}.json`);
+  }
+
+  /** 目录列表也缓存（version 未变 → 用缓存；变了 → 联网；失败回退缓存）。 */
+  private async cachedList(path: string): Promise<RemoteEntry[]> {
+    const cacheFile = this.listCache(path);
+    const unchanged = this.currentVersion !== null && this.currentVersion === this.storedVersion;
+    if (unchanged) {
+      const cached = await readIfExists(cacheFile);
+      if (cached !== undefined) {
+        try {
+          return JSON.parse(cached) as RemoteEntry[];
+        } catch {
+          /* 缓存损坏 → 重新拉 */
+        }
+      }
+    }
+    try {
+      const entries = await this.base.list(path);
+      await native.fs.writeTextFile(cacheFile, JSON.stringify(entries));
+      return entries;
+    } catch (e) {
+      const cached = await readIfExists(cacheFile);
+      if (cached !== undefined) {
+        try {
+          return JSON.parse(cached) as RemoteEntry[];
+        } catch {
+          /* ignore */
+        }
+      }
+      throw e;
+    }
   }
 
   readText(path: string): Promise<string> {
