@@ -51,10 +51,8 @@ h1 {
 h1 span {
   color: var(--muted);
 }
-
-.header-actions {
-  display: flex;
-  gap: 8px;
+.flame {
+  color: var(--ember);
 }
 
 .brand {
@@ -70,37 +68,13 @@ h1 span {
   white-space: nowrap;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .muted {
   color: var(--muted);
-}
-
-.panel {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.grid2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px 16px;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-input {
-  background: #1a1512;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  padding: 8px 10px;
-  font-size: 0.95rem;
 }
 
 .actions {
@@ -129,6 +103,15 @@ button.primary {
   font-weight: 600;
 }
 
+input {
+  background: #1a1512;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.95rem;
+}
+
 /* ---------- 库页：左详情 + 右网格 ---------- */
 .library-layout {
   flex: 1;
@@ -144,38 +127,43 @@ button.primary {
   flex-direction: column;
   min-height: 0;
   padding: 16px;
-  gap: 12px;
+  gap: 8px;
 }
 
 .detail-media {
+  flex: 0 0 auto;
   width: 100%;
 }
 
 .detail-media .cover {
+  display: block;
   width: 100%;
+  max-height: min(320px, 42vh);
   aspect-ratio: 3 / 4;
   object-fit: cover;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: #1a1512;
+  margin: 0;
 }
 .detail-media .cover.placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 2rem;
+  color: var(--muted);
 }
 
+/* 视频：宽度固定，高度随视频比例（object-fit 保证不拉伸） */
 .detail-media .preview-video {
+  display: block;
   width: 100%;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
+  max-height: min(320px, 42vh);
+  object-fit: contain;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: #000;
-}
-
-.flame {
-  color: var(--ember);
+  margin: 0;
 }
 
 .detail-scroll {
@@ -272,20 +260,18 @@ button.primary {
   padding-left: 18px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 14px;
-  overflow-y: auto;
-  padding-bottom: 30px;
-}
-
+/* ---------- 虚拟网格（卡片填满格子 → 大小一致） ---------- */
 .vgrid {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  position: relative;
+  overflow-x: hidden;
+  padding-right: 4px;
   padding-bottom: 30px;
+}
+.vgrid .game-card {
+  width: 100%;
+  height: 100%;
 }
 
 .game-card {
@@ -293,29 +279,22 @@ button.primary {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0;
-  border: 2px solid transparent;
   background: transparent;
-  border-radius: 12px;
-  text-align: left;
-}
-.game-card:hover {
-  border-color: var(--border);
-}
-.game-card.active {
-  border-color: var(--ember);
-}
-.game-card.unavailable {
-  opacity: 0.55;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
 }
 
-.game-card .cover {
+.cover {
   width: 100%;
   aspect-ratio: 3 / 4;
   object-fit: cover;
   border-radius: 10px;
-  border: 1px solid var(--border);
+  border: 2px solid transparent;
   background: #1a1512;
+  transition: opacity 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 .game-card .cover.placeholder {
   display: flex;
@@ -325,8 +304,31 @@ button.primary {
   color: var(--muted);
 }
 
+/* 未选中变暗，选中用高对比边框（与暖色背景区分） */
+.game-card:not(.active) .cover {
+  opacity: 0.55;
+}
+.game-card:hover .cover {
+  opacity: 1;
+  border-color: var(--ember-soft);
+  transform: translateY(-2px);
+}
+.game-card.active .cover {
+  opacity: 1;
+  border-color: var(--select);
+  border-width: 4px;
+}
+.game-card.unavailable .cover {
+  filter: grayscale(1);
+}
+.game-card.active .game-title {
+  color: var(--select);
+  font-weight: 700;
+}
+
 .game-title {
-  font-size: 0.82rem;
+  font-size: 13px;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -335,7 +337,7 @@ button.primary {
 .game-badge {
   position: absolute;
   top: 6px;
-  right: 6px;
+  left: 6px;
   font-size: 0.7rem;
   padding: 1px 6px;
   border-radius: 6px;
@@ -344,8 +346,10 @@ button.primary {
   color: var(--muted);
 }
 .game-badge.downloaded {
-  color: var(--select);
-  border-color: var(--select);
+  left: auto;
+  right: 6px;
+  color: #7fd18b;
+  border-color: #7fd18b;
 }
 
 /* ---------- 启动覆盖层 ---------- */
