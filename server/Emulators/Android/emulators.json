@@ -7,7 +7,7 @@
     "PS1": "RetroArch",
     "PS2": "AetherSX2",
     "DC": "RetroArch",
-    "SS": "RetroArch"
+    "SS": "YabaSanshiro2"
   },
   "emulators": {
     "RetroArch": {
@@ -20,6 +20,26 @@
       "exe": "xyz.aethersx2.android",
       "package": "xyz.aethersx2.android",
       "mime": "application/octet-stream"
+    },
+    "YabaSanshiro2": {
+      "platform": "YabaSanshiro2",
+      "exe": "org.devmiyax.yabasanshioro2",
+      "package": "org.devmiyax.yabasanshioro2"
+    },
+    "PPSSPP": {
+      "platform": "PPSSPP",
+      "exe": "org.ppsspp.ppsspp",
+      "package": "org.ppsspp.ppsspp"
+    },
+    "DuckStation": {
+      "platform": "DuckStation",
+      "exe": "com.github.stenzek.duckstation",
+      "package": "com.github.stenzek.duckstation"
+    },
+    "melonDS": {
+      "platform": "melonDS",
+      "exe": "me.magnum.melonds",
+      "package": "me.magnum.melonds"
     }
   }
 }
