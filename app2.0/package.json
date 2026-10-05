@@ -25,12 +25,21 @@
       "dist/**",
       "electron/**",
       "package.json",
-      "node_modules/7zip-bin/**"
+      "node_modules/7zip-bin/**",
+      "!node_modules/7zip-bin/mac/**",
+      "!node_modules/7zip-bin/linux/**",
+      "!node_modules/7zip-bin/win/ia32/**",
+      "!node_modules/7zip-bin/win/arm64/**"
     ],
     "asar": true,
     "asarUnpack": [
       "**/node_modules/7zip-bin/**"
     ],
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "compression": "maximum",
     "win": {
       "target": [
         "zip"
