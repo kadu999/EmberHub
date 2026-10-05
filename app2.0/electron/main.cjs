@@ -245,6 +245,18 @@ async function runSmoke() {
             `JSON.stringify({ title: document.querySelector(".detail-title") ? document.querySelector(".detail-title").textContent : null, cards: document.querySelectorAll(".game-card").length, chips: document.querySelectorAll(".chip").length })`,
           );
           console.log("[list] ui:", ui);
+          await win.webContents.executeJavaScript(`window.__emberhub2.openSettings()`);
+          await new Promise((r) => setTimeout(r, 400));
+          const settings = await win.webContents.executeJavaScript(
+            `JSON.stringify({ panels: document.querySelectorAll(".settings-panel").length, settings: document.querySelectorAll(".settings-panel .settings").length, fields: document.querySelectorAll(".settings-panel .field").length })`,
+          );
+          console.log("[list] settings overlay:", settings);
+          await win.webContents.executeJavaScript(`window.__emberhub2.openEmulators()`);
+          await new Promise((r) => setTimeout(r, 1500));
+          const emu = await win.webContents.executeJavaScript(
+            `JSON.stringify({ panels: document.querySelectorAll(".settings-panel").length, items: document.querySelectorAll(".emu-list li").length, names: [...document.querySelectorAll(".emu-name")].map((e) => e.textContent) })`,
+          );
+          console.log("[list] emulators overlay:", emu);
           const lib = await win.webContents.executeJavaScript(`window.__emberhub2.list()`);
           console.log("[list] platforms:", lib.collections.join(", "));
           const byC = {};

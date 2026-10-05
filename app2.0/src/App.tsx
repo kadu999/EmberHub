@@ -8,6 +8,8 @@ import { ensureEmulator, ensureRom } from "./domain/ensure";
 import { listDownloadedGames } from "./domain/local";
 import { Cover } from "./components/Cover";
 import { VirtualGrid } from "./components/VirtualGrid";
+import { SourcesPage } from "./features/sources/SourcesPage";
+import { EmulatorsPage } from "./features/emulators/EmulatorsPage";
 import { native } from "./shared/native";
 import { basename } from "./shared/path";
 
@@ -45,6 +47,7 @@ export function App() {
   const [full, setFull] = useState(isFullscreen());
   const [src, setSrc] = useState<SourceConfig>(loadSource);
   const [showSettings, setShowSettings] = useState(true);
+  const [showEmulators, setShowEmulators] = useState(false);
   const [provider, setProvider] = useState<StorageProvider | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -111,15 +114,15 @@ export function App() {
 
   const filtered = byCollection.get(collection) ?? [];
 
-  async function connect() {
+  async function connect(cfg: SourceConfig = src) {
     setStatus("连接中…");
     setWarnings([]);
     setScanning(true);
     setConnected(false);
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(src));
-      const p = createProvider(src);
-      const res = await scanLibrary(p, src.romsPath || "Roms");
+      localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+      const p = createProvider(cfg);
+      const res = await scanLibrary(p, cfg.romsPath || "Roms");
       setProvider(p);
       setCollections(res.collections);
       setGames(res.games);
@@ -134,6 +137,12 @@ export function App() {
     } finally {
       setScanning(false);
     }
+  }
+
+  function onSaveSource(cfg: SourceConfig) {
+    setSrc(cfg);
+    setShowSettings(false);
+    void connect(cfg);
   }
 
   async function launch(g: Game) {
@@ -171,6 +180,8 @@ export function App() {
   useEffect(() => {
     (window as unknown as { __emberhub2?: unknown }).__emberhub2 = {
       connect: () => connect(),
+      openSettings: () => setShowSettings(true),
+      openEmulators: () => setShowEmulators(true),
       prepare: async (platform: string) => {
         try {
           const p = createProvider(srcRef.current);
@@ -223,11 +234,15 @@ export function App() {
   return (
     <div className="app2">
       <header>
-        <h1>
-          EmberHub <span>2.0</span>
-        </h1>
+        <div className="brand">
+          <h1>
+            EmberHub <span>2.0</span>
+          </h1>
+          <span className="muted status-text">{status}</span>
+        </div>
         <div className="header-actions">
-          <button onClick={() => setShowSettings((v) => !v)}>设置</button>
+          <button onClick={() => setShowSettings(true)}>设置</button>
+          <button onClick={() => setShowEmulators(true)}>模拟器</button>
           <button onClick={() => void setFullscreen().then(setFull)}>
             {full ? "退出全屏" : "全屏"}
           </button>
@@ -235,47 +250,19 @@ export function App() {
       </header>
 
       {showSettings && (
-        <section className="panel">
-          <div className="grid2">
-            <label>
-              OpenList 地址
-              <input
-                value={src.server ?? ""}
-                onChange={(e) => setSrc({ ...src, server: e.currentTarget.value })}
-                placeholder="127.0.0.1:5244"
-              />
-            </label>
-            <label>
-              资源源挂载
-              <input
-                value={src.mountPath ?? ""}
-                onChange={(e) => setSrc({ ...src, mountPath: e.currentTarget.value })}
-                placeholder="/EmberHub_Baidu"
-              />
-            </label>
-            <label>
-              用户名
-              <input
-                value={src.username ?? ""}
-                onChange={(e) => setSrc({ ...src, username: e.currentTarget.value })}
-              />
-            </label>
-            <label>
-              密码
-              <input
-                type="password"
-                value={src.password ?? ""}
-                onChange={(e) => setSrc({ ...src, password: e.currentTarget.value })}
-              />
-            </label>
+        <div className="overlay" onClick={() => setShowSettings(false)}>
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <SourcesPage source={src} onSave={onSaveSource} onClose={() => setShowSettings(false)} />
           </div>
-          <div className="actions">
-            <button className="primary" onClick={connect}>
-              连接并扫描
-            </button>
-            <span className="muted">{status}</span>
+        </div>
+      )}
+
+      {showEmulators && (
+        <div className="overlay" onClick={() => setShowEmulators(false)}>
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <EmulatorsPage source={src} onClose={() => setShowEmulators(false)} />
           </div>
-        </section>
+        </div>
       )}
 
       {connected && (

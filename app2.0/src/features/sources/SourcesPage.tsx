@@ -1,0 +1,300 @@
+// 设置页：OpenList 资源源配置 + 下载目录 + 媒体缓存。
+import { useEffect, useState } from "react";
+import { createProvider } from "../../storage";
+import { native } from "../../shared/native";
+import { mediaCacheRoot } from "../../domain/ensure";
+import type { SourceConfig } from "../../storage/types";
+
+const DEFAULT_SERVER = "127.0.0.1:5244";
+const DEFAULT_USER = "admin";
+const DEFAULT_PASS = "12345";
+const DEFAULT_ROMS = "Roms";
+const DEFAULT_EMULATORS = "Emulators";
+
+interface Mount {
+  path: string;
+  name: string;
+}
+
+function formatSize(n: number | null): string {
+  if (n === null) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 ** 3).toFixed(2)} GB`;
+}
+
+/** 只填 IP:端口 也能用，自动补 http:// 并去掉结尾斜杠。 */
+function normalizeServer(v: string): string {
+  const s = v.trim().replace(/\/+$/, "");
+  if (!s) return "";
+  return /^https?:\/\//i.test(s) ? s : `http://${s}`;
+}
+
+interface Props {
+  source: SourceConfig;
+  onSave: (cfg: SourceConfig) => void;
+  onClose: () => void;
+}
+
+export function SourcesPage({ source, onSave, onClose }: Props) {
+  const [defaultDir, setDefaultDir] = useState("");
+  useEffect(() => {
+    native.fs.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
+  }, []);
+
+  const [downloadDir, setDownloadDir] = useState(source.downloadDir ?? "");
+  const [server, setServer] = useState(source.server ?? DEFAULT_SERVER);
+  const [mountPath, setMountPath] = useState(source.mountPath ?? "");
+  const [mounts, setMounts] = useState<Mount[]>([]);
+  const [loadingMounts, setLoadingMounts] = useState(false);
+  const [username, setUsername] = useState(source.username ?? DEFAULT_USER);
+  const [password, setPassword] = useState(source.password ?? DEFAULT_PASS);
+  const [romsPath, setRomsPath] = useState(source.romsPath ?? DEFAULT_ROMS);
+  const [emulatorsPath, setEmulatorsPath] = useState(source.emulatorsPath ?? DEFAULT_EMULATORS);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [cacheSize, setCacheSize] = useState<number | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  async function refreshCacheSize() {
+    try {
+      setCacheSize(await native.fs.pathSize(await mediaCacheRoot()));
+    } catch {
+      setCacheSize(null);
+    }
+  }
+
+  useEffect(() => {
+    void refreshCacheSize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downloadDir]);
+
+  async function clearMediaCache() {
+    setClearing(true);
+    try {
+      await native.fs.removePath(await mediaCacheRoot());
+      await refreshCacheSize();
+      setMessage({ ok: true, text: "媒体缓存已清理" });
+    } catch (e) {
+      setMessage({ ok: false, text: `清理失败：${String(e)}` });
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  /** 从 OpenList 拉取资源源（挂载）列表。 */
+  async function fetchMounts() {
+    const base = normalizeServer(server);
+    if (!base) {
+      setMessage({ ok: false, text: "请先填写 OpenList 地址（IP:端口）" });
+      return;
+    }
+    setLoadingMounts(true);
+    setMessage(null);
+    try {
+      const entries = await native.dav.list(
+        { root: `${base}/dav`, username: username.trim(), password },
+        "",
+      );
+      const dirs: Mount[] = entries
+        .filter((e) => e.is_dir)
+        .map((e) => ({ path: `/${e.path || e.name}`, name: e.name }));
+      setMounts(dirs);
+      if (dirs.length === 0) {
+        setMessage({ ok: false, text: "没有找到资源源（检查账号密码，或 OpenList 里还没挂载存储）" });
+      } else {
+        setMountPath((prev) => (prev && dirs.some((d) => d.path === prev) ? prev : dirs[0].path));
+        setMessage({ ok: true, text: `找到 ${dirs.length} 个资源源` });
+      }
+    } catch (e) {
+      setMounts([]);
+      setMessage({ ok: false, text: `获取失败：${String(e)}` });
+    } finally {
+      setLoadingMounts(false);
+    }
+  }
+
+  function buildConfig(): SourceConfig | null {
+    if (!normalizeServer(server) || !mountPath) return null;
+    return {
+      id: "main",
+      name: mountPath.replace(/^\//, "") || "OpenList",
+      kind: "openlist",
+      romsPath: romsPath.trim() || DEFAULT_ROMS,
+      emulatorsPath: emulatorsPath.trim() || DEFAULT_EMULATORS,
+      downloadDir: downloadDir.trim(),
+      server: server.trim(),
+      mountPath,
+      username: username.trim(),
+      password,
+    };
+  }
+
+  async function test(cfg: SourceConfig) {
+    setTesting(true);
+    setMessage(null);
+    try {
+      const provider = createProvider(cfg);
+      const entries = await provider.list(cfg.romsPath ?? "");
+      setMessage({ ok: true, text: `连接成功，游戏目录下有 ${entries.length} 项` });
+    } catch (e) {
+      setMessage({ ok: false, text: `连接失败：${String(e)}` });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  function save() {
+    const cfg = buildConfig();
+    if (!cfg) {
+      setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
+      return;
+    }
+    onSave(cfg);
+    setMessage({ ok: true, text: "已保存" });
+  }
+
+  return (
+    <div className="settings">
+      <div className="settings-head">
+        <h2>设置</h2>
+        <button className="ghost small" onClick={onClose}>
+          关闭（Esc）
+        </button>
+      </div>
+      <p className="hint">
+        通过 OpenList（WebDAV）读取游戏库。游戏库放在「游戏目录」（默认 Roms）下。
+      </p>
+
+      <div className="card">
+        <h3>下载目录</h3>
+        <p className="hint">
+          ROM 与模拟器的存放位置（其下自动创建 <code>Roms/</code> 与 <code>Emulators/</code>
+          ）。留空则使用默认目录。
+        </p>
+        <div className="field">
+          <label>下载目录</label>
+          <input
+            value={downloadDir}
+            onChange={(e) => setDownloadDir(e.currentTarget.value)}
+            placeholder={defaultDir || "默认"}
+          />
+        </div>
+        <div className="actions">
+          <button className="ghost small" onClick={() => setDownloadDir("")}>
+            重置为默认
+          </button>
+        </div>
+        <p className="hint">
+          当前默认：<code>{defaultDir || "—"}</code>
+        </p>
+      </div>
+
+      <div className="card">
+        <h3>媒体缓存</h3>
+        <p className="hint">
+          看过的封面/视频会缓存到本地，下次直接读取。当前占用：
+          <code>{formatSize(cacheSize)}</code>
+        </p>
+        <div className="actions">
+          <button className="ghost small" onClick={() => void refreshCacheSize()}>
+            刷新
+          </button>
+          <button className="ghost small" disabled={clearing} onClick={() => void clearMediaCache()}>
+            {clearing ? "清理中…" : "清理媒体缓存"}
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>OpenList 资源源</h3>
+
+        <div className="field">
+          <label>OpenList 地址（IP:端口）</label>
+          <input
+            value={server}
+            onChange={(e) => setServer(e.currentTarget.value)}
+            placeholder="127.0.0.1:5244"
+          />
+        </div>
+        <div className="field">
+          <label>用户名</label>
+          <input value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
+        </div>
+        <div className="field">
+          <label>密码</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.currentTarget.value)}
+          />
+        </div>
+        <div className="field">
+          <label>资源源（OpenList 挂载）</label>
+          <div className="field-row">
+            <select
+              value={mountPath}
+              onChange={(e) => setMountPath(e.currentTarget.value)}
+              disabled={mounts.length === 0}
+            >
+              {mounts.length === 0 ? (
+                <option value="">{loadingMounts ? "获取中…" : "点击右侧按钮获取"}</option>
+              ) : (
+                mounts.map((m) => (
+                  <option key={m.path} value={m.path}>
+                    {m.name}
+                  </option>
+                ))
+              )}
+            </select>
+            <button className="ghost small" onClick={() => void fetchMounts()} disabled={loadingMounts}>
+              {loadingMounts ? "获取中…" : "获取资源源"}
+            </button>
+          </div>
+        </div>
+        {mountPath && (
+          <p className="hint">
+            将使用：<code>{normalizeServer(server)}/dav{mountPath}</code>
+          </p>
+        )}
+
+        <div className="field">
+          <label>游戏目录（服务器 Roms 目录名，可改）</label>
+          <input
+            value={romsPath}
+            onChange={(e) => setRomsPath(e.currentTarget.value)}
+            placeholder={DEFAULT_ROMS}
+          />
+        </div>
+        <div className="field">
+          <label>模拟器目录（服务器 Emulators 目录名，可改）</label>
+          <input
+            value={emulatorsPath}
+            onChange={(e) => setEmulatorsPath(e.currentTarget.value)}
+            placeholder={DEFAULT_EMULATORS}
+          />
+        </div>
+
+        <div className="actions">
+          <button className="primary" onClick={save}>
+            保存
+          </button>
+          <button
+            className="ghost"
+            disabled={testing}
+            onClick={() => {
+              const cfg = buildConfig();
+              if (cfg) void test(cfg);
+              else setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
+            }}
+          >
+            {testing ? "测试中…" : "测试连接"}
+          </button>
+        </div>
+
+        {message && <p className={message.ok ? "ok" : "error"}>{message.text}</p>}
+      </div>
+    </div>
+  );
+}
