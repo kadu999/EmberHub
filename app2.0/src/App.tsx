@@ -275,7 +275,7 @@ export function App() {
       } else {
         setSelected(null);
       }
-      setStatus(`已加载 ${session.cfg.platforms.length} 个平台`);
+      setStatus("");
     } catch (e) {
       setStatus(`失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
