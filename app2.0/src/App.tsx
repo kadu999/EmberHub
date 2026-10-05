@@ -490,14 +490,6 @@ export function App() {
             <button onClick={() => void setFullscreen().then(applyFull)}>
               {full ? "退出全屏" : "全屏"}
             </button>
-            <button
-              onClick={() => {
-                setShowMenu(false);
-                void connect(src);
-              }}
-            >
-              扫描游戏库
-            </button>
             <button onClick={() => window.close()}>退出</button>
           </div>
         </div>
