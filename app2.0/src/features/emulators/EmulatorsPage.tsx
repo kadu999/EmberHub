@@ -1,7 +1,8 @@
 // 模拟器管理：列出该运行平台下的模拟器，支持下载 / 更新 / 删除 / 直接打开。
-// 打开模拟器 = 启动它自己的界面（用于配置），不启动游戏。
-import { useCallback, useEffect, useMemo, useState } from "react";
+// 打开时用本地缓存的配置（不联网）；需要从服务器更新配置时点顶部「刷新」。
+import { useCallback, useEffect, useState } from "react";
 import { createProvider } from "../../storage";
+import { createCachedProvider } from "../../domain/library-cache";
 import {
   ensureEmulator,
   listEmulators,
@@ -9,7 +10,7 @@ import {
   removeEmulator,
   type EmulatorInfo,
 } from "../../domain/ensure";
-import type { SourceConfig } from "../../storage/types";
+import type { SourceConfig, StorageProvider } from "../../storage/types";
 
 interface Props {
   source: SourceConfig;
@@ -17,15 +18,27 @@ interface Props {
 }
 
 export function EmulatorsPage({ source, onClose }: Props) {
-  const provider = useMemo(() => createProvider(source), [source]);
-
+  const [provider, setProvider] = useState<StorageProvider | null>(null);
   const [list, setList] = useState<EmulatorInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // 用缓存 provider（配置读本地缓存，打开不联网）
+  useEffect(() => {
+    let alive = true;
+    void createCachedProvider(createProvider(source), source).then((p) => {
+      if (alive) setProvider(p);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [source]);
+
+  /** 列出模拟器（读本地缓存）。 */
   const refresh = useCallback(async () => {
+    if (!provider) return;
     setLoading(true);
     setError(null);
     try {
@@ -41,13 +54,31 @@ export function EmulatorsPage({ source, onClose }: Props) {
     void refresh();
   }, [refresh]);
 
+  /** 从服务器刷新：强制拉 manifest + 清配置缓存后重新列举。 */
+  async function refreshFromServer() {
+    if (!provider) return;
+    setLoading(true);
+    setError(null);
+    setStatus("");
+    try {
+      await provider.refreshManifest?.();
+      await provider.clearConfigCache?.();
+      setList(await listEmulators(provider, source));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function run(platform: string, fn: () => Promise<unknown>) {
+    if (!provider) return;
     setBusy(platform);
     setStatus("");
     setError(null);
     try {
       await fn();
-      await refresh();
+      await refreshFromServer();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -60,8 +91,8 @@ export function EmulatorsPage({ source, onClose }: Props) {
       <div className="settings-head">
         <h2>模拟器</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="ghost small" onClick={() => void refresh()} disabled={loading || busy !== null}>
-            {loading ? "刷新中…" : "刷新"}
+          <button className="ghost small" onClick={() => void refreshFromServer()} disabled={loading || busy !== null}>
+            {loading ? "刷新中…" : "从服务器刷新"}
           </button>
           <button className="ghost small" onClick={onClose}>
             关闭（Esc）
@@ -70,6 +101,7 @@ export function EmulatorsPage({ source, onClose }: Props) {
       </div>
       <p className="hint">
         下载 / 更新 / 删除模拟器，或直接「打开模拟器」进入它自己的设置界面（不会启动游戏）。
+        打开此页用本地缓存，不联网；点「从服务器刷新」才会重新拉配置。
       </p>
 
       {error && <p className="error">{error}</p>}
@@ -96,7 +128,7 @@ export function EmulatorsPage({ source, onClose }: Props) {
                   className="ghost small"
                   disabled={busy !== null}
                   onClick={() =>
-                    run(e.platform, () => ensureEmulator(provider, source, e.platform, setStatus, upToDate))
+                    run(e.platform, () => ensureEmulator(provider!, source, e.platform, setStatus, upToDate))
                   }
                 >
                   {busy === e.platform ? "处理中…" : label}
@@ -104,14 +136,14 @@ export function EmulatorsPage({ source, onClose }: Props) {
                 <button
                   className="ghost small"
                   disabled={busy !== null || !e.installed}
-                  onClick={() => run(e.platform, () => openEmulator(provider, source, e.platform, setStatus))}
+                  onClick={() => run(e.platform, () => openEmulator(provider!, source, e.platform, setStatus))}
                 >
                   打开
                 </button>
                 <button
                   className="ghost small"
                   disabled={busy !== null || !e.installed}
-                  onClick={() => run(e.platform, () => removeEmulator(provider, source, e.platform))}
+                  onClick={() => run(e.platform, () => removeEmulator(provider!, source, e.platform))}
                 >
                   删除
                 </button>

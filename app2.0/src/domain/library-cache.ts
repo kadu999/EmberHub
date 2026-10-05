@@ -1,7 +1,8 @@
-// 游戏库缓存（按资源源隔离）：
-//   - manifest.json 每次都联网取；
-//   - manifest 里的 version 变化（或本地没缓存）时才重新拉各平台 games.json；
-//   - 网络失败时回退本地旧缓存。
+// 游戏库/配置缓存（按资源源隔离）：
+//   - manifest.json：默认读本地缓存；游戏库连接时用 refreshManifest() 强制联网刷新（检查 version）；
+//   - games.json：manifest 的 version 变化（或本地没缓存）时才重新拉；网络失败回退旧缓存；
+//   - 模拟器配置（emulators.json / platforms.json / config.json）：默认读本地缓存（打开模拟器页不联网）；
+//     需要联网时调用 clearConfigCache() + refreshManifest()（模拟器页的「从服务器刷新」）。
 import { native } from "../shared/native";
 import { basename, dirname, joinPath } from "../shared/path";
 import type { RemoteEntry, SourceConfig, StorageKind, StorageProvider } from "../storage/types";
@@ -35,8 +36,10 @@ class CachedProvider implements StorageProvider {
   readonly key: string;
   private base: StorageProvider;
   private cacheRoot: string;
-  /** 服务器约定的 games 文件名（manifest.files.games 可覆盖，默认 games.json） */
+  /** 服务器约定的 games 文件名（manifest.files.games 可覆盖） */
   private gamesFile = "games.json";
+  /** 需要本地缓存的配置类文件名（模拟器相关） */
+  private configFiles = new Set<string>(["emulators.json", "platforms.json", "config.json"]);
   /** 本次 manifest 的版本 */
   private currentVersion: string | null = null;
   /** 本地缓存的版本 */
@@ -61,6 +64,7 @@ class CachedProvider implements StorageProvider {
     const name = basename(path);
     if (name === "manifest.json") return this.readManifest(path);
     if (name === this.gamesFile) return this.readGames(path);
+    if (this.configFiles.has(name)) return this.readConfig(path);
     return this.base.readText(path);
   }
 
@@ -73,37 +77,57 @@ class CachedProvider implements StorageProvider {
   private gamesCache(platform: string) {
     return joinPath(this.cacheRoot, "games", `${platform}.json`);
   }
+  private configCache(path: string) {
+    return joinPath(this.cacheRoot, "configs", path);
+  }
 
-  /** 每次都联网取 manifest；失败则回退本地缓存。 */
-  private async readManifest(path: string): Promise<string> {
-    this.storedVersion = (await readIfExists(this.versionCache())) ?? null;
+  /** 解析 manifest 元信息（version + 文件名约定），返回 version。 */
+  private applyManifestMeta(raw: string): string {
+    let version = hash(raw);
     try {
-      const raw = await this.base.readText(path);
-      let version = hash(raw);
-      try {
-        const o = JSON.parse(raw) as Record<string, unknown>;
-        if (typeof o.version === "string" && o.version !== "") version = o.version;
-        else if (typeof o.version === "number") version = String(o.version);
-        const files = o.files as Record<string, unknown> | undefined;
-        if (files && typeof files.games === "string" && files.games !== "") {
-          this.gamesFile = files.games;
+      const o = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof o.version === "string" && o.version !== "") version = o.version;
+      else if (typeof o.version === "number") version = String(o.version);
+      const files = o.files as Record<string, unknown> | undefined;
+      if (files) {
+        if (typeof files.games === "string" && files.games) this.gamesFile = files.games;
+        for (const k of ["emulators", "platformMap", "emulatorConfig"] as const) {
+          const v = files[k];
+          if (typeof v === "string" && v) this.configFiles.add(v);
         }
-      } catch {
-        /* 非法 JSON：用内容哈希 */
       }
-      this.currentVersion = version;
-      await native.fs.writeTextFile(this.manifestCache(), raw);
-      await native.fs.writeTextFile(this.versionCache(), version);
-      return raw;
-    } catch (e) {
-      const cached = await readIfExists(this.manifestCache());
-      if (cached !== undefined) {
-        // 网络失败：用旧 manifest，版本沿用本地记录的版本 → games 走缓存
-        this.currentVersion = this.storedVersion;
-        return cached;
-      }
-      throw e;
+    } catch {
+      /* 非法 JSON：用内容哈希 */
     }
+    return version;
+  }
+
+  /** 强制联网刷新 manifest（游戏库连接 / 模拟器页「从服务器刷新」时用）。 */
+  async refreshManifest(): Promise<void> {
+    const raw = await this.base.readText("manifest.json");
+    this.storedVersion = (await readIfExists(this.versionCache())) ?? null;
+    this.currentVersion = this.applyManifestMeta(raw);
+    await native.fs.writeTextFile(this.manifestCache(), raw);
+    await native.fs.writeTextFile(this.versionCache(), this.currentVersion);
+  }
+
+  /** 默认读本地缓存的 manifest；没有缓存才联网。 */
+  private async readManifest(path: string): Promise<string> {
+    const cached = await readIfExists(this.manifestCache());
+    if (cached === undefined) {
+      await this.refreshManifest();
+      const raw = await readIfExists(this.manifestCache());
+      if (raw === undefined) throw new Error(`无法读取 ${path}`);
+      return raw;
+    }
+    if (this.currentVersion === null) {
+      // 未刷新过：以本地记录的版本为准（games 走缓存）
+      this.storedVersion = (await readIfExists(this.versionCache())) ?? null;
+      this.currentVersion = this.applyManifestMeta(cached);
+    } else {
+      this.applyManifestMeta(cached);
+    }
+    return cached;
   }
 
   /** version 未变 → 用缓存；变了 → 联网取并更新；网络失败 → 回退缓存。 */
@@ -124,6 +148,20 @@ class CachedProvider implements StorageProvider {
       if (cached !== undefined) return cached;
       throw e;
     }
+  }
+
+  /** 配置类文件：默认读本地缓存，没有才联网。 */
+  private async readConfig(path: string): Promise<string> {
+    const cacheFile = this.configCache(path);
+    const cached = await readIfExists(cacheFile);
+    if (cached !== undefined) return cached;
+    const raw = await this.base.readText(path);
+    await native.fs.writeTextFile(cacheFile, raw);
+    return raw;
+  }
+
+  async clearConfigCache(): Promise<void> {
+    await native.fs.removePath(joinPath(this.cacheRoot, "configs"));
   }
 }
 

@@ -205,6 +205,7 @@ async function doScan(provider: StorageProvider, romsPath: string): Promise<Scan
   // 重新扫描时清掉缓存，确保新增的封面/视频、改动过的 manifest 能被发现
   clearMediaCache();
   clearResourceConfigCache();
+  await provider.refreshManifest?.(); // 强制联网刷新 manifest（检查 version）
 
   const warnings: string[] = [];
   const cfg = await loadResourceConfig(provider, true);
@@ -245,6 +246,7 @@ export interface LibrarySession {
 export async function openLibrary(provider: StorageProvider): Promise<LibrarySession> {
   clearMediaCache();
   clearResourceConfigCache();
+  await provider.refreshManifest?.(); // 强制联网刷新 manifest（检查 version）
   const cfg = await loadResourceConfig(provider, true);
   setActiveResourceConfig(cfg);
   const variantRe = buildVariantRegex(
