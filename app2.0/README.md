@@ -73,6 +73,21 @@ $env:JAVA_HOME="$env:USERPROFILE\.jdks\jdk-21.0.2"; $env:Path="$env:JAVA_HOME\bi
 pnpm dev
 ```
 
+### 打包（便携版，解压即运行）
+
+```powershell
+cd app2.0
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+$env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"
+pnpm pack:win
+```
+
+产物：`release/EmberHub-0.1.0-win.zip`（约 150MB）——**解压后双击 `EmberHub.exe` 即用**，无需安装。
+
+- **便携数据**：打包后下载目录 = `EmberHub.exe` 同级的 `downloads/`（绿色版）；开发时用用户数据目录。
+- 只打 **zip**，不打安装器；`electron-winstaller` 已在 `pnpm-workspace.yaml` 显式忽略。
+- 用 7za 解压：打包后在 `resources/app.asar.unpacked/...`，代码里已把 `app.asar` 路径替换为 `app.asar.unpacked`。
+
 ### 冒烟测试
 
 自动跑「加载 → 全屏 IPC → WebDAV（列根目录 / 读 manifest / 读某平台 games.json）」并退出：

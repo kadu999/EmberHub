@@ -105,7 +105,8 @@ function registerFs(ipcMain) {
 
   ipcMain.handle("fs:extract-archive", async (_e, { path: archive, destDir }) => {
     await fsp.mkdir(destDir, { recursive: true });
-    const path7za = require("7zip-bin").path7za;
+    // 打包后 7za 在 app.asar.unpacked 下，需把路径里的 app.asar 换掉才能 spawn。
+    const path7za = require("7zip-bin").path7za.replace("app.asar", "app.asar.unpacked");
     await new Promise((resolve, reject) => {
       const child = spawn(path7za, ["x", archive, "-o" + destDir, "-y", "-bso0", "-bsp0"], {
         windowsHide: true,

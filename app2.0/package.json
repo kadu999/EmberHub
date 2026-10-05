@@ -12,7 +12,30 @@
     "sync": "cap sync android",
     "open:android": "cap open android",
     "electron": "pnpm build && electron .",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5280 && cross-env EMBERHUB_DEV_URL=http://localhost:5280 electron .\""
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5280 && cross-env EMBERHUB_DEV_URL=http://localhost:5280 electron .\"",
+    "pack:win": "pnpm build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.kadu.emberhub2",
+    "productName": "EmberHub",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json",
+      "node_modules/7zip-bin/**"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/7zip-bin/**"
+    ],
+    "win": {
+      "target": [
+        "zip"
+      ]
+    }
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
@@ -29,6 +52,7 @@
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
     "wait-on": "^9.5.1"

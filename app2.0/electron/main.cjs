@@ -164,9 +164,11 @@ async function runSmoke() {
         fs.writeFileSync(srcTxt, "hello emberhub");
         const zipPath = path.join(dlDir, "smoke.zip");
         await new Promise((resolve, reject) => {
-          const c = spawn(require("7zip-bin").path7za, ["a", "-tzip", zipPath, srcTxt], {
-            windowsHide: true,
-          });
+          const c = spawn(
+            require("7zip-bin").path7za.replace("app.asar", "app.asar.unpacked"),
+            ["a", "-tzip", zipPath, srcTxt],
+            { windowsHide: true },
+          );
           c.on("error", reject);
           c.on("close", (code) => (code === 0 ? resolve() : reject(new Error("zip create " + code))));
         });
@@ -224,7 +226,9 @@ ipcMain.handle("proc:launch", (_e, { exe, args, workdir }) => {
 });
 
 app.whenReady().then(() => {
-  const downloadDir = path.join(app.getPath("userData"), "downloads");
+  // 便携模式：打包后数据放在 exe 同级的 downloads/（解压即用）；开发时放用户数据目录。
+  const base = app.isPackaged ? path.dirname(app.getPath("exe")) : app.getPath("userData");
+  const downloadDir = path.join(base, "downloads");
   fs.mkdirSync(downloadDir, { recursive: true });
   setDefaultDownloadDir(downloadDir);
 

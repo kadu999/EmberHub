@@ -2,6 +2,9 @@
 node_modules/
 dist/
 
+# electron-builder 便携版产物
+release/
+
 # Capacitor 生成的 Android 工程里的产物/缓存
 android/.gradle/
 android/build/
