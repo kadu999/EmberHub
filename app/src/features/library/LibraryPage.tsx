@@ -6,7 +6,8 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../../state/store";
 import { APP_CONFIG } from "../../config/config";
-import { createProvider } from "../../storage";
+import { createProvider, type StorageProvider } from "../../storage";
+import { createCachedProvider } from "../../domain/library-cache";
 import { scanLibrary, type Game, type ScanResult } from "../../domain/scan";
 import { Cover } from "../../components/Cover";
 import { VirtualGrid, type VirtualGridHandle } from "../../components/VirtualGrid";
@@ -24,6 +25,8 @@ interface Props {
   onCloseSettings: () => void;
   emulatorsOpen: boolean;
   onCloseEmulators: () => void;
+  cacheOpen: boolean;
+  onCloseCache: () => void;
   menuOpen: boolean;
   onOpenMenu: () => void;
   onCloseMenu: () => void;
@@ -63,13 +66,34 @@ export function LibraryPage({
   onCloseSettings,
   emulatorsOpen,
   onCloseEmulators,
+  cacheOpen,
+  onCloseCache,
   menuOpen,
   onOpenMenu,
   onCloseMenu,
 }: Props) {
   const { source, scanToken } = useStore();
-  const provider = useMemo(() => (source ? createProvider(source) : null), [source]);
+  const [provider, setProvider] = useState<StorageProvider | null>(null);
   const gridRef = useRef<VirtualGridHandle | null>(null);
+
+  // 缓存型 provider：配置/列表/games.json 默认读本地缓存，扫描时再强制刷新 manifest。
+  useEffect(() => {
+    let alive = true;
+    if (!source) {
+      setProvider(null);
+      return;
+    }
+    void createCachedProvider(createProvider(source), source)
+      .then((p) => {
+        if (alive) setProvider(p);
+      })
+      .catch(() => {
+        if (alive) setProvider(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [source]);
   // 扫描完成后待滚动的游戏 id（恢复上次位置）
   const pendingScrollId = useRef<string | null>(null);
 
@@ -221,6 +245,13 @@ export function LibraryPage({
     }
     if (emulatorsOpen) {
       if (action === "menu" || action === "back") onCloseEmulators();
+      else if (action === "up") moveFocus(".settings-panel", -1);
+      else if (action === "down") moveFocus(".settings-panel", 1);
+      else if (action === "confirm") activateFocused();
+      return;
+    }
+    if (cacheOpen) {
+      if (action === "menu" || action === "back") onCloseCache();
       else if (action === "up") moveFocus(".settings-panel", -1);
       else if (action === "down") moveFocus(".settings-panel", 1);
       else if (action === "confirm") activateFocused();

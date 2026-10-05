@@ -202,9 +202,10 @@ async function scanPlatform(
 const scanCache = new Map<string, Promise<ScanResult>>();
 
 async function doScan(provider: StorageProvider, romsPath: string): Promise<ScanResult> {
-  // 重新扫描时清掉缓存，确保新增的封面/视频、改动过的 manifest 能被发现
+  // 重新扫描时清掉内存缓存；manifest 强制联网（检查 version），其余走缓存型 provider
   clearMediaCache();
   clearResourceConfigCache();
+  await provider.refreshManifest?.();
 
   const warnings: string[] = [];
   const cfg = await loadResourceConfig(provider, true);

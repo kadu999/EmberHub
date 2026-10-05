@@ -1,8 +1,9 @@
 // 模拟器管理：列出该运行平台下的模拟器，支持下载 / 更新 / 删除 / 直接打开。
 // 打开模拟器 = 启动它自己的界面（用于配置），不启动游戏。
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useStore } from "../../state/store";
-import { createProvider } from "../../storage";
+import { createProvider, type StorageProvider } from "../../storage";
+import { createCachedProvider } from "../../domain/library-cache";
 import {
   ensureEmulator,
   listEmulators,
@@ -17,13 +18,32 @@ interface Props {
 
 export function EmulatorsPage({ onClose }: Props) {
   const source = useStore((s) => s.source);
-  const provider = useMemo(() => (source ? createProvider(source) : null), [source]);
+  const [provider, setProvider] = useState<StorageProvider | null>(null);
 
   const [list, setList] = useState<EmulatorInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // 打开本页用本地缓存的配置（不联网）
+  useEffect(() => {
+    let alive = true;
+    if (!source) {
+      setProvider(null);
+      return;
+    }
+    void createCachedProvider(createProvider(source), source)
+      .then((p) => {
+        if (alive) setProvider(p);
+      })
+      .catch(() => {
+        if (alive) setProvider(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [source]);
 
   const refresh = useCallback(async () => {
     if (!provider || !source) return;
@@ -42,13 +62,29 @@ export function EmulatorsPage({ onClose }: Props) {
     void refresh();
   }, [refresh]);
 
+  /** 从服务器刷新：强制拉 manifest + 清配置缓存后重新列举。 */
+  async function refreshFromServer() {
+    if (provider) {
+      setError(null);
+      setStatus("");
+      try {
+        await provider.refreshManifest?.();
+        await provider.clearConfigCache?.();
+      } catch (e) {
+        setError(String(e));
+        return;
+      }
+    }
+    await refresh();
+  }
+
   async function run(platform: string, fn: () => Promise<unknown>) {
     setBusy(platform);
     setStatus("");
     setError(null);
     try {
       await fn();
-      await refresh();
+      await refreshFromServer();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -61,8 +97,12 @@ export function EmulatorsPage({ onClose }: Props) {
       <div className="settings-head">
         <h2>模拟器</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="ghost small" onClick={() => void refresh()} disabled={loading || busy !== null}>
-            {loading ? "刷新中…" : "刷新"}
+          <button
+            className="ghost small"
+            onClick={() => void refreshFromServer()}
+            disabled={loading || busy !== null}
+          >
+            {loading ? "刷新中…" : "从服务器刷新"}
           </button>
           {onClose && (
             <button className="ghost small" onClick={onClose}>
@@ -73,6 +113,7 @@ export function EmulatorsPage({ onClose }: Props) {
       </div>
       <p className="hint">
         下载 / 更新 / 删除模拟器，或直接「打开模拟器」进入它自己的设置界面（不会启动游戏）。
+        打开此页用本地缓存，不联网；点「从服务器刷新」才会重新拉配置。
       </p>
 
       {error && <p className="error">{error}</p>}

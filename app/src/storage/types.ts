@@ -52,4 +52,8 @@ export interface StorageProvider {
   readText(path: string): Promise<string>;
   /** 把远端文件下载到本地 dest（远程源实现；本地源无需） */
   downloadTo?(path: string, dest: string): Promise<number>;
+  /** 强制从服务器刷新 manifest（缓存型 provider 用；普通 provider 无此方法） */
+  refreshManifest?(): Promise<void>;
+  /** 清除本地缓存的配置类文件（emulators.json 等） */
+  clearConfigCache?(): Promise<void>;
 }
