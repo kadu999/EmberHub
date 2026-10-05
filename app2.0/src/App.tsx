@@ -433,9 +433,7 @@ export function App() {
           <h1>
             <span className="flame">🔥</span> EmberHub <span>2.0</span>
           </h1>
-          <span className="muted status-text">{status}</span>
         </div>
-        <span className="muted hint-esc">Esc 菜单</span>
       </header>
 
       {showSettings && (
@@ -594,6 +592,7 @@ export function App() {
                 </button>
               ))}
               {scanning && <span className="refresh-badge">刷新中…</span>}
+              {status && status !== "未连接" && <span className="refresh-badge">{status}</span>}
             </div>
 
             {warnings.length > 0 && (
