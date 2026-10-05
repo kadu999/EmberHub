@@ -41,6 +41,7 @@ body {
   top: 0;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(6px);
+  z-index: 2;
 }
 
 h1 {
@@ -118,38 +119,62 @@ button.primary {
   font-size: 0.85rem;
 }
 
-main {
-  padding: 12px 20px 40px;
+.tabs {
   display: flex;
-  flex-direction: column;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 20px;
+  position: sticky;
+  top: 53px;
+  background: var(--bg);
+  z-index: 1;
 }
-
-.collection h2 {
-  font-size: 1rem;
-  margin: 0 0 8px;
+.tab {
+  padding: 5px 12px;
+  font-size: 0.9rem;
+}
+.tab.active {
+  border-color: var(--ember);
   color: var(--ember);
 }
 
-.collection ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 4px 14px;
+main {
+  padding: 8px 20px 40px;
 }
 
-.collection li {
-  font-size: 0.9rem;
-  padding: 3px 0;
-  border-bottom: 1px dashed #2a211c;
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1a1512;
+}
+
+.cover.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--muted);
+}
+
+.card-title {
+  font-size: 0.82rem;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.collection li.missing {
-  color: #8a7a70;
-  text-decoration: line-through;
 }

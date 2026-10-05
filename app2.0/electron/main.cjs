@@ -1,11 +1,34 @@
 // Electron 主进程（Windows 壳）。
 // 只做壳该做的事：建窗口、加载前端、暴露窗口/文件/网盘能力给渲染进程。
 // 业务逻辑都在前端（src/domain 等），这里不掺和。
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, protocol } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { registerFs, setDefaultDownloadDir } = require("./fs.cjs");
 const { registerDav } = require("./dav.cjs");
+
+// 本地媒体（封面/视频）用一个自定义协议暴露给渲染进程（等价 1.0 的 asset protocol）。
+// 必须在 app ready 之前声明 scheme 特权。
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "emberhub-media",
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
+  },
+]);
+
+const MEDIA_MIME = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mkv: "video/x-matroska",
+};
+
 
 // 开发时指向 Vite dev server；否则加载构建产物 dist/
 const devUrl = process.env.EMBERHUB_DEV_URL || "";
@@ -112,6 +135,27 @@ async function runSmoke() {
           "| first:",
           gj.games && gj.games[0] ? gj.games[0].title : "-",
         );
+
+        // 下载到本地文件 + 自定义协议读取（等价封面链路）
+        const smokeDest = path.join(app.getPath("userData"), "downloads", "smoke-manifest.json");
+        const written = await win.webContents.executeJavaScript(
+          `window.emberhub.dav.download(${JSON.stringify(auth)}, "manifest.json", ${JSON.stringify(smokeDest)})`,
+        );
+        console.log("[smoke] dav download bytes:", written);
+        const served = await win.webContents.executeJavaScript(
+          `fetch("emberhub-media://local/" + encodeURIComponent(${JSON.stringify(smokeDest)})).then((r) => r.arrayBuffer()).then((b) => b.byteLength).catch(() => -1)`,
+        );
+        console.log("[smoke] media protocol fetch bytes:", served);
+
+        // 1x1 PNG 经自定义协议用 <img> 加载（等价封面链路）
+        const pngB64 =
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        const pngPath = path.join(app.getPath("userData"), "downloads", "smoke.png");
+        fs.writeFileSync(pngPath, Buffer.from(pngB64, "base64"));
+        const imgWidth = await win.webContents.executeJavaScript(
+          `new Promise((resolve) => { const img = new Image(); img.onload = () => resolve(img.naturalWidth); img.onerror = () => resolve(-1); img.src = "emberhub-media://local/" + encodeURIComponent(${JSON.stringify(pngPath)}); })`,
+        );
+        console.log("[smoke] media image width:", imgWidth);
       }
     } catch (e) {
       console.error("[smoke] error:", e && e.message ? e.message : e);
@@ -140,6 +184,24 @@ app.whenReady().then(() => {
   const downloadDir = path.join(app.getPath("userData"), "downloads");
   fs.mkdirSync(downloadDir, { recursive: true });
   setDefaultDownloadDir(downloadDir);
+
+  // emberhub-media://local/<url-encoded 绝对路径> → 本地文件
+  protocol.handle("emberhub-media", async (request) => {
+    try {
+      const u = new URL(request.url);
+      const abs = decodeURIComponent(u.pathname.replace(/^\/+/, ""));
+      const data = await fs.promises.readFile(abs);
+      const ext = (abs.split(".").pop() || "").toLowerCase();
+      return new Response(data, {
+        headers: {
+          "Content-Type": MEDIA_MIME[ext] || "application/octet-stream",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch {
+      return new Response("Not Found", { status: 404 });
+    }
+  });
 
   createWindow();
   app.on("activate", () => {

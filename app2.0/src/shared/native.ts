@@ -51,4 +51,13 @@ export const native = {
     pathSize: (path: string): Promise<number> =>
       bridge ? bridge.fs.pathSize(path) : unavailable("文件系统"),
   },
+
+  // ---- 媒体（本地文件 → 可被 <img>/<video> 加载的 URL） ----
+  media: {
+    url: (path: string): string => {
+      if (bridge) return `emberhub-media://local/${encodeURIComponent(path)}`;
+      // Capacitor 原生后续用 Capacitor.convertFileSrc；Web 无本地文件
+      return path;
+    },
+  },
 };

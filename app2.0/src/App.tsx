@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { isFullscreen, onFullscreenChange, setFullscreen } from "./platform/window";
 import { createProvider } from "./storage";
-import type { SourceConfig } from "./storage/types";
+import type { SourceConfig, StorageProvider } from "./storage/types";
 import { scanLibrary, type Game } from "./domain/scan";
+import { Cover } from "./components/Cover";
 
 const LS_KEY = "emberhub2.source";
 
@@ -27,12 +28,14 @@ function loadSource(): SourceConfig {
   return DEFAULT_SOURCE;
 }
 
-/** App2.0 最小游戏库：连接 OpenList(WebDAV) → 扫描 → 列出平台与游戏。 */
+/** App2.0 游戏库：连接 OpenList(WebDAV) → 扫描 → 平台切换 + 封面网格。 */
 export function App() {
   const [full, setFull] = useState(isFullscreen());
   const [src, setSrc] = useState<SourceConfig>(loadSource);
+  const [provider, setProvider] = useState<StorageProvider | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [collections, setCollections] = useState<string[]>([]);
+  const [selected, setSelected] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [status, setStatus] = useState("未连接");
 
@@ -52,13 +55,18 @@ export function App() {
   async function connect() {
     setStatus("连接中…");
     setWarnings([]);
+    setProvider(null);
+    setGames([]);
+    setCollections([]);
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(src));
-      const provider = createProvider(src);
-      const res = await scanLibrary(provider, src.romsPath || "Roms");
+      const p = createProvider(src);
+      const res = await scanLibrary(p, src.romsPath || "Roms");
+      setProvider(p);
       setCollections(res.collections);
       setGames(res.games);
       setWarnings(res.warnings);
+      setSelected(res.collections[0] ?? "");
       setStatus(`已加载 ${res.games.length} 个游戏 / ${res.collections.length} 个平台`);
     } catch (e) {
       setStatus(`失败：${e instanceof Error ? e.message : String(e)}`);
@@ -74,6 +82,8 @@ export function App() {
     }
     return m;
   }, [games]);
+
+  const shown = byCollection.get(selected) ?? [];
 
   return (
     <div className="app2">
@@ -135,21 +145,31 @@ export function App() {
         )}
       </section>
 
+      {collections.length > 0 && (
+        <nav className="tabs">
+          {collections.map((c) => (
+            <button
+              key={c}
+              className={c === selected ? "tab active" : "tab"}
+              onClick={() => setSelected(c)}
+            >
+              {c} <span className="muted">{byCollection.get(c)?.length ?? 0}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
       <main>
-        {collections.map((c) => (
-          <section key={c} className="collection">
-            <h2>
-              {c} <span className="muted">({byCollection.get(c)?.length ?? 0})</span>
-            </h2>
-            <ul>
-              {(byCollection.get(c) ?? []).slice(0, 300).map((g) => (
-                <li key={g.id} className={g.available === false ? "missing" : undefined}>
-                  {g.title}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+        <div className="grid">
+          {shown.map((g) => (
+            <div key={g.id} className="card" title={g.title}>
+              {provider ? (
+                <Cover provider={provider} path={g.coverPath} dir={g.mediaDir} title={g.title} />
+              ) : null}
+              <span className="card-title">{g.title}</span>
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   );
