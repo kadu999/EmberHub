@@ -274,7 +274,9 @@ export function LibraryPage({
   }, [filtered]);
 
   // 启动中（下载/解压）或启动失败时，显示居中的进度/状态面板
-  const showLaunchPanel = launching || (launchMsg !== null && !launchMsg.ok);
+  // 只在「确实在下载」或「出错」时才弹面板；纯启动不弹
+  const showLaunchPanel =
+    (progress !== null && progress.total != null) || (launchMsg !== null && !launchMsg.ok);
 
   // 手柄：导航 / 确认启动 / 切换平台 / 菜单 / 全屏
   const gamepadConnected = useGamepad((action) => {
