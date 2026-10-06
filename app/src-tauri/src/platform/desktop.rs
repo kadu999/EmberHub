@@ -132,3 +132,16 @@ pub fn android_is_package_installed(
 ) -> Result<bool, String> {
     Err("检查已安装 App 仅在 Android 平台可用。".to_string())
 }
+
+/// 桌面端没有 Android ABI 概念。
+pub fn android_device_abi(_app: &tauri::AppHandle) -> Result<String, String> {
+    Ok(String::new())
+}
+
+/// 桌面端没有「原生库目录」概念。
+pub fn android_native_library_dir(
+    _app: &tauri::AppHandle,
+    _package: String,
+) -> Result<Option<String>, String> {
+    Ok(None)
+}

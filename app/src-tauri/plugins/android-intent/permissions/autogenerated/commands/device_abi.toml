@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-device-abi"
+description = "Enables the device_abi command without any pre-configured scope."
+commands.allow = ["device_abi"]
+
+[[permission]]
+identifier = "deny-device-abi"
+description = "Denies the device_abi command without any pre-configured scope."
+commands.deny = ["device_abi"]

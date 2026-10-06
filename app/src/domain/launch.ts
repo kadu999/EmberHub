@@ -5,7 +5,8 @@ import { tauri } from "../shared/tauri";
 import { platform } from "../platform";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
-import { ensureEmulator, ensureRom, getDownloadDir } from "./ensure";
+import { EmulatorInstallingError, ensureEmulator, ensureRom, getDownloadDir } from "./ensure";
+import { useStore } from "../state/store";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
 
@@ -108,19 +109,30 @@ export async function buildLaunchPlan(
  * 汇总 Android 显式 Intent 的 extras：先 `extras`，再用 `platformExtras[平台]` 覆盖，
  * 最后替换占位符（{file.path} / {platform} / {title} 等）。无 `activity` 时返回 undefined。
  */
-function buildIntentExtras(
+async function buildIntentExtras(
   config: EmulatorConfig,
   game: Game,
   romAbs: string,
-): Record<string, string> | undefined {
+): Promise<Record<string, string> | undefined> {
   if (!config.activity) return undefined;
   const merged = {
     ...(config.extras ?? {}),
     ...(config.platformExtras?.[game.collection] ?? {}),
   };
   const vars: LaunchVars = { platform: game.collection, title: game.title };
+  // {emuLibDir}：模拟器 App 的原生库目录（核心已打包进其 APK 的 lib/<abi>/）
+  const needLibDir = Object.values(merged).some((v) => v.includes("{emuLibDir}"));
+  const pkg = (config.package?.trim() || config.exe).trim();
+  let libDir = "";
+  if (needLibDir) {
+    const dir = pkg ? await tauri.nativeLibraryDir(pkg) : null;
+    if (!dir) throw new Error(`模拟器 ${pkg} 未安装或未打包核心，无法加载核心。`);
+    libDir = dir;
+  }
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(merged)) out[k] = substitute(v, romAbs, vars);
+  for (const [k, v] of Object.entries(merged)) {
+    out[k] = substitute(v.replace(/\{emuLibDir\}/g, libDir), romAbs, vars);
+  }
   return out;
 }
 
@@ -155,7 +167,18 @@ export async function launchGame(
   }
 
   // 2) 否则用 Emulators 的 emulators.json；是否解压由 config.extract 决定（默认解压）
-  const { dir, config, args: cfgArgs } = await ensureEmulator(provider, source, game.collection, onStatus);
+  const { dir, config, args: cfgArgs } = await ensureEmulator(
+    provider,
+    source,
+    game.collection,
+    onStatus,
+  ).catch((e) => {
+    // Android：模拟器未安装 → 记下「待启动游戏」；回到前台复查时自动继续
+    if (e instanceof EmulatorInstallingError) {
+      useStore.getState().setPendingLaunch({ game, pkg: e.pkg });
+    }
+    throw e;
+  });
   const romAbs = nativePath(await ensureRom(provider, source, game, onStatus, config.extract !== false));
 
   // Android：模拟器是已安装的 App，用包名 + Intent 启动（核心参数在移动端由模拟器自身管理）
@@ -168,7 +191,7 @@ export async function launchGame(
       mime: config.mime,
       // 有 activity 时走「显式 Intent + extras」（如 RetroArch 的 RetroActivityFuture）
       component: config.activity,
-      extras: buildIntentExtras(config, game, romAbs),
+      extras: await buildIntentExtras(config, game, romAbs),
     });
     return;
   }

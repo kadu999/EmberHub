@@ -68,3 +68,19 @@ pub fn android_is_package_installed(app: &AppHandle, package: String) -> Result<
     }
     app.android_intent().is_package_installed(&package)
 }
+
+/// 当前设备首选 ABI（arm64-v8a / armeabi-v7a / x86 / x86_64）。
+pub fn android_device_abi(app: &AppHandle) -> Result<String, String> {
+    app.android_intent().device_abi()
+}
+
+/// 目标 App（按包名）的原生库目录（nativeLibraryDir）。
+pub fn android_native_library_dir(
+    app: &AppHandle,
+    package: String,
+) -> Result<Option<String>, String> {
+    if package.trim().is_empty() {
+        return Err("缺少目标 App 包名。".to_string());
+    }
+    app.android_intent().native_library_dir(&package)
+}

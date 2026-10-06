@@ -14,19 +14,19 @@
       "platform": "RetroArch",
       "exe": "com.retroarch",
       "package": "com.retroarch",
-      "apk": "RetroArch.apk",
+      "apk": "EmberHub-RetroArch-{abi}.apk",
       "activity": "com.retroarch/.browser.retroactivity.RetroActivityFuture",
       "extras": {
         "ROM": "{file.path}"
       },
       "platformExtras": {
-        "GBA": { "LIBRETRO": "/data/user/0/com.retroarch/cores/mgba_libretro_android.so" },
-        "GBA hack": { "LIBRETRO": "/data/user/0/com.retroarch/cores/mgba_libretro_android.so" },
-        "GBA vib": { "LIBRETRO": "/data/user/0/com.retroarch/cores/mgba_libretro_android.so" },
-        "NDS": { "LIBRETRO": "/data/user/0/com.retroarch/cores/melondsds_libretro_android.so" },
-        "PS1": { "LIBRETRO": "/data/user/0/com.retroarch/cores/swanstation_libretro_android.so" },
-        "DC": { "LIBRETRO": "/data/user/0/com.retroarch/cores/flycast_libretro_android.so" },
-        "SS": { "LIBRETRO": "/data/user/0/com.retroarch/cores/yabasanshiro_libretro_android.so" }
+        "GBA": { "LIBRETRO": "{emuLibDir}/mgba_libretro_android.so" },
+        "GBA hack": { "LIBRETRO": "{emuLibDir}/mgba_libretro_android.so" },
+        "GBA vib": { "LIBRETRO": "{emuLibDir}/mgba_libretro_android.so" },
+        "NDS": { "LIBRETRO": "{emuLibDir}/melondsds_libretro_android.so" },
+        "PS1": { "LIBRETRO": "{emuLibDir}/swanstation_libretro_android.so" },
+        "DC": { "LIBRETRO": "{emuLibDir}/flycast_libretro_android.so" },
+        "SS": { "LIBRETRO": "{emuLibDir}/yabasanshiro_libretro_android.so" }
       }
     },
     "AetherSX2": {

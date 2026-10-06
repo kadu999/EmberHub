@@ -307,6 +307,18 @@
           "markdownDescription": "Denies the can_install_packages command without any pre-configured scope."
         },
         {
+          "description": "Enables the device_abi command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-device-abi",
+          "markdownDescription": "Enables the device_abi command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the device_abi command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-device-abi",
+          "markdownDescription": "Denies the device_abi command without any pre-configured scope."
+        },
+        {
           "description": "Enables the external_files_dir command without any pre-configured scope.",
           "type": "string",
           "const": "allow-external-files-dir",
@@ -367,6 +379,18 @@
           "markdownDescription": "Denies the launch command without any pre-configured scope."
         },
         {
+          "description": "Enables the native_library_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-library-dir",
+          "markdownDescription": "Enables the native_library_dir command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_library_dir command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-library-dir",
+          "markdownDescription": "Denies the native_library_dir command without any pre-configured scope."
+        },
+        {
           "description": "Enables the request_all_files_access command without any pre-configured scope.",
           "type": "string",
           "const": "allow-request-all-files-access",
@@ -403,10 +427,10 @@
           "markdownDescription": "Denies the shared_storage_dir command without any pre-configured scope."
         },
         {
-          "description": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`\n- `allow-is-package-installed`",
+          "description": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`\n- `allow-is-package-installed`\n- `allow-device-abi`\n- `allow-native-library-dir`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`\n- `allow-is-package-installed`"
+          "markdownDescription": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`\n- `allow-is-package-installed`\n- `allow-device-abi`\n- `allow-native-library-dir`"
         }
       ]
     }

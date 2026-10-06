@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SourceConfig } from "../storage/types";
+import type { Game } from "../domain/scan";
 
 /** 从旧的 WebDAV 完整地址解析出 server 与挂载路径。 */
 function parseDavUrl(url: string): { server: string; mountPath: string } {
@@ -46,6 +47,12 @@ interface AppStore {
   setFullscreen: (v: boolean) => void;
   toggleFullscreen: () => void;
   setLastSelection: (id: string, collection: string) => void;
+  /**
+   * Android：等待模拟器安装完成后要自动继续启动的游戏。
+   * 持久化——即使 WebView 重载/进程被回收，回到 app 也能续上。
+   */
+  pendingLaunch: { game: Game; pkg: string } | null;
+  setPendingLaunch: (v: { game: Game; pkg: string } | null) => void;
 }
 
 /** Android 存储位置：App 私有目录 / 共享存储（/sdcard/EmberHub） */
@@ -68,6 +75,8 @@ export const useStore = create<AppStore>()(
       setFullscreen: (v) => set({ fullscreen: v }),
       toggleFullscreen: () => set((st) => ({ fullscreen: !st.fullscreen })),
       setLastSelection: (id, collection) => set({ lastGameId: id, lastCollection: collection }),
+      pendingLaunch: null,
+      setPendingLaunch: (v) => set({ pendingLaunch: v }),
     }),
     {
       name: "emberhub",
@@ -90,6 +99,7 @@ export const useStore = create<AppStore>()(
           fullscreen: typeof p.fullscreen === "boolean" ? p.fullscreen : current.fullscreen,
           lastGameId: typeof p.lastGameId === "string" ? p.lastGameId : current.lastGameId,
           lastCollection: typeof p.lastCollection === "string" ? p.lastCollection : current.lastCollection,
+          pendingLaunch: (p.pendingLaunch ?? null) as AppStore["pendingLaunch"],
         };
       },
     },

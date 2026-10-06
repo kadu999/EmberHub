@@ -32,3 +32,6 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# 自签名 keystore（生成的分发包签名，勿提交）
+.android-signing/

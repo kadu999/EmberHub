@@ -177,6 +177,21 @@ fn android_is_package_installed(app: tauri::AppHandle, package: String) -> Resul
     platform::android_is_package_installed(&app, package)
 }
 
+/// Android：当前设备首选 ABI（arm64-v8a / armeabi-v7a / x86 / x86_64）。
+#[tauri::command]
+fn android_device_abi(app: tauri::AppHandle) -> Result<String, String> {
+    platform::android_device_abi(&app)
+}
+
+/// Android：目标 App（按包名）的原生库目录（nativeLibraryDir）。
+#[tauri::command]
+fn android_native_library_dir(
+    app: tauri::AppHandle,
+    package: String,
+) -> Result<Option<String>, String> {
+    platform::android_native_library_dir(&app, package)
+}
+
 /// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
 #[tauri::command]
 fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
@@ -699,6 +714,8 @@ pub fn run() {
             android_can_install_packages,
             android_request_install_packages,
             android_is_package_installed,
+            android_device_abi,
+            android_native_library_dir,
             list_local_dir,
             list_local_files,
             webdav_list,

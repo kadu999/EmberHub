@@ -211,6 +211,42 @@ impl<R: Runtime> AndroidIntent<R> {
     pub fn is_package_installed(&self, _package: &str) -> Result<bool, String> {
         Ok(false)
     }
+
+    /// 当前设备首选 ABI（arm64-v8a / armeabi-v7a / x86 / x86_64）。
+    #[cfg(target_os = "android")]
+    pub fn device_abi(&self) -> Result<String, String> {
+        self.handle
+            .run_mobile_plugin::<String>("device_abi", ExternalFilesDirPayload {})
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn device_abi(&self) -> Result<String, String> {
+        Ok(String::new())
+    }
+
+    /// 目标 App（按包名）的原生库目录（nativeLibraryDir）；未安装时 None。
+    #[cfg(target_os = "android")]
+    pub fn native_library_dir(&self, package: &str) -> Result<Option<String>, String> {
+        self.handle
+            .run_mobile_plugin::<Option<String>>(
+                "native_library_dir",
+                LaunchPayload {
+                    package_name: package.to_string(),
+                    path: None,
+                    mime: None,
+                    action: None,
+                    component: None,
+                    extras: None,
+                },
+            )
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn native_library_dir(&self, _package: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
 }
 
 /// 通过 `app.android_intent()` 取到插件实例。

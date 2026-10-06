@@ -13,6 +13,8 @@ EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享�
 - `allow-can-install-packages`
 - `allow-request-install-packages`
 - `allow-is-package-installed`
+- `allow-device-abi`
+- `allow-native-library-dir`
 
 ## Permission Table
 
@@ -45,6 +47,32 @@ Enables the can_install_packages command without any pre-configured scope.
 <td>
 
 Denies the can_install_packages command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-device-abi`
+
+</td>
+<td>
+
+Enables the device_abi command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-device-abi`
+
+</td>
+<td>
+
+Denies the device_abi command without any pre-configured scope.
 
 </td>
 </tr>
@@ -175,6 +203,32 @@ Enables the launch command without any pre-configured scope.
 <td>
 
 Denies the launch command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-native-library-dir`
+
+</td>
+<td>
+
+Enables the native_library_dir command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-native-library-dir`
+
+</td>
+<td>
+
+Denies the native_library_dir command without any pre-configured scope.
 
 </td>
 </tr>

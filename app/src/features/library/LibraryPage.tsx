@@ -100,6 +100,8 @@ export function LibraryPage({
   const pendingScrollId = useRef<string | null>(null);
   /** 是否正在「启动游戏」流程：只在这时显示下载进度浮层（模拟器页下 APK 等不应弹） */
   const launchingRef = useRef(false);
+  /** 始终指向最新的 launch（供「安装完自动继续」复用，避免闭包过期） */
+  const launchRef = useRef<(g: Game) => void>(() => undefined);
 
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -309,6 +311,41 @@ export function LibraryPage({
       </div>
     );
   }
+
+  // 让 launchRef 始终指向最新闭包（provider/source 变化后仍可用）
+  useEffect(() => {
+    launchRef.current = (g) => void launch(g);
+  });
+
+  // Android：从系统安装器回到前台时，若刚才是「等模拟器安装」的启动，则自动继续。
+  // 不做原地等待、也不依赖回调：只在这里查一次当前是否已安装。
+  useEffect(() => {
+    if (!platform.isMobile) return;
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!provider || !source) return; // 资源源还没就绪：先不消费，等它就绪后再查
+      const pending = useStore.getState().pendingLaunch;
+      if (!pending) return;
+      useStore.getState().setPendingLaunch(null); // 先消费，避免重复触发
+      void (async () => {
+        try {
+          if (await platform.isEmulatorInstalled(pending.pkg)) {
+            launchRef.current(pending.game);
+          } else {
+            setLaunchMsg({
+              ok: false,
+              text: `模拟器 ${pending.pkg} 仍未安装，请再次点击游戏重试。`,
+            });
+          }
+        } catch (e) {
+          setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+        }
+      })();
+    };
+    onResume(); // 挂载/资源源就绪时也查一次（进程被回收后重开也能续上）
+    document.addEventListener("visibilitychange", onResume);
+    return () => document.removeEventListener("visibilitychange", onResume);
+  }, [provider, source]);
 
   async function launch(g: Game) {
     if (g.available === false) {

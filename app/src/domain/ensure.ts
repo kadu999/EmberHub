@@ -254,6 +254,22 @@ export async function listEmulators(
   return out.sort((a, b) => a.platform.localeCompare(b.platform));
 }
 
+/**
+ * Android：模拟器未安装 —— 已下载 APK 并拉起系统安装器。
+ * 调用方（启动流程）据此记下「待启动游戏」，回到前台复查后再自动继续；
+ * 不在原地等待（WebView 退到后台会挂起/被回收）。
+ */
+export class EmulatorInstallingError extends Error {
+  constructor(
+    /** 目标模拟器包名 */
+    public readonly pkg: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "EmulatorInstallingError";
+  }
+}
+
 /** 确保某平台的模拟器已下载并解压；force=true 时强制重新下载（更新）。 */
 export async function ensureEmulator(
   provider: StorageProvider,
@@ -280,7 +296,7 @@ export async function ensureEmulator(
   const args = platformArgs[platform] ?? config.args;
 
   // Android：模拟器是设备上已安装的 App（用 package/exe 指定包名）。
-  // 先检测是否已安装：没装就下载 APK 并拉起系统安装器 —— 装好之前**不启动**。
+  // 先检测是否已安装：没装就下载 APK、拉起系统安装器，然后轮询等待装完再继续启动。
   if (appPlatform.isMobile) {
     const pkg = (config.package?.trim() || config.exe).trim();
     if (await appPlatform.isEmulatorInstalled(pkg)) {
@@ -289,8 +305,11 @@ export async function ensureEmulator(
     }
     onStatus?.(`未安装模拟器 ${pkg}，开始下载安装…`);
     await installEmulator(provider, source, platform, onStatus);
-    throw new Error(
-      `模拟器 ${pkg} 尚未安装：已下载 APK 并打开系统安装器，请确认安装后重新启动游戏。`,
+    // 不在原地等安装完成：抛错交给启动流程记录「待启动游戏」，
+    // 回到前台时复查（已安装则自动继续）。
+    throw new EmulatorInstallingError(
+      pkg,
+      `模拟器 ${pkg} 尚未安装：已下载 APK 并打开系统安装器，安装完成后会自动继续启动。`,
     );
   }
 
@@ -380,8 +399,14 @@ export async function installEmulator(
     emulators[emuPlatform] ??
     parseEmulatorConfig(await provider.readText(joinPath(emuBase, cfg.files.emulatorConfig)));
 
-  const apk = config.apk?.trim();
+  let apk = config.apk?.trim();
   if (!apk) throw new Error("该模拟器未配置 APK（emulators.json 的 apk 字段）。");
+  // APK 名里可用 {abi} 占位（如 EmberHub-RetroArch-{abi}.apk），按设备 ABI 选择
+  if (apk.includes("{abi}")) {
+    const abi = (await tauri.deviceAbi()).trim();
+    if (!abi) throw new Error("无法获取设备 ABI，无法选择模拟器安装包。");
+    apk = apk.replace(/\{abi\}/g, abi);
+  }
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
   const dl = await getDownloadDir(source);

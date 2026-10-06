@@ -257,4 +257,35 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.reject(ex.message ?: "检查模拟器是否已安装失败")
         }
     }
+
+    /** 当前设备首选 ABI（arm64-v8a / armeabi-v7a / x86 / x86_64）。 */
+    @Command
+    fun device_abi(invoke: Invoke) {
+        try {
+            invoke.resolveObject(android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "")
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "获取设备 ABI 失败")
+        }
+    }
+
+    /** 目标 App（按包名）的原生库目录（nativeLibraryDir）；未安装时 resolve(null)。 */
+    @Command
+    fun native_library_dir(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(LaunchArgs::class.java)
+            val pkg = args.packageName?.takeIf { it.isNotEmpty() }
+            if (pkg == null) {
+                invoke.reject("缺少包名（packageName）")
+                return
+            }
+            val dir = try {
+                activity.packageManager.getPackageInfo(pkg, 0).applicationInfo?.nativeLibraryDir
+            } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                null
+            }
+            if (dir != null) invoke.resolveObject(dir) else invoke.resolve()
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "获取原生库目录失败")
+        }
+    }
 }

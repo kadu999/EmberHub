@@ -9,6 +9,8 @@ const COMMANDS: &[&str] = &[
     "can_install_packages",
     "request_install_packages",
     "is_package_installed",
+    "device_abi",
+    "native_library_dir",
 ];
 
 fn main() {

@@ -87,4 +87,9 @@ export const tauri = {
   /** Android：目标 App（按包名）是否已安装 */
   isPackageInstalled: (pkg: string) =>
     invoke<boolean>("android_is_package_installed", { package: pkg }),
+  /** Android：当前设备首选 ABI（arm64-v8a / armeabi-v7a / x86 / x86_64） */
+  deviceAbi: () => invoke<string>("android_device_abi"),
+  /** Android：目标 App（按包名）的原生库目录（nativeLibraryDir） */
+  nativeLibraryDir: (pkg: string) =>
+    invoke<string | null>("android_native_library_dir", { package: pkg }),
 };
