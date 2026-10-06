@@ -363,7 +363,12 @@ export function LibraryPage({
     try {
       await launchGame(g, provider!, source!, (s) => setLaunchMsg({ ok: true, text: s }));
       launchingRef.current = false;
-      await getCurrentWindow().close();
+      // 下载 / 启动结束：收起浮层（面板由 progress/launchMsg 驱动）
+      setLaunching(false);
+      setProgress(null);
+      setLaunchMsg(null);
+      // 桌面端维持旧行为（启动后关窗）；移动端留在库里，不退出 App
+      if (!platform.isMobile) await getCurrentWindow().close();
     } catch (e) {
       launchingRef.current = false;
       setLaunching(false);
