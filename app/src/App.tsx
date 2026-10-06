@@ -166,7 +166,7 @@ function App() {
                   <button className="ghost" onClick={() => void checkPerms()}>
                     重新检查
                   </button>
-                  <button className="ghost" onClick={() => void getCurrentWindow().close()}>
+                  <button className="ghost" onClick={() => void tauri.exitApp()}>
                     退出
                   </button>
                 </div>
@@ -201,7 +201,7 @@ function App() {
             </button>
             <button onClick={openCache}>资源缓存</button>
             <button onClick={openSettings}>设置</button>
-            <button onClick={() => void getCurrentWindow().close()}>退出</button>
+            <button onClick={() => void tauri.exitApp()}>退出</button>
           </div>
         </div>
       )}

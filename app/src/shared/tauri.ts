@@ -92,4 +92,6 @@ export const tauri = {
   /** Android：目标 App（按包名）的原生库目录（nativeLibraryDir） */
   nativeLibraryDir: (pkg: string) =>
     invoke<string | null>("android_native_library_dir", { package: pkg }),
+  /** Android：退出应用（window.close() 在移动端不生效） */
+  exitApp: () => invoke<void>("exit_app"),
 };

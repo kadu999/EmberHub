@@ -87,6 +87,12 @@ fn log_error(tag: &str, message: &str) {
     log_line("ERROR", tag, message);
 }
 
+/// 退出应用（移动端 window.close() 不会真正退出，用这个）。
+#[tauri::command]
+fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 /// 前端指定日志目录（`<下载目录>/logs`）；下载目录变化时重新调用。
 #[tauri::command]
 fn log_init(dir: String) {
@@ -731,6 +737,7 @@ pub fn run() {
             remove_path,
             extract_archive,
             host_os,
+            exit_app,
             log_init
         ])
         .run(tauri::generate_context!())
