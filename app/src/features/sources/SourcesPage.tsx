@@ -209,8 +209,6 @@ export function SourcesPage({ onClose }: Props) {
         <div className="card">
           <p className="hint">
             存储目录：<code>{sharedDir || "/sdcard/EmberHub"}</code>
-            <br />
-            下载目录：<code>{downloadDir || sharedDir || "/sdcard/EmberHub"}</code>
           </p>
         </div>
       )}
@@ -225,7 +223,7 @@ export function SourcesPage({ onClose }: Props) {
           <input
             value={downloadDir}
             onChange={(e) => setDownloadDir(e.currentTarget.value)}
-            placeholder={defaultDir || "程序所在目录"}
+            placeholder={mobile ? sharedDir || "/sdcard/EmberHub" : defaultDir || "程序所在目录"}
           />
         </div>
         <div className="actions">
@@ -234,7 +232,7 @@ export function SourcesPage({ onClose }: Props) {
           </button>
         </div>
         <p className="hint">
-          当前默认：<code>{defaultDir || "程序所在目录"}</code>
+          当前默认：<code>{mobile ? sharedDir || "/sdcard/EmberHub" : defaultDir || "程序所在目录"}</code>
         </p>
       </div>
 
