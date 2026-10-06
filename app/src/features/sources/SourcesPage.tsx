@@ -23,14 +23,6 @@ interface Mount {
   name: string;
 }
 
-function formatSize(n: number | null): string {
-  if (n === null) return "—";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(2)} GB`;
-}
-
 export function SourcesPage({ onClose }: Props) {
   const setSource = useStore((s) => s.setSource);
   const downloadDir = useStore((s) => s.downloadDir);
@@ -74,8 +66,7 @@ export function SourcesPage({ onClose }: Props) {
   void setEmulatorsPath;
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
-  const [cacheSize, setCacheSize] = useState<number | null>(null);
-  const [clearing, setClearing] = useState(false);
+  const [, setCacheSize] = useState<number | null>(null);
 
   async function refreshCacheSize() {
     try {
@@ -90,19 +81,6 @@ export function SourcesPage({ onClose }: Props) {
     void refreshCacheSize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [downloadDir]);
-
-  async function clearMediaCache() {
-    setClearing(true);
-    try {
-      await tauri.removePath(await mediaCacheRoot());
-      await refreshCacheSize();
-      setMessage({ ok: true, text: "媒体缓存已清理" });
-    } catch (e) {
-      setMessage({ ok: false, text: `清理失败：${String(e)}` });
-    } finally {
-      setClearing(false);
-    }
-  }
 
   /** Android：切换存储位置（私有目录 / 共享存储）。共享存储需要「所有文件访问」权限。 */
   async function chooseStorage(mode: "private" | "shared") {
@@ -263,22 +241,6 @@ export function SourcesPage({ onClose }: Props) {
         <p className="hint">
           当前默认：<code>{defaultDir || "程序所在目录"}</code>
         </p>
-      </div>
-
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>媒体缓存</h3>
-        <p className="hint">
-          看过的封面/视频会缓存到本地，下次直接读取。当前占用：
-          <code>{formatSize(cacheSize)}</code>
-        </p>
-        <div className="actions">
-          <button className="ghost small" onClick={() => void refreshCacheSize()}>
-            刷新
-          </button>
-          <button className="ghost small" disabled={clearing} onClick={() => void clearMediaCache()}>
-            {clearing ? "清理中…" : "清理媒体缓存"}
-          </button>
-        </div>
       </div>
 
       <div className="card">
