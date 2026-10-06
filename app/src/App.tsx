@@ -163,9 +163,6 @@ function App() {
                   APK。授权后回到本应用会自动继续。
                 </p>
                 <div className="actions">
-                  <button className="ghost" onClick={() => void checkPerms()}>
-                    重新检查
-                  </button>
                   <button className="ghost" onClick={() => void tauri.exitApp()}>
                     退出
                   </button>
