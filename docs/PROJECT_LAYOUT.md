@@ -90,9 +90,10 @@ EmberHub/
 ├─ data/                                # (ignored) 本地运行时数据
 │  ├─ reports/                          #   media-report-*.txt / resource-report-*.txt
 │  └─ secrets/                          #   baidu_token.json
-├─ release/                             # (ignored) 导出的发布产物
-│  ├─ desktop/                          #   .exe / .msi
-│  └─ android/                          #   ★ .apk / .aab
+├─ release/                             # (ignored) 唯一的发布产物出口
+│  ├─ desktop/                          #   安装包 + portable/（便携版文件夹与 zip）
+│  ├─ android/                          #   ★ .apk / .aab
+│  └─ server/Emulators/                 #   服务器模拟器发行包（源 server/Emulators）
 ├─ openlist/                            # (ignored) 中转站程序 + data
 ├─ .gitignore
 ├─ README.md
@@ -153,7 +154,7 @@ EmberHub/
   - [x] `git mv` 出 `scripts/openlist/`、`scripts/media/`
   - [x] 修 `openlist.ps1` / `openlist.bat` 的仓库根解析
 - [x] **阶段 3 — 导出发布产物**
-  - [x] `build.ps1` 增加拷贝 `src-tauri/target/release/bundle/**` → `release/desktop/`
+  - [x] `build.ps1` 拷贝 `src-tauri/target/release/bundle/**` → `release/desktop/`，并生成 `release/desktop/portable/` 便携版（文件夹 + zip，模板 `scripts/portable/README.txt`）
 - [x] **阶段 4 — 前端源码重排（方案 B）**
   - [x] `lib → shared`、`library → domain`、`store → state/`、`config.* → config/`
   - [x] 更新所有 import（采用相对路径，未引入 `@/` 别名）
@@ -203,6 +204,7 @@ Tauri 2 的模型是**一套前端 + 一份 `src-tauri`**：桌面走 `main.rs`�
 - 开发到设备 / 模拟器：`powershell -ExecutionPolicy Bypass -File scripts/android/dev.ps1`
 - 打包：`powershell -ExecutionPolicy Bypass -File scripts/android/build.ps1`，APK/AAB 自动导出到 `release/android/`
 - 产物原始路径：`src-tauri/gen/android/app/build/outputs/{apk,bundle}/...`
+- 服务器模拟器发行包：整理到 `release/server/Emulators/`（源 `server/Emulators/`），随资源服务器上传
 - 签名 keystore **不入库**（生成的 Android 工程自带 ignore 规则）
 - CI：桌面与 Android 分两个 workflow，共享同一份前端构建
 

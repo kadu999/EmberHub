@@ -22,13 +22,15 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 pnpm tauri android build
 
 # 导出 APK/AAB 到 release/android/（与构建缓存解耦）
+# 只取发布产物：release APK（排除 debug 与 baselineProfiles）与 AAB
 $outputsDir = Join-Path $appRoot 'src-tauri\gen\android\app\build\outputs'
 $releaseDir = Join-Path $repoRoot 'release\android'
 if (Test-Path $outputsDir) {
   New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
-  Get-ChildItem -Path $outputsDir -Recurse -File |
-    Where-Object { $_.Extension -in '.apk', '.aab' } |
-    ForEach-Object { Copy-Item -Force $_.FullName $releaseDir }
+  $apks = Get-ChildItem -Path (Join-Path $outputsDir 'apk') -Recurse -File -Filter '*.apk' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -match '\\release\\' -and $_.FullName -notmatch '\\baselineProfiles\\' }
+  $aabs = Get-ChildItem -Path (Join-Path $outputsDir 'bundle') -Recurse -File -Filter '*.aab' -ErrorAction SilentlyContinue
+  @($apks) + @($aabs) | ForEach-Object { Copy-Item -Force $_.FullName $releaseDir }
   Write-Host '已导出 APK/AAB 到 release\android\（发布前需用 keystore 签名）' -ForegroundColor Green
 } else {
   Write-Host "未找到 Android 构建产物目录（构建可能失败）：$outputsDir" -ForegroundColor Yellow

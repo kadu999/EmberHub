@@ -4,6 +4,11 @@
 # 普通 PowerShell 没有，会报 "linker `link.exe` not found"。
 #
 # 用法:  powershell -ExecutionPolicy Bypass -File scripts/build.ps1
+#
+# 所有产物统一导出到仓库根 release/desktop/（与编译缓存 target/ 解耦）：
+#   release/desktop/<安装包>                              # .msi / setup.exe
+#   release/desktop/portable/EmberHub/                    # 解压即用
+#   release/desktop/portable/EmberHub-<版本>-win-portable.zip
 
 $ErrorActionPreference = "Stop"
 
@@ -27,22 +32,48 @@ if (-not (Test-Path $vcvars)) {
 Write-Host "使用 VS 环境: $vcvars" -ForegroundColor DarkGray
 
 # 应用代码位于 app/ 子目录
-$appRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'app'
-Set-Location $appRoot
+$repoRoot = Split-Path $PSScriptRoot -Parent
+$appRoot  = Join-Path $repoRoot 'app'
 
+# 读取产品名 / 版本（用于便携包命名）
+$conf    = Get-Content (Join-Path $appRoot 'src-tauri\tauri.conf.json') -Raw | ConvertFrom-Json
+$product = $conf.productName
+$version = $conf.version
+
+Set-Location $appRoot
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 cmd /c "`"$vcvars`" >nul && pnpm tauri build"
 
-# 导出安装包到仓库根 release/desktop/（与编译缓存 target/ 解耦，cargo clean 不影响已发布包）
-$repoRoot   = Split-Path $PSScriptRoot -Parent
-$bundleDir  = Join-Path $repoRoot 'app\src-tauri\target\release\bundle'
-$releaseDir = Join-Path $repoRoot 'release\desktop'
-if (Test-Path $bundleDir) {
-  New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
-  Get-ChildItem -Path $bundleDir -Recurse -File |
-    Where-Object { $_.Extension -in '.exe', '.msi', '.dmg', '.deb', '.AppImage' } |
-    ForEach-Object { Copy-Item -Force $_.FullName $releaseDir }
-  Write-Host "已导出安装包到 release\desktop\" -ForegroundColor Green
-} else {
+# ---- 导出到 release/desktop/ -------------------------------------------------
+$bundleDir   = Join-Path $appRoot 'src-tauri\target\release\bundle'
+$exePath     = Join-Path $appRoot "src-tauri\target\release\$product.exe"
+$desktopDir  = Join-Path $repoRoot 'release\desktop'
+$portableDir = Join-Path $desktopDir 'portable'
+$stageDir    = Join-Path $portableDir $product
+
+if (-not (Test-Path $bundleDir)) {
   Write-Host "未找到安装包目录（构建可能失败）：$bundleDir" -ForegroundColor Yellow
+  exit 1
+}
+
+New-Item -ItemType Directory -Force -Path $desktopDir | Out-Null
+Get-ChildItem -Path $bundleDir -Recurse -File |
+  Where-Object { $_.Extension -in '.exe', '.msi', '.dmg', '.deb', '.AppImage' } |
+  ForEach-Object { Copy-Item -Force $_.FullName $desktopDir }
+Write-Host "已导出安装包到 release\desktop\" -ForegroundColor Green
+
+# ---- 便携版：exe + 说明 → release/desktop/portable/ --------------------------
+$readmeTpl = Join-Path $PSScriptRoot 'portable\README.txt'
+if ((Test-Path $exePath) -and (Test-Path $readmeTpl)) {
+  Remove-Item $stageDir -Recurse -Force -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
+  Copy-Item -Force $exePath (Join-Path $stageDir "$product.exe")
+  Copy-Item -Force $readmeTpl (Join-Path $stageDir 'README.txt')
+
+  $zipPath = Join-Path $portableDir "$product-$version-win-portable.zip"
+  Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+  Compress-Archive -Path $stageDir -DestinationPath $zipPath -Force
+  Write-Host "已生成便携版：release\desktop\portable\$product-$version-win-portable.zip" -ForegroundColor Green
+} else {
+  Write-Host "跳过便携版打包（缺 exe 或说明模板）：$exePath / $readmeTpl" -ForegroundColor Yellow
 }

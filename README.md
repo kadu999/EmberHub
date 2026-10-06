@@ -64,7 +64,10 @@ EmberHub/                 # 仓库根（项目）
 │  ├─ openlist/               # 中转站一键管理（openlist.bat / .ps1）
 │  └─ media/                  # 资源内容流水线（检测 / 打包 / 转换）
 ├─ data/                  # 本地运行时数据：报告 / 密钥（已 gitignore）
-├─ release/               # 导出的安装包（已 gitignore）
+├─ release/               # 唯一的发布产物出口（已 gitignore）
+│  ├─ desktop/            #   桌面：.msi / setup.exe + portable/（便携版）
+│  ├─ android/            #   安卓：.apk / .aab
+│  └─ server/Emulators/   #   服务器模拟器发行包
 ├─ openlist/              # 中转站（OpenList，已 gitignore，不提交）
 └─ README.md
 ```
@@ -92,6 +95,8 @@ pnpm tauri dev      # 启动桌面应用
 cd app
 pnpm tauri build    # 打包安装包
 ```
+
+> 打包产物统一输出到仓库根 `release/`：桌面在 `release/desktop/`（含 `portable/` 便携版），安卓在 `release/android/`，服务器的模拟器发行包在 `release/server/`。推荐用 `scripts/build.ps1` —— 它会自动加载 VS 环境，并把便携版文件夹与 zip 一并生成。
 
 ## ☁️ 中转站（网盘，可选）
 
