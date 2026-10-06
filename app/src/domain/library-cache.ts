@@ -7,7 +7,7 @@
 import { tauri } from "../shared/tauri";
 import { basename, dirname, joinPath } from "../shared/path";
 import type { RemoteEntry, SourceConfig, StorageKind, StorageProvider } from "../storage/types";
-import { getDownloadDir } from "./ensure";
+import { libraryCacheRoot } from "./ensure";
 
 /** 资源源短标识（与 ensure.ts 的 sourceSlug 同算法，隔离不同源的缓存）。 */
 function sourceSlug(key: string): string {
@@ -202,12 +202,12 @@ class CachedProvider implements StorageProvider {
   }
 }
 
-/** 把存储源包一层缓存（需要下载目录来放缓存）。 */
+/** 把存储源包一层缓存（配置/清单/列表放 App 私有目录；媒体缓存在下载目录另算）。 */
 export async function createCachedProvider(
   base: StorageProvider,
-  source: SourceConfig,
+  // 保留参数以兼容调用方；缓存位置现在不再依赖具体资源源
+  _source: SourceConfig,
 ): Promise<StorageProvider> {
-  const dl = await getDownloadDir(source);
-  const cacheRoot = joinPath(dl, ".cache", "library", sourceSlug(base.key));
+  const cacheRoot = joinPath(await libraryCacheRoot(), sourceSlug(base.key));
   return new CachedProvider(base, cacheRoot);
 }

@@ -42,6 +42,14 @@ function sourceSlug(provider: StorageProvider): string {
   return h.toString(16);
 }
 
+/** 缓存根（配置 / 清单 / 列表等元数据）。
+ *  Android 放 App 私有目录：共享目录不随卸载清空，改服务器配置后容易命中旧缓存；
+ *  桌面端跟随下载目录。 */
+export async function libraryCacheRoot(): Promise<string> {
+  const base = appPlatform.isMobile ? await tauri.defaultDownloadDir() : await getDownloadDir();
+  return joinPath(base, ".cache", "library");
+}
+
 /** 媒体缓存根目录（所有资源源共用这一层，下面按源标识分目录）。 */
 export async function mediaCacheRoot(): Promise<string> {
   return joinPath(await getDownloadDir(), ".cache", "media");
