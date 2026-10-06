@@ -44,6 +44,8 @@ export function SourcesPage({ onClose }: Props) {
 
   // Android：存储位置（私有目录 / 共享存储）
   const mobile = platform.isMobile;
+  const storageMode = useStore((s) => s.storageMode);
+  const setStorageMode = useStore((s) => s.setStorageMode);
   const [sharedDir, setSharedDir] = useState("");
   useEffect(() => {
     if (!mobile) return;
@@ -96,6 +98,33 @@ export function SourcesPage({ onClose }: Props) {
       setMessage({ ok: false, text: `清理失败：${String(e)}` });
     } finally {
       setClearing(false);
+    }
+  }
+
+  /** Android：切换存储位置（私有目录 / 共享存储）。共享存储需要「所有文件访问」权限。 */
+  async function chooseStorage(mode: "private" | "shared") {
+    if (mode === "private") {
+      setStorageMode("private");
+      setDownloadDir("");
+      setMessage({ ok: true, text: "已使用 App 私有目录（不需要权限）" });
+      return;
+    }
+    try {
+      if (!(await tauri.hasAllFilesAccess())) {
+        await tauri.requestAllFilesAccess();
+        setMessage({
+          ok: false,
+          text: "请在系统设置里允许 EmberHub「所有文件访问」，回来后再点一次「共享存储」",
+        });
+        return;
+      }
+      const dir = sharedDir || (await tauri.sharedStorageDir());
+      setSharedDir(dir);
+      setDownloadDir(dir);
+      setStorageMode("shared");
+      setMessage({ ok: true, text: `已使用共享存储：${dir}` });
+    } catch (e) {
+      setMessage({ ok: false, text: `切换失败：${String(e)}` });
     }
   }
 
@@ -206,9 +235,19 @@ export function SourcesPage({ onClose }: Props) {
 
       {mobile && (
         <div className="card">
+          <h3 style={{ marginTop: 0 }}>存储位置（固定：共享存储）</h3>
           <p className="hint">
-            存储：<code>{sharedDir || "/sdcard/EmberHub"}</code>
+            ROM / 模拟器 / APK 一律放 <code>{sharedDir || "/sdcard/EmberHub"}</code>，需要「所有文件访问」权限。
+            模拟器是<b>另一个 App</b>，只能按路径读共享存储（App 私有目录它读不到），所以这里不做选择。
           </p>
+          <div className="actions">
+            <button
+              className={storageMode === "shared" ? "" : "ghost"}
+              onClick={() => void chooseStorage("shared")}
+            >
+              重新授权 / 使用共享存储
+            </button>
+          </div>
         </div>
       )}
 
@@ -317,7 +356,6 @@ export function SourcesPage({ onClose }: Props) {
             placeholder={APP_CONFIG.defaults.emulatorsPath}
           />
         </div>
-
 
         <div className="actions">
           <button onClick={save}>保存</button>
