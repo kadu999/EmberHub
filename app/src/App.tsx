@@ -10,6 +10,7 @@ import { tauri } from "./shared/tauri";
 import { getDownloadDir } from "./domain/ensure";
 import { joinPath } from "./shared/path";
 import { platform } from "./platform";
+import { APP_CONFIG } from "./config/config";
 import "./App.css";
 
 function App() {
@@ -25,8 +26,25 @@ function App() {
   const setFullscreen = useStore((s) => s.setFullscreen);
   const source = useStore((s) => s.source);
   const downloadDir = useStore((s) => s.downloadDir);
+  const setSource = useStore((s) => s.setSource);
   // Android：权限门通过前，禁止任何网络 / 文件读写（未授权会 EPERM / 失败）
   const permsReady = permsChecked && !missingPerms.storage && !missingPerms.install;
+
+  // 第一次打开（还没有资源源）时，用内置默认值自动连 OpenList，省得手填
+  useEffect(() => {
+    if (source) return;
+    setSource({
+      id: "default",
+      name: APP_CONFIG.openlist.mountPath.replace(/^\//, "") || "OpenList",
+      kind: "openlist",
+      server: APP_CONFIG.openlist.server,
+      mountPath: APP_CONFIG.openlist.mountPath,
+      username: APP_CONFIG.openlist.username,
+      password: APP_CONFIG.openlist.password,
+      romsPath: APP_CONFIG.defaults.romsPath,
+      emulatorsPath: APP_CONFIG.defaults.emulatorsPath,
+    });
+  }, [source, setSource]);
 
   const openSettings = () => {
     setShowMenu(false);

@@ -69,6 +69,9 @@ export function SourcesPage({ onClose }: Props) {
   const [emulatorsPath, setEmulatorsPath] = useState(
     initial?.emulatorsPath ?? APP_CONFIG.defaults.emulatorsPath,
   );
+  // romsPath / emulatorsPath 固定用默认值，界面上不再暴露
+  void setRomsPath;
+  void setEmulatorsPath;
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const [cacheSize, setCacheSize] = useState<number | null>(null);
@@ -334,29 +337,6 @@ export function SourcesPage({ onClose }: Props) {
             </button>
           </div>
         </div>
-        {mountPath && (
-          <p className="hint">
-            将使用：<code>{normalizeServer(server)}/dav{mountPath}</code>
-          </p>
-        )}
-
-        <div className="field">
-          <label>游戏目录（服务器 Roms 目录名，固定）</label>
-          <input
-            value={romsPath}
-            onChange={(e) => setRomsPath(e.currentTarget.value)}
-            readOnly
-          />
-        </div>
-        <div className="field">
-          <label>模拟器目录（服务器 Emulators 目录名，可改）</label>
-          <input
-            value={emulatorsPath}
-            onChange={(e) => setEmulatorsPath(e.currentTarget.value)}
-            placeholder={APP_CONFIG.defaults.emulatorsPath}
-          />
-        </div>
-
         <div className="actions">
           <button onClick={save}>保存</button>
           <button
