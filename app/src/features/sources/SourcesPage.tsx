@@ -208,7 +208,9 @@ export function SourcesPage({ onClose }: Props) {
       {mobile && (
         <div className="card">
           <p className="hint">
-            存储：<code>{sharedDir || "/sdcard/EmberHub"}</code>
+            存储目录：<code>{sharedDir || "/sdcard/EmberHub"}</code>
+            <br />
+            下载目录：<code>{downloadDir || sharedDir || "/sdcard/EmberHub"}</code>
           </p>
         </div>
       )}
