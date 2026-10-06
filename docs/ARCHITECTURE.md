@@ -187,7 +187,7 @@ EmberHub/                     # 仓库根（项目）
 │   │   └── src/              # lib.rs + platform（桌面/移动分叉）
 │   └── index.html  package.json  vite.config.ts  tsconfig.json
 ├── docs/
-├── scripts/                  # dev/build + openlist/ + media/
+├── scripts/                  # PC / Android / OpenList 脚本（平铺）+ media/
 ├── data/                     # 本地运行时数据（gitignore）
 ├── release/                  # 导出的安装包（gitignore）
 ├── openlist/                 # 中转站（gitignore，不提交）

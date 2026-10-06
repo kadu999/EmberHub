@@ -6,8 +6,8 @@
 #   └─ openlist\        ← 中转站（本脚本安装/更新到这里）
 #
 # 用法：
-#   双击 scripts\openlist\openlist.bat            （菜单）
-#   powershell -ExecutionPolicy Bypass -File scripts\openlist\openlist.ps1 -Action update
+#   双击 scripts\openlist.bat                      （菜单）
+#   powershell -ExecutionPolicy Bypass -File scripts\openlist.ps1 -Action update
 #   -Action: menu | setup | update | start | stop | restart | open | status
 #   -Password: 初始管理员密码（默认 12345）
 #   -Force: 强制重新下载（忽略版本比较）
@@ -22,8 +22,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ---------------- 路径 ----------------
-$repoRoot  = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent   # ...\EmberHub（脚本位于 scripts/openlist/，故上两级）
-$olDir     = Join-Path $repoRoot 'openlist'            # ...\EmberHub\openlist（项目内，已 gitignore）
+$repoRoot  = Split-Path $PSScriptRoot -Parent   # ...\EmberHub（脚本位于 scripts/，故上一级）
+$olDir     = Join-Path $repoRoot 'openlist'            # ...\EmberHub\openlist（项目内，已 gitignore；openlist.exe 下载到这里）
 $exe       = Join-Path $olDir 'openlist.exe'
 $dataDb    = Join-Path $olDir 'data\data.db'
 $port      = 5244

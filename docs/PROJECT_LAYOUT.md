@@ -76,9 +76,7 @@ EmberHub/
 │  ├─ build-pc.ps1  dev-pc.ps1          # 桌面：构建 / 开发（+ 同名 .bat 双击入口）
 │  ├─ build-android.ps1  dev-android.ps1 # ★ 安卓：构建 / 开发 / 签名（+ 同名 .bat）
 │  ├─ portable/README.txt               # 便携版说明模板（build-pc.ps1 使用）
-│  ├─ openlist/                         # 中转站运维
-│  │  ├─ openlist.bat
-│  │  └─ openlist.ps1
+│  ├─ openlist.bat  openlist.ps1        # 中转站运维（程序装到仓库根 openlist/）
 │  └─ media/                            # 内容流水线
 │     ├─ check-media.mjs  check-resources.mjs
 │     ├─ fix-media-video.mjs  pack-media.mjs
@@ -122,7 +120,7 @@ EmberHub/
 |---|---|---|
 | 仓库根 | 6 个 `*-report-*.txt` + `baidu_token.json` 裸放 | 收进 `data/` |
 | 发布物 | 深埋 `app/src-tauri/target/release/bundle/` | 构建后导出到 `release/` |
-| `scripts/` | 构建 / OpenList / 内容流水线混放 | 拆为根 + `openlist/` + `media/`（+ `android/`） |
+| `scripts/` | 构建 / OpenList / 内容流水线混放 | 全部平铺到根（PC / Android / OpenList 脚本按名区分）+ `media/` 子目录 |
 | `app/src/` | `lib/` 与 `library/` 近名；根散落 `store/config` | `shared/`（工具）+ `domain/`（领域）+ `state/`、`config/` |
 
 > Git 跟踪层面：根目录当前只跟踪 `.gitignore` 与 `README.md`，本次整理不动已跟踪的根文件，主要影响被忽略的产物与 `scripts/`。
@@ -136,7 +134,7 @@ EmberHub/
 | `scripts/check-media.mjs:138` | `media-report-${target}.txt`（相对 cwd） | 仓库根 `data/reports/`，并 `mkdirSync` |
 | `scripts/check-resources.mjs:306` | `resource-report-${target}.txt`（相对 cwd） | 仓库根 `data/reports/`，并 `mkdirSync` |
 | `scripts/baidu_token.py:241` | `open("baidu_token.json","w")` | `data/secrets/`，并确保目录存在 |
-| `scripts/openlist.ps1:25` | `Split-Path $PSScriptRoot -Parent` 取仓库根 | 上两级（脚本移入 `scripts/openlist/`） |
+| `scripts/openlist.ps1:25` | `Split-Path $PSScriptRoot -Parent` 取仓库根 | 按脚本所在层级解析（现位于 `scripts/`，上一级即仓库根；`openlist.exe` 装到仓库根 `openlist/`） |
 | `scripts/openlist.bat` | 调用 `openlist.ps1` 的相对路径 | 同步 |
 | `scripts/media/lib/config.mjs:18` | `../config.json` | 不变（`lib/` 与 `config.json` 一起进 `media/`） |
 | `scripts/build-pc.ps1` | 只打包 | 末尾增加导出 `bundle/**` → `release/desktop/` |
@@ -152,7 +150,7 @@ EmberHub/
   - [x] 新建 `data/reports/`、`data/secrets/`，移动现有报告与 `baidu_token.json`
   - [x] 改 3 处脚本路径（见第 5 节）
 - [x] **阶段 2 — 拆分 `scripts/`**
-  - [x] `git mv` 出 `scripts/openlist/`、`scripts/media/`
+  - [x] `git mv` 出 `scripts/media/`（openlist 脚本此后又回到 `scripts/` 根，与 PC / Android 平级）
   - [x] 修 `openlist.ps1` / `openlist.bat` 的仓库根解析
 - [x] **阶段 3 — 导出发布产物**
   - [x] `build-pc.ps1` 拷贝 `src-tauri/target/release/bundle/**` → `release/desktop/`，并生成 `release/desktop/portable/` 便携版（文件夹 + zip，模板 `scripts/portable/README.txt`）

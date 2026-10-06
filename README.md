@@ -62,7 +62,7 @@ EmberHub/                 # 仓库根（项目）
 ├─ scripts/               # 一键脚本（PC 与 Android 平级，靠名字区分）
 │  ├─ build-pc.bat / dev-pc.bat             # 桌面：打包 / 开发（双击即用）
 │  ├─ build-android.bat / dev-android.bat   # 安卓：打包 / 开发（双击即用）
-│  ├─ openlist/               # 中转站一键管理（openlist.bat / .ps1）
+│  ├─ openlist.bat  openlist.ps1  # 中转站一键管理（双击 openlist.bat）
 │  └─ media/                  # 资源内容流水线（检测 / 打包 / 转换）
 ├─ data/                  # 本地运行时数据：报告 / 密钥（已 gitignore）
 ├─ release/               # 唯一的发布产物出口（已 gitignore）
@@ -110,11 +110,11 @@ pnpm tauri build    # 打包安装包
 ```
 EmberHub/
 ├─ app/
-├─ openlist/              ← 中转站（gitignore）
-└─ scripts/openlist/      ← 管理脚本
+├─ openlist/              ← 中转站程序与数据（gitignore，openlist.exe 装在这里）
+└─ scripts/openlist.bat   ← 管理脚本（双击）
 ```
 
-**双击 `scripts\openlist\openlist.bat`** 即可一键安装/启动/停止。
+**双击 `scripts\openlist.bat`** 即可一键安装/启动/停止。
 
 详见 [`docs/CLOUD_DRIVE.md`](docs/CLOUD_DRIVE.md)。
 

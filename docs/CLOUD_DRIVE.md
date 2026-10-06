@@ -15,19 +15,19 @@ EmberHub 采用「直连优先」的存储适配器架构。当前已实现：
 ```
 EmberHub\                 ← 仓库根（项目）
 ├─ app\                   ← 应用
-├─ openlist\              ← 中转站（脚本安装到这里）
-├─ scripts\               ← dev/build + openlist\ + media\
+├─ openlist\              ← 中转站程序与数据（openlist.exe 装到这里）
+├─ scripts\               ← PC / Android / OpenList 脚本（平铺）+ media\
 ├─ docs\
 └─ README.md
 ```
 
-**双击 `scripts\openlist\openlist.bat`**，选择「1) 安装 / 更新」即可自动下载并初始化到 `openlist/`。
+**双击 `scripts\openlist.bat`**，选择「1) 安装 / 更新」即可自动下载并初始化到 `openlist/`。
 菜单还提供：启动、停止、打开管理页面、查看状态。
 
 也可以命令行调用：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\openlist\openlist.ps1 -Action setup
+powershell -ExecutionPolicy Bypass -File scripts\openlist.ps1 -Action setup
 # -Action: menu | setup | update | start | stop | restart | open | status
 # -Password: 初始管理员密码（默认 12345）
 # -Force: 强制重新下载
