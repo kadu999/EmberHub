@@ -18,7 +18,8 @@
       "extract": false,
       "configs": [
         { "to": "portable.ini", "content": "" },
-        { "to": "retroarch.cfg", "from": "retroarch.cfg" }
+        { "to": "retroarch.cfg", "from": "retroarch.cfg" },
+        { "to": "retroarch.cfg", "set": { "input_menu_toggle_gamepad_combo": "4" } }
       ]
     },
     "PS2": {

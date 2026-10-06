@@ -214,8 +214,9 @@ function parseEmulatorFiles(v: unknown): EmulatorFile[] | undefined {
     if (!to) continue;
     const from = str(o.from);
     const content = typeof o.content === "string" ? o.content : undefined;
-    if (from === undefined && content === undefined) continue;
-    out.push({ to, from, content });
+    const set = strMap(o.set);
+    if (from === undefined && content === undefined && !set) continue;
+    out.push({ to, from, content, set });
   }
   return out.length > 0 ? out : undefined;
 }

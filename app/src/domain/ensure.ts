@@ -156,9 +156,26 @@ function applyConfigPlaceholders(
 }
 
 /**
+ * 就地改写配置里的键：命中同名键整行替换，没有则追加到文件末尾
+ * （同名键后写的生效，所以原键被注释掉也能盖住）。
+ */
+function patchConfigKeys(text: string, set: Record<string, string>): string {
+  let out = text;
+  for (const [key, value] of Object.entries(set)) {
+    const line = `${key} = "${value}"`;
+    const esc = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`^[ \\t]*${esc}[ \\t]*=.*$`, "m");
+    out = re.test(out) ? out.replace(re, line) : `${out.replace(/\s*$/, "")}\n${line}\n`;
+  }
+  return out;
+}
+
+/**
  * 把 emulators.json 里声明的配置文件写入本地模拟器目录（幂等）。
  * - `content`：直接写文本（支持 {install.dir} / {download.dir} / {roms.dir}）
- * - `from`：从服务器该模拟器目录下载文件（本地已存在则跳过）
+ * - `from`：从服务器该模拟器目录下载文件（本地已存在则不覆盖）
+ * - `set`：就地补齐/纠正配置里的键（文件不存在则跳过）。配置即使是模拟器自己
+ *   生成的也保证这一行生效，例如 RetroArch 的 input_menu_toggle_gamepad_combo
  * 全部失败只记录警告，不阻断启动。
  */
 async function provisionEmulatorConfigs(
@@ -180,19 +197,36 @@ async function provisionEmulatorConfigs(
   for (const f of list) {
     const dest = joinPath(localDir, f.to);
     try {
+      // 1) 先保证文件存在：from 从服务器下载（已存在则不覆盖），content 直接写文本
       if (f.from) {
-        if (await tauri.fileExists(dest)) continue;
-        if (!provider.downloadTo) continue;
-        onStatus?.(`写入配置 ${f.to}`);
-        await provider.downloadTo(joinPath(emuBase, f.from), dest);
-      } else {
-        const content = applyConfigPlaceholders(f.content ?? "", vars);
+        if (!(await tauri.fileExists(dest))) {
+          if (!provider.downloadTo) continue;
+          onStatus?.(`写入配置 ${f.to}`);
+          await provider.downloadTo(joinPath(emuBase, f.from), dest);
+        }
+      } else if (f.content !== undefined) {
+        const content = applyConfigPlaceholders(f.content, vars);
         const existing = (await tauri.fileExists(dest))
           ? await tauri.readTextFile(dest).catch(() => null)
           : null;
-        if (existing === content) continue;
-        onStatus?.(`写入配置 ${f.to}`);
-        await tauri.writeTextFile(dest, content);
+        if (existing !== content) {
+          onStatus?.(`写入配置 ${f.to}`);
+          await tauri.writeTextFile(dest, content);
+        }
+      }
+
+      // 2) 再就地补齐/纠正 set 里的键：文件已存在也一样处理（不覆盖其它设置）
+      if (f.set && Object.keys(f.set).length > 0 && (await tauri.fileExists(dest))) {
+        const text = await tauri.readTextFile(dest).catch(() => null);
+        if (text != null) {
+          const want: Record<string, string> = {};
+          for (const [k, v] of Object.entries(f.set)) want[k] = applyConfigPlaceholders(v, vars);
+          const next = patchConfigKeys(text, want);
+          if (next !== text) {
+            onStatus?.(`更新配置 ${f.to}`);
+            await tauri.writeTextFile(dest, next);
+          }
+        }
       }
     } catch (e) {
       console.warn(`[EmberHub] 预置配置失败 ${f.to}:`, e);

@@ -101,6 +101,12 @@ export interface EmulatorFile {
   from?: string;
   /** 内联文本内容；支持 {install.dir} / {download.dir} / {roms.dir} 占位符；与 from 二选一 */
   content?: string;
+  /**
+   * 就地补齐/纠正该配置里的键（如 input_menu_toggle_gamepad_combo = "4"）。
+   * 与 from/content 不同：文件**已存在**也会处理，但只动这几个键，其余原样保留；
+   * 文件不存在则跳过（交给 from/content 生成）。
+   */
+  set?: Record<string, string>;
 }
 
 /** 单个模拟器配置（Emulators/<OS>/emulators.json 里的 emulators[<平台>]） */
