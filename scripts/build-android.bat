@@ -1,15 +1,15 @@
 @echo off
-rem EmberHub - 打 Android 包（APK / AAB）。双击本文件即可。
-rem 执行 scripts\build-android.ps1，产物输出到仓库根 release\android\。
-rem 前置：JDK + Android SDK/NDK，且已执行过 pnpm tauri android init。
+rem EmberHub - build the Android package (APK / AAB).
+rem Runs scripts\build-android.ps1; output: release\android\.
+rem Needs JDK + Android SDK/NDK and a prior "pnpm tauri android init".
 setlocal
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0build-android.ps1" %*
 set code=%errorlevel%
 echo.
 if not "%code%"=="0" (
-  echo [失败] Android 打包未成功，退出码 %code%。请查看上方输出。
+  echo [FAILED] Android build failed. Exit code: %code%. See output above.
 ) else (
-  echo [完成] Android 产物在 release\android\（发布前需签名）
+  echo [DONE] Android packages are in release\android\ (sign before publishing).
 )
 pause
 endlocal
