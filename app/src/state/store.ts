@@ -53,6 +53,12 @@ interface AppStore {
    */
   pendingLaunch: { game: Game; pkg: string } | null;
   setPendingLaunch: (v: { game: Game; pkg: string } | null) => void;
+  /**
+   * Android：已经"首次打开过"的模拟器包名。用于引导模拟器自己的存储授权
+   * （Android 规定运行时权限只能由该 App 自己申请），一次即可，之后不再打扰。
+   */
+  configuredEmulators: string[];
+  markEmulatorConfigured: (pkg: string) => void;
 }
 
 /** Android 存储位置：App 私有目录 / 共享存储（/sdcard/EmberHub） */
@@ -77,6 +83,13 @@ export const useStore = create<AppStore>()(
       setLastSelection: (id, collection) => set({ lastGameId: id, lastCollection: collection }),
       pendingLaunch: null,
       setPendingLaunch: (v) => set({ pendingLaunch: v }),
+      configuredEmulators: [],
+      markEmulatorConfigured: (pkg) =>
+        set((st) => ({
+          configuredEmulators: st.configuredEmulators.includes(pkg)
+            ? st.configuredEmulators
+            : [...st.configuredEmulators, pkg],
+        })),
     }),
     {
       name: "emberhub",
@@ -100,6 +113,9 @@ export const useStore = create<AppStore>()(
           lastGameId: typeof p.lastGameId === "string" ? p.lastGameId : current.lastGameId,
           lastCollection: typeof p.lastCollection === "string" ? p.lastCollection : current.lastCollection,
           pendingLaunch: (p.pendingLaunch ?? null) as AppStore["pendingLaunch"],
+          configuredEmulators: Array.isArray(p.configuredEmulators)
+            ? (p.configuredEmulators as string[])
+            : current.configuredEmulators,
         };
       },
     },

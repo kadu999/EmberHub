@@ -303,8 +303,19 @@ export async function ensureEmulator(
   if (appPlatform.isMobile) {
     const pkg = (config.package?.trim() || config.exe).trim();
     if (await appPlatform.isEmulatorInstalled(pkg)) {
-      onStatus?.(`使用已安装的模拟器（${pkg}）`);
-      return { dir: "", config, args };
+      // 每个模拟器首次使用时：先打开它一次，让它弹出自己的存储授权
+      // （Android 规定运行时权限只能由该 App 自己申请）；之后回来自动继续启动。
+      if (useStore.getState().configuredEmulators.includes(pkg)) {
+        onStatus?.(`使用已安装的模拟器（${pkg}）`);
+        return { dir: "", config, args };
+      }
+      useStore.getState().markEmulatorConfigured(pkg);
+      onStatus?.(`首次使用 ${pkg}：正在打开它，请允许它的存储权限…`);
+      await appPlatform.launchEmulator(pkg, [], undefined, { package: pkg });
+      throw new EmulatorInstallingError(
+        pkg,
+        `请在 ${pkg} 里允许「存储」权限；授权后回到本应用会自动继续启动。`,
+      );
     }
     onStatus?.(`未安装模拟器 ${pkg}，开始下载安装…`);
     await installEmulator(provider, source, platform, onStatus);
