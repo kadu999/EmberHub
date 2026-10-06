@@ -279,10 +279,19 @@ export async function ensureEmulator(
   // 该 Roms 平台的启动参数：platformArgs 覆盖 > 模拟器自身 args
   const args = platformArgs[platform] ?? config.args;
 
-  // Android：模拟器是已安装的 App（用 package/exe 指定包名），没有可下载/解压的压缩包
+  // Android：模拟器是设备上已安装的 App（用 package/exe 指定包名）。
+  // 先检测是否已安装：没装就下载 APK 并拉起系统安装器 —— 装好之前**不启动**。
   if (appPlatform.isMobile) {
-    onStatus?.(`使用已安装的模拟器（${config.package ?? config.exe}）`);
-    return { dir: "", config, args };
+    const pkg = (config.package?.trim() || config.exe).trim();
+    if (await appPlatform.isEmulatorInstalled(pkg)) {
+      onStatus?.(`使用已安装的模拟器（${pkg}）`);
+      return { dir: "", config, args };
+    }
+    onStatus?.(`未安装模拟器 ${pkg}，开始下载安装…`);
+    await installEmulator(provider, source, platform, onStatus);
+    throw new Error(
+      `模拟器 ${pkg} 尚未安装：已下载 APK 并打开系统安装器，请确认安装后重新启动游戏。`,
+    );
   }
 
   const dl = await getDownloadDir(source);

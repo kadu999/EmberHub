@@ -124,3 +124,11 @@ pub fn android_can_install_packages(_app: &tauri::AppHandle) -> Result<bool, Str
 pub fn android_request_install_packages(_app: &tauri::AppHandle) -> Result<(), String> {
     Err("安装未知应用仅在 Android 平台可用。".to_string())
 }
+
+/// 桌面端没有「已安装的 App」概念。
+pub fn android_is_package_installed(
+    _app: &tauri::AppHandle,
+    _package: String,
+) -> Result<bool, String> {
+    Err("检查已安装 App 仅在 Android 平台可用。".to_string())
+}

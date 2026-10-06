@@ -60,3 +60,11 @@ pub fn android_can_install_packages(app: &AppHandle) -> Result<bool, String> {
 pub fn android_request_install_packages(app: &AppHandle) -> Result<(), String> {
     app.android_intent().request_install_packages()
 }
+
+/// 目标模拟器 App（按包名）是否已安装。
+pub fn android_is_package_installed(app: &AppHandle, package: String) -> Result<bool, String> {
+    if package.trim().is_empty() {
+        return Err("缺少目标模拟器包名。".to_string());
+    }
+    app.android_intent().is_package_installed(&package)
+}

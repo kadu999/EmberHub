@@ -171,6 +171,12 @@ fn android_request_install_packages(app: tauri::AppHandle) -> Result<(), String>
     platform::android_request_install_packages(&app)
 }
 
+/// Android：目标模拟器 App（按包名）是否已安装。
+#[tauri::command]
+fn android_is_package_installed(app: tauri::AppHandle, package: String) -> Result<bool, String> {
+    platform::android_is_package_installed(&app, package)
+}
+
 /// 列出本地目录内容（解压后查找 ROM、读取本地缓存等）。
 #[tauri::command]
 fn list_local_dir(path: String) -> Result<Vec<LocalEntry>, String> {
@@ -692,6 +698,7 @@ pub fn run() {
             android_request_all_files_access,
             android_can_install_packages,
             android_request_install_packages,
+            android_is_package_installed,
             list_local_dir,
             list_local_files,
             webdav_list,

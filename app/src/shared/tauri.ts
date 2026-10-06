@@ -84,4 +84,7 @@ export const tauri = {
   canInstallPackages: () => invoke<boolean>("android_can_install_packages"),
   /** Android：跳转系统设置请求「安装未知应用」权限 */
   requestInstallPackages: () => invoke<void>("android_request_install_packages"),
+  /** Android：目标 App（按包名）是否已安装 */
+  isPackageInstalled: (pkg: string) =>
+    invoke<boolean>("android_is_package_installed", { package: pkg }),
 };

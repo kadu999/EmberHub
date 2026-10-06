@@ -235,4 +235,26 @@ class AndroidIntentPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.reject(ex.message ?: "请求安装权限失败")
         }
     }
+
+    /** 目标 App（按包名）是否已安装。 */
+    @Command
+    fun is_package_installed(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(LaunchArgs::class.java)
+            val pkg = args.packageName?.takeIf { it.isNotEmpty() }
+            if (pkg == null) {
+                invoke.reject("缺少包名（packageName）")
+                return
+            }
+            val installed = try {
+                activity.packageManager.getPackageInfo(pkg, 0)
+                true
+            } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                false
+            }
+            invoke.resolveObject(installed)
+        } catch (ex: Exception) {
+            invoke.reject(ex.message ?: "检查模拟器是否已安装失败")
+        }
+    }
 }

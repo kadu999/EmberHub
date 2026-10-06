@@ -343,6 +343,18 @@
           "markdownDescription": "Denies the install command without any pre-configured scope."
         },
         {
+          "description": "Enables the is_package_installed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-is-package-installed",
+          "markdownDescription": "Enables the is_package_installed command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the is_package_installed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-is-package-installed",
+          "markdownDescription": "Denies the is_package_installed command without any pre-configured scope."
+        },
+        {
           "description": "Enables the launch command without any pre-configured scope.",
           "type": "string",
           "const": "allow-launch",
@@ -391,10 +403,10 @@
           "markdownDescription": "Denies the shared_storage_dir command without any pre-configured scope."
         },
         {
-          "description": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`",
+          "description": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`\n- `allow-is-package-installed`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`"
+          "markdownDescription": "EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享存储）\n#### This default permission set includes:\n\n- `allow-launch`\n- `allow-install`\n- `allow-external-files-dir`\n- `allow-shared-storage-dir`\n- `allow-has-all-files-access`\n- `allow-request-all-files-access`\n- `allow-can-install-packages`\n- `allow-request-install-packages`\n- `allow-is-package-installed`"
         }
       ]
     }

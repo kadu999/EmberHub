@@ -8,4 +8,5 @@ export const desktopPlatform: Platform = {
   isMobile: false,
   launchEmulator: (exePath, args = [], workdir, _opts) =>
     tauri.launchEmulator(exePath, args, workdir),
+  isEmulatorInstalled: () => Promise.resolve(true),
 };

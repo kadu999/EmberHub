@@ -32,4 +32,10 @@ export interface Platform {
     workdir?: string,
     opts?: LaunchOptions,
   ): Promise<number>;
+  /**
+   * 模拟器（App）是否已安装。
+   * - Android：按包名查系统包管理器；
+   * - 桌面：无此概念，恒为 true。
+   */
+  isEmulatorInstalled(pkg: string): Promise<boolean>;
 }

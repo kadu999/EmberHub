@@ -8,6 +8,7 @@ const COMMANDS: &[&str] = &[
     "request_all_files_access",
     "can_install_packages",
     "request_install_packages",
+    "is_package_installed",
 ];
 
 fn main() {

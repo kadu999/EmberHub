@@ -12,6 +12,7 @@ EmberHub Android 插件默认权限（启动 App / 安装 APK / 外置与共享�
 - `allow-request-all-files-access`
 - `allow-can-install-packages`
 - `allow-request-install-packages`
+- `allow-is-package-installed`
 
 ## Permission Table
 
@@ -122,6 +123,32 @@ Enables the install command without any pre-configured scope.
 <td>
 
 Denies the install command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:allow-is-package-installed`
+
+</td>
+<td>
+
+Enables the is_package_installed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`android-intent:deny-is-package-installed`
+
+</td>
+<td>
+
+Denies the is_package_installed command without any pre-configured scope.
 
 </td>
 </tr>

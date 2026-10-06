@@ -12,12 +12,12 @@ mod android;
 #[cfg(not(target_os = "android"))]
 pub use desktop::{
     android_can_install_packages, android_has_all_files_access, android_install_apk,
-    android_launch_app, android_request_all_files_access, android_request_install_packages,
-    android_shared_storage_dir, launch_emulator,
+    android_is_package_installed, android_launch_app, android_request_all_files_access,
+    android_request_install_packages, android_shared_storage_dir, launch_emulator,
 };
 #[cfg(target_os = "android")]
 pub use android::{
     android_can_install_packages, android_has_all_files_access, android_install_apk,
-    android_launch_app, android_request_all_files_access, android_request_install_packages,
-    android_shared_storage_dir, launch_emulator,
+    android_is_package_installed, android_launch_app, android_request_all_files_access,
+    android_request_install_packages, android_shared_storage_dir, launch_emulator,
 };

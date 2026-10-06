@@ -44,4 +44,5 @@ export const androidPlatform: Platform = {
     );
     return 0;
   },
+  isEmulatorInstalled: (pkg) => tauri.isPackageInstalled(pkg.trim()),
 };

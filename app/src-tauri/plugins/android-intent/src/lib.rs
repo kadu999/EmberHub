@@ -188,6 +188,29 @@ impl<R: Runtime> AndroidIntent<R> {
     pub fn request_install_packages(&self) -> Result<(), String> {
         Err("安装未知应用仅在 Android 可用。".to_string())
     }
+
+    /// 目标 App（按包名）是否已安装。
+    #[cfg(target_os = "android")]
+    pub fn is_package_installed(&self, package: &str) -> Result<bool, String> {
+        self.handle
+            .run_mobile_plugin::<bool>(
+                "is_package_installed",
+                LaunchPayload {
+                    package_name: package.to_string(),
+                    path: None,
+                    mime: None,
+                    action: None,
+                    component: None,
+                    extras: None,
+                },
+            )
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(not(target_os = "android"))]
+    pub fn is_package_installed(&self, _package: &str) -> Result<bool, String> {
+        Ok(false)
+    }
 }
 
 /// 通过 `app.android_intent()` 取到插件实例。
