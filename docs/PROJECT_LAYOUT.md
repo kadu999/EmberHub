@@ -73,8 +73,9 @@ EmberHub/
 │  ├─ ARCHITECTURE.md  CLOUD_DRIVE.md  REQUIREMENTS.md
 │  └─ PROJECT_LAYOUT.md                 # 本文
 ├─ scripts/
-│  ├─ dev.ps1  build.ps1                # 应用开发 / 构建（桌面）
-│  ├─ android/                          # ★ android init / dev / build / 签名
+│  ├─ build-pc.ps1  dev-pc.ps1          # 桌面：构建 / 开发（+ 同名 .bat 双击入口）
+│  ├─ build-android.ps1  dev-android.ps1 # ★ 安卓：构建 / 开发 / 签名（+ 同名 .bat）
+│  ├─ portable/README.txt               # 便携版说明模板（build-pc.ps1 使用）
 │  ├─ openlist/                         # 中转站运维
 │  │  ├─ openlist.bat
 │  │  └─ openlist.ps1
@@ -138,7 +139,7 @@ EmberHub/
 | `scripts/openlist.ps1:25` | `Split-Path $PSScriptRoot -Parent` 取仓库根 | 上两级（脚本移入 `scripts/openlist/`） |
 | `scripts/openlist.bat` | 调用 `openlist.ps1` 的相对路径 | 同步 |
 | `scripts/media/lib/config.mjs:18` | `../config.json` | 不变（`lib/` 与 `config.json` 一起进 `media/`） |
-| `scripts/build.ps1` | 只打包 | 末尾增加导出 `bundle/**` → `release/desktop/` |
+| `scripts/build-pc.ps1` | 只打包 | 末尾增加导出 `bundle/**` → `release/desktop/` |
 | `app/src/**` | 原 import 路径 | `shared/domain/state/config` 重命名后全部更新（建议配 `@/` 别名） |
 | `README.md`、`docs/ARCHITECTURE.md §8` | 旧目录图 | 与本文件对齐 |
 
@@ -154,7 +155,7 @@ EmberHub/
   - [x] `git mv` 出 `scripts/openlist/`、`scripts/media/`
   - [x] 修 `openlist.ps1` / `openlist.bat` 的仓库根解析
 - [x] **阶段 3 — 导出发布产物**
-  - [x] `build.ps1` 拷贝 `src-tauri/target/release/bundle/**` → `release/desktop/`，并生成 `release/desktop/portable/` 便携版（文件夹 + zip，模板 `scripts/portable/README.txt`）
+  - [x] `build-pc.ps1` 拷贝 `src-tauri/target/release/bundle/**` → `release/desktop/`，并生成 `release/desktop/portable/` 便携版（文件夹 + zip，模板 `scripts/portable/README.txt`）
 - [x] **阶段 4 — 前端源码重排（方案 B）**
   - [x] `lib → shared`、`library → domain`、`store → state/`、`config.* → config/`
   - [x] 更新所有 import（采用相对路径，未引入 `@/` 别名）
@@ -201,8 +202,8 @@ Tauri 2 的模型是**一套前端 + 一份 `src-tauri`**：桌面走 `main.rs`�
 
 日常命令：
 
-- 开发到设备 / 模拟器：`powershell -ExecutionPolicy Bypass -File scripts/android/dev.ps1`
-- 打包：`powershell -ExecutionPolicy Bypass -File scripts/android/build.ps1`，APK/AAB 自动导出到 `release/android/`
+- 开发到设备 / 模拟器：`powershell -ExecutionPolicy Bypass -File scripts/dev-android.ps1`
+- 打包：`powershell -ExecutionPolicy Bypass -File scripts/build-android.ps1`，APK/AAB 自动导出到 `release/android/`
 - 产物原始路径：`src-tauri/gen/android/app/build/outputs/{apk,bundle}/...`
 - 服务器模拟器发行包：整理到 `release/server/Emulators/`（源 `server/Emulators/`），随资源服务器上传
 - 签名 keystore **不入库**（生成的 Android 工程自带 ignore 规则）

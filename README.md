@@ -59,8 +59,9 @@ EmberHub/                 # 仓库根（项目）
 ├─ app/                   # 应用（Tauri 2 + React + TS）
 ├─ server/                # 资源服务器（OpenList）资源源文件
 ├─ docs/                  # 设计与目录规范
-├─ scripts/               # 一键脚本
-│  ├─ dev.ps1 / build.ps1     # 应用开发 / 打包（自动加载 VS 环境）
+├─ scripts/               # 一键脚本（PC 与 Android 平级，靠名字区分）
+│  ├─ build-pc.bat / dev-pc.bat             # 桌面：打包 / 开发（双击即用）
+│  ├─ build-android.bat / dev-android.bat   # 安卓：打包 / 开发（双击即用）
 │  ├─ openlist/               # 中转站一键管理（openlist.bat / .ps1）
 │  └─ media/                  # 资源内容流水线（检测 / 打包 / 转换）
 ├─ data/                  # 本地运行时数据：报告 / 密钥（已 gitignore）
@@ -85,9 +86,12 @@ pnpm tauri dev      # 启动桌面应用
 > 普通终端里可能报 ``linker `link.exe` not found``。可直接用仓库自带脚本（会自动进入 `app/` 并加载 VS 环境）：
 >
 > ```powershell
-> powershell -ExecutionPolicy Bypass -File scripts/dev.ps1     # 开发
-> powershell -ExecutionPolicy Bypass -File scripts/build.ps1   # 打包
+> powershell -ExecutionPolicy Bypass -File scripts/dev-pc.ps1       # PC 开发
+> powershell -ExecutionPolicy Bypass -File scripts/build-pc.ps1     # PC 打包
+> powershell -ExecutionPolicy Bypass -File scripts/build-android.ps1 # 安卓打包
 > ```
+>
+> 更省事：直接双击 `scripts\build-pc.bat`（打 PC 包）/ `scripts\build-android.bat`（打安卓包）。
 
 ### 构建
 
@@ -96,7 +100,7 @@ cd app
 pnpm tauri build    # 打包安装包
 ```
 
-> 打包产物统一输出到仓库根 `release/`：桌面在 `release/desktop/`（含 `portable/` 便携版），安卓在 `release/android/`，服务器的模拟器发行包在 `release/server/`。推荐用 `scripts/build.ps1` —— 它会自动加载 VS 环境，并把便携版文件夹与 zip 一并生成。
+> 打包产物统一输出到仓库根 `release/`：桌面在 `release/desktop/`（含 `portable/` 便携版），安卓在 `release/android/`，服务器的模拟器发行包在 `release/server/`。推荐用 `scripts/build-pc.ps1` —— 它会自动加载 VS 环境，并把便携版文件夹与 zip 一并生成。
 
 ## ☁️ 中转站（网盘，可选）
 

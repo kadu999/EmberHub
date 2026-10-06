@@ -5,7 +5,8 @@
 #   LIB / INCLUDE 环境变量。普通 PowerShell 默认没有这些，会报
 #   "linker `link.exe` not found"。本脚本自动用 vcvars64.bat 注入后启动。
 #
-# 用法:  powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
+# 用法:  powershell -ExecutionPolicy Bypass -File scripts/dev-pc.ps1
+#        （或直接双击 scripts\dev-pc.bat）
 
 $ErrorActionPreference = "Stop"
 

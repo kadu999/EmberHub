@@ -7,8 +7,8 @@
 #   - rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 #   - 首次需先执行一次：pnpm tauri android init（生成并提交 src-tauri/gen/android）
 #
-# 用法:  powershell -ExecutionPolicy Bypass -File scripts/android/dev.ps1 [-DevHost 192.168.1.12]
-#        （模拟器无需传，默认 10.0.2.2；真机传你电脑的局域网 IP）
+# 用法:  powershell -ExecutionPolicy Bypass -File scripts/dev-android.ps1 [-DevHost 192.168.1.12]
+#        （或直接双击 scripts\dev-android.bat；模拟器无需传，默认 10.0.2.2；真机传你电脑的局域网 IP）
 
 param(
   # 开发服务器地址（--host）：配合脚本里的 adb reverse，用 127.0.0.1 最稳（走调试通道，
@@ -81,8 +81,8 @@ if (-not $canSymlink) {
   Write-Host '         app\src-tauri\gen\android\gradlew.bat --stop' -ForegroundColor Yellow
 }
 
-# 脚本位于 scripts/android/，应用在仓库根的 app/
-$appRoot = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'app'
+# 脚本位于 scripts/，应用在仓库根的 app/
+$appRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'app'
 if (-not (Test-Path (Join-Path $appRoot 'src-tauri\gen\android'))) {
   Write-Host '尚未初始化 Android 工程，请先在 app/ 执行：pnpm tauri android init' -ForegroundColor Yellow
 }

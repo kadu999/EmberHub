@@ -1,9 +1,10 @@
 ﻿# Android 打包：生成 APK / AAB 并导出到仓库根 release/android/。
 #
-# 前置条件同 scripts/android/dev.ps1（JDK + Android SDK/NDK + rust android target），
+# 前置条件同 scripts/dev-android.ps1（JDK + Android SDK/NDK + rust android target），
 # 且已执行过 pnpm tauri android init。
 #
-# 用法:  powershell -ExecutionPolicy Bypass -File scripts/android/build.ps1
+# 用法:  powershell -ExecutionPolicy Bypass -File scripts/build-android.ps1
+#        （或直接双击 scripts\build-android.bat）
 
 $ErrorActionPreference = 'Stop'
 
@@ -14,8 +15,8 @@ if (-not $env:NDK_HOME) {
   Write-Host '警告：未设置 NDK_HOME，Tauri 可能找不到 Android NDK。' -ForegroundColor Yellow
 }
 
-# 脚本位于 scripts/android/，应用在仓库根的 app/
-$repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+# 脚本位于 scripts/，应用在仓库根的 app/
+$repoRoot = Split-Path $PSScriptRoot -Parent
 $appRoot  = Join-Path $repoRoot 'app'
 Set-Location $appRoot
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"

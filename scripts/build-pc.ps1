@@ -3,7 +3,8 @@
 # Windows 上 Rust（MSVC）链接需要 link.exe 与 Windows SDK 环境，
 # 普通 PowerShell 没有，会报 "linker `link.exe` not found"。
 #
-# 用法:  powershell -ExecutionPolicy Bypass -File scripts/build.ps1
+# 用法:  powershell -ExecutionPolicy Bypass -File scripts/build-pc.ps1
+#        （或直接双击 scripts\build-pc.bat）
 #
 # 所有产物统一导出到仓库根 release/desktop/（与编译缓存 target/ 解耦）：
 #   release/desktop/<安装包>                              # .msi / setup.exe
