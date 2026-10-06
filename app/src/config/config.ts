@@ -7,6 +7,8 @@ export interface OpenListDefaults {
   server: string;
   username: string;
   password: string;
+  /** 默认资源源（OpenList 挂载路径），固定使用、不让用户选 */
+  mountPath: string;
 }
 
 export interface GridConfig {

@@ -2,7 +2,8 @@
   "openlist": {
     "server": "127.0.0.1:5244",
     "username": "admin",
-    "password": "12345"
+    "password": "12345",
+    "mountPath": "/EmberHub_Baidu"
   },
   "grid": {
     "minColWidth": 150,

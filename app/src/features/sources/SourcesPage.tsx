@@ -58,7 +58,9 @@ export function SourcesPage({ onClose }: Props) {
   }, []);
 
   const [server, setServer] = useState(initial?.server ?? DEFAULT_SERVER);
-  const [mountPath, setMountPath] = useState(initial?.mountPath ?? "");
+  const [mountPath, setMountPath] = useState(
+    initial?.mountPath ?? APP_CONFIG.openlist.mountPath,
+  );
   const [mounts, setMounts] = useState<Mount[]>([]);
   const [loadingMounts, setLoadingMounts] = useState(false);
   const [username, setUsername] = useState(initial?.username ?? DEFAULT_USER);
@@ -315,15 +317,17 @@ export function SourcesPage({ onClose }: Props) {
           <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
         </div>
         <div className="field">
-          <label>资源源（OpenList 挂载）</label>
+          <label>资源源（OpenList 挂载，固定）</label>
           <div className="field-row">
             <select
               value={mountPath}
               onChange={(e) => setMountPath(e.currentTarget.value)}
-              disabled={mounts.length === 0}
+              disabled
             >
               {mounts.length === 0 ? (
-                <option value="">{loadingMounts ? "获取中…" : "点击右侧按钮获取"}</option>
+                <option value={mountPath}>
+                  {mountPath || (loadingMounts ? "获取中…" : "点击右侧按钮获取")}
+                </option>
               ) : (
                 mounts.map((m) => (
                   <option key={m.path} value={m.path}>
@@ -344,11 +348,11 @@ export function SourcesPage({ onClose }: Props) {
         )}
 
         <div className="field">
-          <label>游戏目录（服务器 Roms 目录名，可改）</label>
+          <label>游戏目录（服务器 Roms 目录名，固定）</label>
           <input
             value={romsPath}
             onChange={(e) => setRomsPath(e.currentTarget.value)}
-            placeholder={APP_CONFIG.defaults.romsPath}
+            readOnly
           />
         </div>
         <div className="field">
