@@ -115,8 +115,6 @@ export function LibraryPage({
     total: number | null;
   } | null>(null);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
-  // 是否正在启动（下载/解压/拉起模拟器）
-  const [launching, setLaunching] = useState(false);
   // 本地已下载的游戏 id 集合
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
 
@@ -359,19 +357,16 @@ export function LibraryPage({
     setLaunchMsg(null);
     setProgress(null);
     launchingRef.current = true;
-    setLaunching(true);
     try {
       await launchGame(g, provider!, source!, (s) => setLaunchMsg({ ok: true, text: s }));
       launchingRef.current = false;
       // 下载 / 启动结束：收起浮层（面板由 progress/launchMsg 驱动）
-      setLaunching(false);
       setProgress(null);
       setLaunchMsg(null);
       // 桌面端维持旧行为（启动后关窗）；移动端留在库里，不退出 App
       if (!platform.isMobile) await getCurrentWindow().close();
     } catch (e) {
       launchingRef.current = false;
-      setLaunching(false);
       setProgress(null);
       setLaunchMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
     }
@@ -443,15 +438,6 @@ export function LibraryPage({
                 </div>
                 {selected.available === false && (
                   <p className="detail-missing">服务器上没有该游戏文件，无法启动。</p>
-                )}
-
-                {/* 移动端点卡片即启动，不需要这个按钮；桌面端保留 */}
-                {!platform.isMobile && selected.available !== false && (
-                  <div className="actions">
-                    <button onClick={() => void launch(selected)} disabled={launching}>
-                      {launching ? "启动中…" : "启动游戏"}
-                    </button>
-                  </div>
                 )}
 
                 <dl>
