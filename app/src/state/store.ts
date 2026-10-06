@@ -63,7 +63,7 @@ export const useStore = create<AppStore>()(
     (set) => ({
       source: null,
       downloadDir: "",
-      storageMode: "private",
+      storageMode: "shared",
       scanToken: 0,
       fullscreen: false,
       lastGameId: "",
@@ -94,7 +94,7 @@ export const useStore = create<AppStore>()(
           ...current,
           source: src,
           downloadDir: typeof p.downloadDir === "string" ? p.downloadDir : current.downloadDir,
-          storageMode: p.storageMode === "shared" ? "shared" : "private",
+          storageMode: p.storageMode === "private" ? "private" : "shared",
           scanToken: typeof p.scanToken === "number" ? p.scanToken : current.scanToken,
           fullscreen: typeof p.fullscreen === "boolean" ? p.fullscreen : current.fullscreen,
           lastGameId: typeof p.lastGameId === "string" ? p.lastGameId : current.lastGameId,

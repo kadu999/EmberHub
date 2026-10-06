@@ -14,7 +14,10 @@ import type { Game } from "./scan";
 let defaultDirPromise: Promise<string> | null = null;
 function defaultDownloadDir(): Promise<string> {
   if (!defaultDirPromise) {
-    defaultDirPromise = tauri.defaultDownloadDir().catch((e) => {
+    defaultDirPromise = (appPlatform.isMobile
+      ? tauri.sharedStorageDir() // Android：一律共享存储（ROM 必须能被模拟器 App 读到）
+      : tauri.defaultDownloadDir()
+    ).catch((e) => {
       defaultDirPromise = null;
       throw e;
     });
