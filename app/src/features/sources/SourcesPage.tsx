@@ -185,29 +185,26 @@ export function SourcesPage({ onClose }: Props) {
     };
   }
 
-  async function test(cfg: SourceConfig) {
+  /** 连接：连上了才保存设置（一步到位；游戏库会自动重新扫描） */
+  async function connect() {
+    const cfg = buildConfig();
+    if (!cfg) {
+      setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
+      return;
+    }
     setTesting(true);
     setMessage(null);
     try {
       const provider = createProvider(cfg);
       const entries = await provider.list(cfg.romsPath ?? "");
+      setSource(cfg); // 连接成功才保存
+      requestScan();
       setMessage({ ok: true, text: `连接成功，游戏目录下有 ${entries.length} 项` });
     } catch (e) {
       setMessage({ ok: false, text: `连接失败：${String(e)}` });
     } finally {
       setTesting(false);
     }
-  }
-
-  function save() {
-    const cfg = buildConfig();
-    if (!cfg) {
-      setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
-      return;
-    }
-    setSource(cfg);
-    requestScan();
-    setMessage({ ok: true, text: "已保存" });
   }
 
   return (
@@ -217,15 +214,6 @@ export function SourcesPage({ onClose }: Props) {
         <div style={{ display: "flex", gap: 8 }}>
           <button className="ghost small" onClick={() => toggleFullscreen()}>
             {fullscreen ? "退出全屏" : "全屏"}
-          </button>
-          <button
-            className="ghost small"
-            onClick={() => {
-              requestScan();
-              onClose?.();
-            }}
-          >
-            扫描游戏库
           </button>
           {onClose && (
             <button className="ghost small" onClick={onClose}>
@@ -338,17 +326,8 @@ export function SourcesPage({ onClose }: Props) {
           </div>
         </div>
         <div className="actions">
-          <button onClick={save}>保存</button>
-          <button
-            className="ghost"
-            disabled={testing}
-            onClick={() => {
-              const cfg = buildConfig();
-              if (cfg) void test(cfg);
-              else setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
-            }}
-          >
-            {testing ? "测试中…" : "测试连接"}
+          <button disabled={testing} onClick={() => void connect()}>
+            {testing ? "连接中…" : "连接"}
           </button>
         </div>
 
