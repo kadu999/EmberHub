@@ -567,20 +567,17 @@ export function LibraryPage({
         >
           <div className="launch-panel" onClick={(e) => e.stopPropagation()}>
             <div className="launch-title">{selected?.title ?? "正在启动"}</div>
-            <div className="dl-track">
-              <div
-                className={progress ? "dl-fill" : "dl-fill indeterminate"}
-                style={
-                  progress
-                    ? {
-                        width: progress.total
-                          ? `${Math.min(100, (progress.downloaded / progress.total) * 100)}%`
-                          : "100%",
-                      }
-                    : undefined
-                }
-              />
-            </div>
+            {/* 只有真正在下载（且有总大小）时才显示进度条；纯启动时不显示 */}
+            {progress && progress.total ? (
+              <div className="dl-track">
+                <div
+                  className="dl-fill"
+                  style={{
+                    width: `${Math.min(100, (progress.downloaded / progress.total) * 100)}%`,
+                  }}
+                />
+              </div>
+            ) : null}
             {progress && (
               <div className="launch-meta">
                 {progress.path.replace(/\\/g, "/").split("/").pop()}
