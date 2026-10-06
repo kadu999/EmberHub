@@ -162,7 +162,7 @@ function App() {
                   「所有文件访问」用于把 ROM / 模拟器写入共享目录（Android 11+ 必需）；「安装未知应用」用于安装模拟器
                   APK。授权后回到本应用会自动继续。
                 </p>
-                <div className="actions">
+                <div className="actions" style={{ justifyContent: "center" }}>
                   <button className="ghost" onClick={() => void tauri.exitApp()}>
                     退出
                   </button>
