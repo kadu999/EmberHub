@@ -235,24 +235,17 @@ export function SourcesPage({ onClose }: Props) {
 
       {mobile && (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>存储位置</h3>
+          <h3 style={{ marginTop: 0 }}>存储位置（固定：共享存储）</h3>
           <p className="hint">
-            <b>私有目录</b>：不需要任何权限，别的 App 读不到（ROM 用 content:// 交给模拟器）。
-            <br />
-            <b>共享存储</b>：放 <code>{sharedDir || "/sdcard/EmberHub"}</code>，需要「所有文件访问」权限，模拟器可按路径找到。
+            ROM / 模拟器 / APK 一律放 <code>{sharedDir || "/sdcard/EmberHub"}</code>，需要「所有文件访问」权限。
+            模拟器是<b>另一个 App</b>，只能按路径读共享存储（App 私有目录它读不到），所以这里不做选择。
           </p>
           <div className="actions">
-            <button
-              className={storageMode === "private" ? "" : "ghost"}
-              onClick={() => void chooseStorage("private")}
-            >
-              私有目录
-            </button>
             <button
               className={storageMode === "shared" ? "" : "ghost"}
               onClick={() => void chooseStorage("shared")}
             >
-              共享存储
+              重新授权 / 使用共享存储
             </button>
           </div>
         </div>
