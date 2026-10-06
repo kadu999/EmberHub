@@ -66,6 +66,9 @@ export function SourcesPage({ onClose }: Props) {
   void setEmulatorsPath;
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
+  // 存储授权只由启动权限门处理，设置页不再提供入口（这两个先留着避免动到别处）
+  void storageMode;
+  void chooseStorage;
   const [, setCacheSize] = useState<number | null>(null);
 
   async function refreshCacheSize() {
@@ -204,19 +207,9 @@ export function SourcesPage({ onClose }: Props) {
 
       {mobile && (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>存储位置（固定：共享存储）</h3>
           <p className="hint">
-            ROM / 模拟器 / APK 一律放 <code>{sharedDir || "/sdcard/EmberHub"}</code>，需要「所有文件访问」权限。
-            模拟器是<b>另一个 App</b>，只能按路径读共享存储（App 私有目录它读不到），所以这里不做选择。
+            存储：<code>{sharedDir || "/sdcard/EmberHub"}</code>
           </p>
-          <div className="actions">
-            <button
-              className={storageMode === "shared" ? "" : "ghost"}
-              onClick={() => void chooseStorage("shared")}
-            >
-              重新授权 / 使用共享存储
-            </button>
-          </div>
         </div>
       )}
 
