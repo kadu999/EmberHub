@@ -13,7 +13,9 @@
 param(
   # 开发服务器地址（--host）：配合脚本里的 adb reverse，用 127.0.0.1 最稳（走调试通道，
   # 不依赖模拟器/真机的 IP 网络）。如需局域网直连，可传 -DevHost 192.168.1.12。
-  [string]$DevHost = "127.0.0.1"
+  [string]$DevHost = "127.0.0.1",
+  # 透出 Tauri CLI / Gradle 的详细输出（默认被 CLI 吞掉，编译期看起来像卡死）。
+  [switch]$TauriVerbose
 )
 
 $ErrorActionPreference = 'Stop'
@@ -102,8 +104,23 @@ $reverseJob = Start-Job -ScriptBlock {
 }
 try {
   Write-Host "开发服务器地址（--host）：$DevHost（配合 adb reverse；局域网直连可传 -DevHost <你的IP>）" -ForegroundColor DarkGray
-  pnpm tauri android dev --host $DevHost
+  if ($TauriVerbose) {
+    Write-Host "已开启 -TauriVerbose：会显示 Gradle / cargo 的详细输出。" -ForegroundColor DarkGray
+    pnpm tauri android dev --host $DevHost -v
+  } else {
+    Write-Host "注意：编译期 Tauri CLI 会吞掉 Gradle 的任务输出，可能几分钟毫无输出——这是正常的，不是卡死；" -ForegroundColor DarkGray
+    Write-Host "      想看进度或实时报错就加 -TauriVerbose 重跑。真正的失败会在最后打印出来。" -ForegroundColor DarkGray
+    pnpm tauri android dev --host $DevHost
+  }
 } finally {
   Stop-Job $reverseJob -ErrorAction SilentlyContinue
   Remove-Job $reverseJob -Force -ErrorAction SilentlyContinue
+}
+# 收尾自检：确认这轮是否真的装上去了（避免"跑的是旧包"的误判）
+$installed = (& adb shell pm list packages 2>$null) -match "com\.kadu\.emberhub"
+if ($installed) {
+  Write-Host "自检：设备上已有 com.kadu.emberhub ✅" -ForegroundColor Green
+  Write-Host "      （若行为像旧版本：Android 的 native 库有时不随安装更新，先 adb uninstall com.kadu.emberhub 再重跑）" -ForegroundColor DarkGray
+} else {
+  Write-Host "自检：设备上没看到 com.kadu.emberhub —— 本次可能没装成功，往上翻找报错。" -ForegroundColor Yellow
 }
