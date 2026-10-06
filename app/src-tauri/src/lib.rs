@@ -26,6 +26,49 @@ fn http_client() -> &'static reqwest::Client {
     })
 }
 
+/// 瞬时故障重试：OpenList/Baidu 偶发 DNS 解析失败、上游超时，都会回 5xx。
+const RETRY_ATTEMPTS: u32 = 4;
+const RETRY_BASE_MS: u64 = 400;
+
+/// 值得重试的 HTTP 状态：408/429 与被代理端 5xx。
+fn is_transient_status(code: u16) -> bool {
+    code == 408 || code == 429 || (500..=599).contains(&code)
+}
+
+/// 带退避重试地发请求：网络错误与瞬时 5xx 自动重试（400 / 800 / 1600 ms）。
+/// `build` 每次重试都重新构造请求（请求体不能复用）。
+async fn send_with_retry<F>(tag: &str, url: &str, mut build: F) -> Result<reqwest::Response, String>
+where
+    F: FnMut() -> reqwest::RequestBuilder,
+{
+    let mut last = String::new();
+    for attempt in 1..=RETRY_ATTEMPTS {
+        if attempt > 1 {
+            let backoff = RETRY_BASE_MS * (1 << (attempt - 2));
+            tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
+        }
+        match build().send().await {
+            Ok(resp) => {
+                let code = resp.status().as_u16();
+                if is_transient_status(code) && attempt < RETRY_ATTEMPTS {
+                    last = format!("HTTP {}", code);
+                    log_error(tag, &format!("瞬时 HTTP {}（第 {} 次，重试）{}", code, attempt, url));
+                    continue;
+                }
+                return Ok(resp);
+            }
+            Err(e) => {
+                last = e.to_string();
+                if attempt < RETRY_ATTEMPTS {
+                    log_error(tag, &format!("请求失败（第 {} 次，重试）{}：{}", attempt, url, e));
+                    continue;
+                }
+            }
+        }
+    }
+    Err(format!("WebDAV request failed: {}", last))
+}
+
 // ---------------------------------------------------------------------------
 // 失败日志：同时写 stderr 与 <下载目录>/logs/emberhub.log
 // ---------------------------------------------------------------------------
@@ -352,27 +395,24 @@ async fn webdav_list(
 ) -> Result<Vec<DavEntry>, String> {
     let url = dav_join(&root, &path)?;
     let client = http_client();
-    let resp = client
-        .request(
-            reqwest::Method::from_bytes(b"PROPFIND").map_err(|e| e.to_string())?,
-            &url,
-        )
-        .basic_auth(&username, Some(&password))
-        .header("Depth", "1")
-        .header("Content-Type", "application/xml; charset=utf-8")
-        .body(
-            r#"<?xml version="1.0" encoding="utf-8"?>
+    let method = reqwest::Method::from_bytes(b"PROPFIND").map_err(|e| e.to_string())?;
+    let body = r#"<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:"><d:prop>
 <d:resourcetype/><d:getcontentlength/><d:getlastmodified/>
-</d:prop></d:propfind>"#,
-        )
-        .send()
-        .await
-        .map_err(|e| {
-            let m = format!("WebDAV request failed: {}", e);
-            log_error("dav.list", &m);
-            m
-        })?;
+</d:prop></d:propfind>"#;
+    let resp = send_with_retry("dav.list", &url, || {
+        client
+            .request(method.clone(), &url)
+            .basic_auth(&username, Some(&password))
+            .header("Depth", "1")
+            .header("Content-Type", "application/xml; charset=utf-8")
+            .body(body)
+    })
+    .await
+    .map_err(|e| {
+        log_error("dav.list", &e);
+        e
+    })?;
 
     let status = resp.status();
     if status.as_u16() == 401 {
@@ -404,16 +444,14 @@ async fn webdav_read_text(
 ) -> Result<String, String> {
     let url = dav_join(&root, &path)?;
     let client = http_client();
-    let resp = client
-        .get(&url)
-        .basic_auth(&username, Some(&password))
-        .send()
-        .await
-        .map_err(|e| {
-            let m = format!("WebDAV request failed: {}", e);
-            log_error("dav.readText", &m);
-            m
-        })?;
+    let resp = send_with_retry("dav.readText", &url, || {
+        client.get(&url).basic_auth(&username, Some(&password))
+    })
+    .await
+    .map_err(|e| {
+        log_error("dav.readText", &e);
+        e
+    })?;
     if !resp.status().is_success() {
         let m = format!("WebDAV 返回 HTTP {}：{}", resp.status(), url);
         log_error("dav.readText", &m);
@@ -610,14 +648,17 @@ async fn webdav_download(
     let part = format!("{}.part", dest);
 
     let mut existing: u64 = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
-    let mut req = client.get(&url).basic_auth(&username, Some(&password));
-    if existing > 0 {
-        req = req.header("Range", format!("bytes={}-", existing));
-    }
-    let resp = req.send().await.map_err(|e| {
-        let m = format!("WebDAV 请求失败: {}", e);
-        log_error("dav.download", &m);
-        m
+    let resp = send_with_retry("dav.download", &url, || {
+        let mut req = client.get(&url).basic_auth(&username, Some(&password));
+        if existing > 0 {
+            req = req.header("Range", format!("bytes={}-", existing));
+        }
+        req
+    })
+    .await
+    .map_err(|e| {
+        log_error("dav.download", &e);
+        e
     })?;
     let status = resp.status();
 
