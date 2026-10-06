@@ -205,14 +205,6 @@ export function SourcesPage({ onClose }: Props) {
       </div>
       <p className="hint">通过 OpenList（WebDAV）读取游戏库。游戏库放在「游戏目录」（默认 Roms）下。</p>
 
-      {mobile && (
-        <div className="card">
-          <p className="hint">
-            存储目录：<code>{sharedDir || "/sdcard/EmberHub"}</code>（固定）
-          </p>
-        </div>
-      )}
-
       <div className="card">
         <h3 style={{ marginTop: 0 }}>下载目录</h3>
         <p className="hint">
