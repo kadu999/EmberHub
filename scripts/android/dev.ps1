@@ -25,6 +25,37 @@ if (-not $env:NDK_HOME) {
   Write-Host '警告：未设置 NDK_HOME，Tauri 可能找不到 Android NDK。' -ForegroundColor Yellow
 }
 
+# Tauri 的 Gradle rust 插件会按每个 ABI 直接跑 `node tauri android android-studio-script`
+# （见 gen/android/buildSrc/.../BuildTask.kt），这条路径**不带 NDK 工具链**，
+# 于是需要 C 编译的依赖（如 sevenz-rust2）会报 `linker 'cc' not found` 导致整包构建失败。
+# 这里按 NDK_HOME 把链接器 / C 编译器 / 归档器导出到进程环境，Gradle 及其子进程都会继承。
+if ($env:NDK_HOME) {
+  $ndkBin = Join-Path $env:NDK_HOME 'toolchains\llvm\prebuilt\windows-x86_64\bin'
+  if (Test-Path $ndkBin) {
+    $api = 24  # 与 minSdk 对齐（见 gen/android/app/build.gradle.kts）
+    $ndkTargets = @(
+      @{ triple = 'aarch64-linux-android'; clang = "aarch64-linux-android$api-clang.cmd" },
+      @{ triple = 'armv7-linux-androideabi'; clang = "armv7a-linux-androideabi$api-clang.cmd" },
+      @{ triple = 'i686-linux-android'; clang = "i686-linux-android$api-clang.cmd" },
+      @{ triple = 'x86_64-linux-android'; clang = "x86_64-linux-android$api-clang.cmd" }
+    )
+    $llvmAr = Join-Path $ndkBin 'llvm-ar.exe'
+    foreach ($t in $ndkTargets) {
+      $triple = $t.triple
+      $clang = Join-Path $ndkBin $t.clang
+      if (-not (Test-Path $clang)) { continue }
+      $linkerVar = 'CARGO_TARGET_' + ($triple -replace '-', '_').ToUpper() + '_LINKER'
+      [Environment]::SetEnvironmentVariable($linkerVar, $clang, 'Process')
+      # cc-rs 查找 C 编译器：破折号与下划线两种写法都设，避免版本差异
+      [Environment]::SetEnvironmentVariable("CC_$triple", $clang, 'Process')
+      [Environment]::SetEnvironmentVariable('CC_' + ($triple -replace '-', '_'), $clang, 'Process')
+      [Environment]::SetEnvironmentVariable("AR_$triple", $llvmAr, 'Process')
+      [Environment]::SetEnvironmentVariable('AR_' + ($triple -replace '-', '_'), $llvmAr, 'Process')
+    }
+    Write-Host "已按 NDK_HOME 配置 Android 工具链（API $api）。" -ForegroundColor DarkGray
+  }
+}
+
 # Tauri 会把 Rust 产物符号链接进 gen/android/jniLibs；创建失败会报
 # "Creation symbolic link is not allowed for this system"（并连锁误报 node.bat 启动失败）。
 # 这里直接实测一次建软链，失败就给出对应办法。
