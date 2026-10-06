@@ -440,7 +440,8 @@ export function LibraryPage({
                   <p className="detail-missing">服务器上没有该游戏文件，无法启动。</p>
                 )}
 
-                {selected.available !== false && (
+                {/* 移动端点卡片即启动，不需要这个按钮；桌面端保留 */}
+                {!platform.isMobile && selected.available !== false && (
                   <div className="actions">
                     <button onClick={() => void launch(selected)} disabled={launching}>
                       {launching ? "启动中…" : "启动游戏"}
