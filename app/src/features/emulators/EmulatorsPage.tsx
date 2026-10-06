@@ -120,6 +120,14 @@ export function EmulatorsPage({ onClose }: Props) {
           : "下载 / 更新 / 删除模拟器，或直接「打开模拟器」进入它自己的设置界面（不会启动游戏）。打开此页用本地缓存，不联网；点「从服务器刷新」才会重新拉配置。"}
       </p>
 
+      {mobile && (
+        <p className="hint">
+          注意：<b>RetroArch 自身不带核心</b>。需先在 RetroArch 里「在线更新器 → 核心下载」装好对应核心（GBA 用
+          mgba、NDS 用 melondsds、PS1 用 swanstation、DC 用 flycast、SS 用 yabasanshiro），否则启动游戏会
+          <b>黑屏</b>；首次打开 RetroArch 时请允许它的存储权限。
+        </p>
+      )}
+
       {error && <p className="error">{error}</p>}
       {status && <p className="ok">{status}</p>}
 
