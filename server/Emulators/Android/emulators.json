@@ -20,13 +20,13 @@
         "ROM": "{file.path}"
       },
       "platformExtras": {
-        "GBA": { "LIBRETRO": "{emuLibDir}/mgba_libretro_android.so" },
-        "GBA hack": { "LIBRETRO": "{emuLibDir}/mgba_libretro_android.so" },
-        "GBA vib": { "LIBRETRO": "{emuLibDir}/mgba_libretro_android.so" },
-        "NDS": { "LIBRETRO": "{emuLibDir}/melondsds_libretro_android.so" },
-        "PS1": { "LIBRETRO": "{emuLibDir}/swanstation_libretro_android.so" },
-        "DC": { "LIBRETRO": "{emuLibDir}/flycast_libretro_android.so" },
-        "SS": { "LIBRETRO": "{emuLibDir}/yabasanshiro_libretro_android.so" }
+        "GBA": { "LIBRETRO": "{emuLibDir}/libmgba_libretro_android.so" },
+        "GBA hack": { "LIBRETRO": "{emuLibDir}/libmgba_libretro_android.so" },
+        "GBA vib": { "LIBRETRO": "{emuLibDir}/libmgba_libretro_android.so" },
+        "NDS": { "LIBRETRO": "{emuLibDir}/libmelondsds_libretro_android.so" },
+        "PS1": { "LIBRETRO": "{emuLibDir}/libswanstation_libretro_android.so" },
+        "DC": { "LIBRETRO": "{emuLibDir}/libflycast_libretro_android.so" },
+        "SS": { "LIBRETRO": "{emuLibDir}/libyabasanshiro_libretro_android.so" }
       }
     },
     "AetherSX2": {
