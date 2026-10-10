@@ -30,17 +30,14 @@ function App() {
   // Android：权限门通过前，禁止任何网络 / 文件读写（未授权会 EPERM / 失败）
   const permsReady = permsChecked && !missingPerms.storage && !missingPerms.install;
 
-  // 第一次打开（还没有资源源）时，用内置默认值自动连 OpenList，省得手填
+  // 第一次打开（还没有资源源）时，用内置默认值自动连 HTTP 静态服务器，省得手填
   useEffect(() => {
     if (source) return;
     setSource({
       id: "default",
-      name: APP_CONFIG.openlist.mountPath.replace(/^\//, "") || "OpenList",
-      kind: "openlist",
-      server: APP_CONFIG.openlist.server,
-      mountPath: APP_CONFIG.openlist.mountPath,
-      username: APP_CONFIG.openlist.username,
-      password: APP_CONFIG.openlist.password,
+      name: "HTTP",
+      kind: "http",
+      server: APP_CONFIG.http.server,
       romsPath: APP_CONFIG.defaults.romsPath,
       emulatorsPath: APP_CONFIG.defaults.emulatorsPath,
     });

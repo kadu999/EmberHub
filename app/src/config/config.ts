@@ -11,6 +11,11 @@ export interface OpenListDefaults {
   mountPath: string;
 }
 
+export interface HttpDefaults {
+  /** 默认 HTTP 静态服务器地址 */
+  server: string;
+}
+
 export interface GridConfig {
   /** 最小列宽（px） */
   minColWidth: number;
@@ -36,6 +41,7 @@ export interface GamepadConfig {
 
 export interface AppConfig {
   openlist: OpenListDefaults;
+  http: HttpDefaults;
   grid: GridConfig;
   /** 选中游戏后延迟多久加载视频预览（ms） */
   videoPreviewDebounceMs: number;

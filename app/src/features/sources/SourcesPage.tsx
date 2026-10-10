@@ -13,8 +13,9 @@ interface Props {
   onClose?: () => void;
 }
 
-// OpenList 表单默认值来自 src/config.json
+// 表单默认值来自 src/config.json
 const DEFAULT_SERVER = APP_CONFIG.openlist.server;
+const DEFAULT_HTTP_SERVER = APP_CONFIG.http.server;
 const DEFAULT_USER = APP_CONFIG.openlist.username;
 const DEFAULT_PASS = APP_CONFIG.openlist.password;
 
@@ -49,8 +50,10 @@ export function SourcesPage({ onClose }: Props) {
     tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
   }, []);
 
-  const [kind, setKind] = useState<StorageKind>(initial?.kind ?? "openlist");
-  const [server, setServer] = useState(initial?.server ?? DEFAULT_SERVER);
+  const [kind, setKind] = useState<StorageKind>(initial?.kind ?? "http");
+  const [server, setServer] = useState(
+    initial?.server ?? (initial?.kind === "openlist" ? DEFAULT_SERVER : DEFAULT_HTTP_SERVER),
+  );
   const [mountPath, setMountPath] = useState(
     initial?.mountPath ?? APP_CONFIG.openlist.mountPath,
   );
@@ -201,6 +204,14 @@ export function SourcesPage({ onClose }: Props) {
     }
   }
 
+  /** 切换资源源类型：地址还是对方类型的默认值时，跟着换成新类型的默认地址。 */
+  function changeKind(next: StorageKind) {
+    setKind(next);
+    const prevDefault = kind === "openlist" ? DEFAULT_SERVER : DEFAULT_HTTP_SERVER;
+    const nextDefault = next === "openlist" ? DEFAULT_SERVER : DEFAULT_HTTP_SERVER;
+    setServer((prev) => (!prev || prev === prevDefault ? nextDefault : prev));
+  }
+
   return (
     <div className="settings">
       <div className="settings-head">
@@ -243,7 +254,7 @@ export function SourcesPage({ onClose }: Props) {
 
         <div className="field">
           <label>类型</label>
-          <select value={kind} onChange={(e) => setKind(e.currentTarget.value as StorageKind)}>
+          <select value={kind} onChange={(e) => changeKind(e.currentTarget.value as StorageKind)}>
             <option value="openlist">OpenList（WebDAV）</option>
             <option value="http">HTTP（静态服务器）</option>
           </select>

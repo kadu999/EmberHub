@@ -5,6 +5,9 @@
     "password": "12345",
     "mountPath": "/EmberHub_Baidu"
   },
+  "http": {
+    "server": "http://127.0.0.1:8000"
+  },
   "grid": {
     "minColWidth": 150,
     "aspect": 1.3333,
