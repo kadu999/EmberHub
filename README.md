@@ -21,7 +21,7 @@
 **Early Development** — 已实现：
 
 - ✅ Tauri 2 桌面应用骨架（Windows）
-- ✅ 存储源配置（OpenList / WebDAV）
+- ✅ 存储源配置（OpenList / WebDAV、HTTP 静态服务器）
 - ✅ 自定义 JSON 资源解析与游戏库浏览（封面、筛选、详情）
 
 规划中：模拟器配置与启动、按需下载、刮削、手柄导航、Android 端。
@@ -31,7 +31,7 @@
 - 打开即进入**游戏库**（主机前端式交互）
 - 资源格式为**自定义 JSON**：服务器根 `manifest.json` + `Roms/<平台>/games.json`，封面按 `media/` 约定
 - **按 `F1`** 打开设置（配置存储源 / 游戏目录），`Esc` 关闭
-- 存储源通过 OpenList（WebDAV）接入
+- 存储源通过 OpenList（WebDAV）或 HTTP（纯静态服务器）接入
 
 ## 🛠️ 技术选型
 
@@ -63,6 +63,7 @@ EmberHub/                 # 仓库根（项目）
 │  ├─ build-pc.bat / dev-pc.bat             # 桌面：打包 / 开发（双击即用）
 │  ├─ build-android.bat / dev-android.bat   # 安卓：打包 / 开发（双击即用）
 │  ├─ openlist.bat  openlist.ps1  # 中转站一键管理（双击 openlist.bat）
+│  ├─ http-server.bat  http-server.py   # HTTP 静态服务器（Python GUI，双击 http-server.bat）
 │  └─ media/                  # 资源内容流水线（检测 / 打包 / 转换）
 ├─ data/                  # 本地运行时数据：报告 / 密钥（已 gitignore）
 ├─ release/               # 唯一的发布产物出口（已 gitignore）

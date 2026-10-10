@@ -66,7 +66,7 @@ where
             }
         }
     }
-    Err(format!("WebDAV request failed: {}", last))
+    Err(format!("request failed: {}", last))
 }
 
 // ---------------------------------------------------------------------------
@@ -632,24 +632,25 @@ fn extract_archive(path: String, dest_dir: String) -> Result<(), String> {
     }
 }
 
-/// 从 WebDAV 下载文件到本地，支持**断点续传**（若目标已存在则用 Range 续传），返回字节数。
-/// 先写入 `dest.part`，成功后改名，避免残缺文件被当作完整缓存。
-#[tauri::command]
-async fn webdav_download(
-    app: tauri::AppHandle,
-    root: String,
-    username: String,
-    password: String,
-    path: String,
-    dest: String,
+/// 通用下载：GET `url` 到本地 `dest`，支持**断点续传**（目标已存在则用 Range 续传），返回字节数。
+/// 先写入 `dest.part`，成功后改名，避免残缺文件被当作完整缓存。WebDAV 与 HTTP 共用。
+async fn download_url(
+    app: &tauri::AppHandle,
+    tag: &str,
+    url: &str,
+    username: &str,
+    password: &str,
+    dest: &str,
 ) -> Result<u64, String> {
-    let url = dav_join(&root, &path)?;
     let client = http_client();
     let part = format!("{}.part", dest);
 
     let mut existing: u64 = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
-    let resp = send_with_retry("dav.download", &url, || {
-        let mut req = client.get(&url).basic_auth(&username, Some(&password));
+    let resp = send_with_retry(tag, url, || {
+        let mut req = client.get(url);
+        if !username.is_empty() {
+            req = req.basic_auth(username, Some(password));
+        }
         if existing > 0 {
             req = req.header("Range", format!("bytes={}-", existing));
         }
@@ -657,20 +658,20 @@ async fn webdav_download(
     })
     .await
     .map_err(|e| {
-        log_error("dav.download", &e);
+        log_error(tag, &e);
         e
     })?;
     let status = resp.status();
 
     if status.as_u16() == 416 {
         // 已下载完整
-        let _ = std::fs::rename(&part, &dest);
-        emit_download_progress(&app, &dest, existing, Some(existing));
+        let _ = std::fs::rename(&part, dest);
+        emit_download_progress(app, dest, existing, Some(existing));
         return Ok(existing);
     }
     if !status.is_success() {
-        let m = format!("WebDAV 返回 HTTP {}：{}", status, url);
-        log_error("dav.download", &m);
+        let m = format!("HTTP {}：{}", status, url);
+        log_error(tag, &m);
         return Err(m);
     }
 
@@ -703,26 +704,262 @@ async fn webdav_download(
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| {
             let m = format!("下载中断: {}", e);
-            log_error("dav.download", &m);
+            log_error(tag, &m);
             m
         })?;
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
         total += chunk.len() as u64;
         if last.elapsed().as_millis() >= 200 {
-            emit_download_progress(&app, &dest, total, total_size);
+            emit_download_progress(app, dest, total, total_size);
             last = std::time::Instant::now();
         }
     }
     file.flush().await.map_err(|e| e.to_string())?;
     drop(file);
-    if let Err(e) = std::fs::rename(&part, &dest) {
-        if !std::path::Path::new(&dest).exists() {
+    if let Err(e) = std::fs::rename(&part, dest) {
+        if !std::path::Path::new(dest).exists() {
             return Err(format!("重命名失败: {}", e));
         }
     }
-    emit_download_progress(&app, &dest, total, total_size);
+    emit_download_progress(app, dest, total, total_size);
     Ok(total)
 }
+
+/// 从 WebDAV 下载文件到本地（带鉴权 + 断点续传）。
+#[tauri::command]
+async fn webdav_download(
+    app: tauri::AppHandle,
+    root: String,
+    username: String,
+    password: String,
+    path: String,
+    dest: String,
+) -> Result<u64, String> {
+    let url = dav_join(&root, &path)?;
+    download_url(&app, "dav.download", &url, &username, &password, &dest).await
+}
+
+// ---------------------------------------------------------------------------
+// HTTP（纯静态服务器：python -m http.server / nginx autoindex 等）
+// 资源目录结构与网盘完全一致，仅通过普通 GET 读取。
+// ---------------------------------------------------------------------------
+
+/// 把 HTTP 根地址与相对路径拼成完整 URL。`dir=true` 时补结尾斜杠（目录列表用）。
+fn http_join(base: &str, path: &str, dir: bool) -> Result<Url, String> {
+    let mut url = Url::parse(base).map_err(|e| format!("invalid HTTP url: {}", e))?;
+    {
+        let mut segments = url
+            .path_segments_mut()
+            .map_err(|_| "HTTP url cannot be a base".to_string())?;
+        segments.pop_if_empty();
+        for seg in path.split('/').filter(|s| !s.is_empty()) {
+            segments.push(seg);
+        }
+        if dir {
+            segments.push(""); // 结尾斜杠
+        }
+    }
+    Ok(url)
+}
+
+/// 解析静态服务器返回的目录列表 HTML（nginx autoindex / python http.server 等），
+/// 抽取**直接子项**（等价于 WebDAV 的 Depth: 1）。目录以结尾 `/` 判定。
+/// `base_prefix` 为根地址的路径前缀（如 `/EmberHub`，根为 ""），`req` 为目录请求 URL。
+fn parse_html_listing(base_prefix: &str, req: &Url, html: &str) -> Vec<DavEntry> {
+    use std::collections::HashSet;
+
+    let lower = html.to_ascii_lowercase();
+    let bytes = html.as_bytes();
+
+    // 请求目录相对根的编码路径（如 "Roms/GBA/media"，根为 ""）
+    let req_path = req.path();
+    let dir_enc = if base_prefix.is_empty() {
+        req_path
+    } else {
+        req_path.strip_prefix(base_prefix).unwrap_or(req_path)
+    };
+    let dir_enc = dir_enc.trim_matches('/');
+    let child_prefix = if dir_enc.is_empty() {
+        String::new()
+    } else {
+        format!("{}/", dir_enc)
+    };
+
+    let mut out: Vec<DavEntry> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+
+    let mut i = 0usize;
+    while let Some(pos) = lower[i..].find("href") {
+        let mut j = i + pos + 4;
+        while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+            j += 1;
+        }
+        if j >= bytes.len() || bytes[j] != b'=' {
+            i = j;
+            continue;
+        }
+        j += 1;
+        while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+            j += 1;
+        }
+        if j >= bytes.len() {
+            break;
+        }
+
+        let raw: String;
+        let next: usize;
+        if bytes[j] == b'"' || bytes[j] == b'\'' {
+            let quote = bytes[j];
+            let start = j + 1;
+            match html[start..].find(quote as char) {
+                Some(rel) => {
+                    raw = html[start..start + rel].to_string();
+                    next = start + rel + 1;
+                }
+                None => break,
+            }
+        } else {
+            let start = j;
+            let mut k = start;
+            while k < bytes.len() {
+                let c = bytes[k];
+                if c.is_ascii_whitespace() || c == b'>' || c == b'"' || c == b'\'' {
+                    break;
+                }
+                k += 1;
+            }
+            raw = html[start..k].to_string();
+            next = k;
+        }
+        i = next;
+
+        // 跳过空链接 / 查询排序链接 / 锚点 / 非 http 协议
+        let raw = raw.trim();
+        if raw.is_empty()
+            || raw.starts_with('#')
+            || raw.starts_with('?')
+            || raw.starts_with("javascript:")
+            || raw.starts_with("mailto:")
+            || raw.starts_with("data:")
+        {
+            continue;
+        }
+
+        let is_dir = raw.split(&['?', '#'][..]).next().unwrap_or("").ends_with('/');
+        let joined = match req.join(raw) {
+            Ok(u) => u,
+            Err(_) => continue,
+        };
+        let path = joined.path();
+        let rel_raw = if base_prefix.is_empty() {
+            path
+        } else {
+            match path.strip_prefix(base_prefix) {
+                Some(rest) => rest,
+                None => continue,
+            }
+        };
+        let rel_raw = rel_raw.trim_matches('/');
+
+        // 只保留请求目录的直接子项（过滤 ../ 与更深层链接）
+        let child_enc = match rel_raw.strip_prefix(child_prefix.as_str()) {
+            Some(c) => c,
+            None => continue,
+        };
+        if child_enc.is_empty() || child_enc.contains('/') {
+            continue;
+        }
+
+        let name = percent_decode_str(child_enc).decode_utf8_lossy().to_string();
+        if name.is_empty() {
+            continue;
+        }
+        let rel = percent_decode_str(rel_raw).decode_utf8_lossy().to_string();
+        if !seen.insert(rel.clone()) {
+            continue;
+        }
+        out.push(DavEntry {
+            name,
+            path: rel,
+            is_dir,
+            size: 0,
+            modified: None,
+        });
+    }
+    out
+}
+
+/// HTTP 根地址的路径前缀（如 `/EmberHub`，根地址无子路径时为空串）。
+fn http_base_prefix(base: &str) -> String {
+    Url::parse(base)
+        .map(|u| u.path().trim_end_matches('/').to_string())
+        .unwrap_or_default()
+}
+
+/// 列出静态 HTTP 服务器的目录（解析 HTML 列表页，Depth: 1 语义）。
+#[tauri::command]
+async fn http_list(base: String, path: String) -> Result<Vec<DavEntry>, String> {
+    let req = http_join(&base, &path, true)?;
+    let base_prefix = http_base_prefix(&base);
+    let url = req.as_str().to_string();
+    let client = http_client();
+
+    let resp = send_with_retry("http.list", &url, || client.get(&url))
+        .await
+        .map_err(|e| {
+            log_error("http.list", &e);
+            e
+        })?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let m = format!("HTTP 返回 {}：{}", status, url);
+        log_error("http.list", &m);
+        return Err(m);
+    }
+    let html = resp.text().await.map_err(|e| {
+        let m = format!("HTTP 响应读取失败: {}", e);
+        log_error("http.list", &m);
+        m
+    })?;
+    Ok(parse_html_listing(&base_prefix, &req, &html))
+}
+
+/// 读取静态 HTTP 服务器上的文本文件。
+#[tauri::command]
+async fn http_read_text(base: String, path: String) -> Result<String, String> {
+    let url = http_join(&base, &path, false)?.to_string();
+    let client = http_client();
+    let resp = send_with_retry("http.readText", &url, || client.get(&url))
+        .await
+        .map_err(|e| {
+            log_error("http.readText", &e);
+            e
+        })?;
+    if !resp.status().is_success() {
+        let m = format!("HTTP 返回 {}：{}", resp.status(), url);
+        log_error("http.readText", &m);
+        return Err(m);
+    }
+    resp.text().await.map_err(|e| {
+        let m = format!("HTTP 响应读取失败: {}", e);
+        log_error("http.readText", &m);
+        m
+    })
+}
+
+/// 从静态 HTTP 服务器下载文件到本地（断点续传）。
+#[tauri::command]
+async fn http_download(
+    app: tauri::AppHandle,
+    base: String,
+    path: String,
+    dest: String,
+) -> Result<u64, String> {
+    let url = http_join(&base, &path, false)?.to_string();
+    download_url(&app, "http.download", &url, "", "", &dest).await
+}
+
 
 // ---------------------------------------------------------------------------
 // 应用信息
@@ -768,6 +1005,9 @@ pub fn run() {
             webdav_list,
             webdav_read_text,
             webdav_download,
+            http_list,
+            http_read_text,
+            http_download,
             default_download_dir,
             path_size,
             path_exists,
@@ -783,4 +1023,99 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn req(base: &str, path: &str) -> Url {
+        http_join(base, path, true).unwrap()
+    }
+
+    #[test]
+    fn http_join_adds_trailing_slash_for_dirs() {
+        assert_eq!(
+            http_join("http://h:8000", "Roms/GBA", true).unwrap().as_str(),
+            "http://h:8000/Roms/GBA/"
+        );
+        assert_eq!(
+            http_join("http://h:8000", "Roms/GBA/x.gba", false).unwrap().as_str(),
+            "http://h:8000/Roms/GBA/x.gba"
+        );
+        // 带子路径的根
+        assert_eq!(
+            http_join("http://h:8000/EmberHub", "", true).unwrap().as_str(),
+            "http://h:8000/EmberHub/"
+        );
+        // 空格等特殊字符自动编码
+        assert_eq!(
+            http_join("http://h:8000", "Roms/GBA/media/Advance Wars", true)
+                .unwrap()
+                .as_str(),
+            "http://h:8000/Roms/GBA/media/Advance%20Wars/"
+        );
+    }
+
+    #[test]
+    fn parse_python_listing_root() {
+        let html = r#"<html><ul>
+            <li><a href="manifest.json">manifest.json</a></li>
+            <li><a href="Roms/">Roms/</a></li>
+        </ul></html>"#;
+        let r = req("http://h:8000", "");
+        let out = parse_html_listing("", &r, html);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].name, "manifest.json");
+        assert!(!out[0].is_dir);
+        assert_eq!(out[0].path, "manifest.json");
+        assert_eq!(out[1].name, "Roms");
+        assert!(out[1].is_dir);
+        assert_eq!(out[1].path, "Roms");
+    }
+
+    #[test]
+    fn parse_python_listing_decodes_and_keeps_direct_children_only() {
+        let html = r#"<a href="Advance%20Wars%20%28USA%29/">Advance Wars (USA)/</a>
+                      <a href="some%20file.gba">some file.gba</a>"#;
+        let r = req("http://h:8000", "Roms/GBA/media");
+        let out = parse_html_listing("", &r, html);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].name, "Advance Wars (USA)");
+        assert!(out[0].is_dir);
+        assert_eq!(out[0].path, "Roms/GBA/media/Advance Wars (USA)");
+        assert_eq!(out[1].name, "some file.gba");
+        assert!(!out[1].is_dir);
+    }
+
+    #[test]
+    fn parse_nginx_listing_skips_parent_and_sort_links() {
+        let html = r#"<a href="../">../</a>
+                      <a href="?C=N;O=D">Name</a>
+                      <a href="GBA/">GBA/</a>
+                      <a href="README.txt">README.txt</a>"#;
+        let r = req("http://h:8000", "Roms");
+        let out = parse_html_listing("", &r, html);
+        let names: Vec<&str> = out.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, vec!["GBA", "README.txt"]);
+        assert!(out[0].is_dir);
+        assert!(!out[1].is_dir);
+    }
+
+    #[test]
+    fn parse_listing_with_subpath_base_prefix() {
+        let html = r#"<a href="Roms/">Roms/</a>"#;
+        let r = req("http://h:8000/EmberHub", "");
+        let out = parse_html_listing("/EmberHub", &r, html);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].path, "Roms");
+    }
+
+    #[test]
+    fn http_base_prefix_is_empty_at_root() {
+        assert_eq!(http_base_prefix("http://h:8000"), "");
+        assert_eq!(http_base_prefix("http://h:8000/"), "");
+        assert_eq!(http_base_prefix("http://h:8000/EmberHub"), "/EmberHub");
+        assert_eq!(http_base_prefix("http://h:8000/EmberHub/"), "/EmberHub");
+    }
 }

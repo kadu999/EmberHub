@@ -112,6 +112,7 @@ export interface DownloadTicket {
 | 阶段 | Provider | 协议 / 现状 | 优先级 |
 |---|---|---|---|
 | M1 | ~~LocalProvider~~ | 本地文件夹（已移除，只保留 OpenList/WebDAV） | — |
+| M1.5 | **HttpProvider** | HTTP（纯静态服务器：nginx autoindex / `python -m http.server`） | ✅ 已实现 |
 | M2 | **AliyunDriveProvider** | 阿里云盘开放平台 OpenAPI（官方） | ⭐ 你已有 |
 | M3 | **Pan123Provider** | 123 云盘开放平台（官方） | 可选 |
 | M4 | **OneDriveProvider** | Microsoft Graph（官方，最标准） | 可选 |

@@ -77,6 +77,7 @@ EmberHub/
 │  ├─ build-android.ps1  dev-android.ps1 # ★ 安卓：构建 / 开发 / 签名（+ 同名 .bat）
 │  ├─ portable/README.txt               # 便携版说明模板（build-pc.ps1 使用）
 │  ├─ openlist.bat  openlist.ps1        # 中转站运维（程序装到仓库根 openlist/）
+│  ├─ http-server.bat  http-server.py   # HTTP 静态服务器（Python GUI，托管资源目录）
 │  └─ media/                            # 内容流水线
 │     ├─ check-media.mjs  check-resources.mjs
 │     ├─ fix-media-video.mjs  pack-media.mjs

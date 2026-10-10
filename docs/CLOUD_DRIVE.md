@@ -3,8 +3,10 @@
 EmberHub 采用「直连优先」的存储适配器架构。当前已实现：
 
 - **WebDavProvider**：WebDAV（对接 OpenList）
+- **HttpProvider**：HTTP（纯静态服务器，`python -m http.server` / nginx autoindex 等）
 
-推荐用 **OpenList** 把各类网盘统一挂载为 WebDAV，再在 EmberHub 里添加一个 WebDAV 存储源。
+推荐用 **OpenList** 把各类网盘统一挂载为 WebDAV，再在 EmberHub 里添加一个 WebDAV 存储源；
+若游戏库就在本机 / 局域网 / 远端（或已用任意静态服务器托管），也可直接用「HTTP」存储源。
 
 ---
 
@@ -83,12 +85,56 @@ OpenList 是 AList 的官方继任者，一个绿色小程序，无需数据库�
 | 字段 | 示例 |
 |---|---|
 | 名称 | 我的游戏库 |
-| OpenList 地址 | `127.0.0.1:5244`（只填 IP:端口） |
+| OpenList 地址 | `http://127.0.0.1:5244`（协议可省略） |
 | 用户名 | `admin` |
 | 密码 | 你的 OpenList 密码 |
 | 资源源 | 点「获取资源源」后从下拉里选一个挂载（如 `EmberHub_Baidu`） |
 
 填好地址后点「获取资源源」，EmberHub 会从 OpenList 拉取挂载列表（`/dav/` 根目录）；选中一个后「测试连接」确认，再点「保存」即可（EmberHub 只保留一个资源源）。
+
+---
+
+## 三·五、HTTP（纯静态服务器，可选）
+
+如果游戏库就在本机（或已用 nginx 等托管），不想装 OpenList，可以直接用**纯静态 HTTP 服务器**：
+
+**一键启动（推荐）**：双击 `scripts\http-server.bat` 打开 GUI（Python + Tk）：
+
+1. 「浏览…」选择资源目录（需含 `manifest.json` / `Roms` / `Emulators`）；
+2. 端口默认 `8000`；勾选「外网」允许局域网 / 其它设备访问（不勾则仅本机 `127.0.0.1`）；
+3. 点「启动」。勾选外网后会显示完整的可用 IP（如 `http://192.168.1.147:8000/`），可「打开网页」或「复制」。
+
+也可以命令行运行（同样是 GUI）：
+
+```powershell
+python scripts\http-server.py
+```
+
+**用现成的静态服务器**：任何能列目录的静态服务器都行，例如：
+
+```powershell
+# Python（默认开启目录列表）
+python -m http.server 8000 --directory D:\EmberHub-Server
+```
+
+```nginx
+# nginx：必须开启目录列表
+location / {
+    root D:\EmberHub-Server;
+    autoindex on;          # 关键：EmberHub 靠它列目录
+}
+```
+
+**在 EmberHub 里连接**：「设置 → 资源源 → 类型选「HTTP」」，填：
+
+| 字段 | 示例 |
+|---|---|
+| HTTP 地址 | `http://127.0.0.1:8000`（协议可省略） |
+
+> **资源根 = 服务器根**（即你在脚本里选择的那个目录）；EmberHub 只做普通 GET 读取，**无需账号密码**。
+
+> ⚠️ 目录结构必须与 OpenList 上**完全一致**（`manifest.json` + `Roms/<平台>/games.json` + `media/`）。
+> 服务器**必须能列目录**：nginx 记得 `autoindex on`；`python -m http.server` 默认已开启。
 
 ---
 

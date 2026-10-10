@@ -1,4 +1,4 @@
-// 全局状态：唯一资源源（OpenList/WebDAV）与下载目录（持久化到 localStorage）。
+// 全局状态：唯一资源源（OpenList/WebDAV 或 HTTP）与下载目录（持久化到 localStorage）。
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SourceConfig } from "../storage/types";
@@ -18,7 +18,7 @@ function parseDavUrl(url: string): { server: string; mountPath: string } {
 function migrateSource(s: unknown): SourceConfig | null {
   if (!s || typeof s !== "object") return null;
   const o = s as Record<string, unknown>;
-  if (o.kind === "openlist") return o as unknown as SourceConfig;
+  if (o.kind === "openlist" || o.kind === "http") return o as unknown as SourceConfig;
   if (o.kind === "webdav") {
     const { server, mountPath } = parseDavUrl(String(o.url ?? ""));
     return { ...o, kind: "openlist", server, mountPath } as SourceConfig;
@@ -27,7 +27,7 @@ function migrateSource(s: unknown): SourceConfig | null {
 }
 
 interface AppStore {
-  /** 唯一资源源（OpenList/WebDAV） */
+  /** 唯一资源源（OpenList/WebDAV 或 HTTP） */
   source: SourceConfig | null;
   /** 下载目录（空 = 使用程序目录） */
   downloadDir: string;

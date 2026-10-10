@@ -2,7 +2,7 @@
 // 直连优先，想加哪个 Provider 就实现这个接口即可。
 // 详见 docs/ARCHITECTURE.md 第 5 节
 
-export type StorageKind = "openlist";
+export type StorageKind = "openlist" | "http";
 
 /** 用户配置的一个存储源 */
 export interface SourceConfig {
@@ -15,9 +15,9 @@ export interface SourceConfig {
   emulatorsPath?: string;
   /** 下载目录（默认程序数据目录，可改） */
   downloadDir?: string;
-  /** openlist: 服务地址（ip:端口 或完整 http(s) 地址） */
+  /** openlist / http: 服务地址（ip:端口 或完整 http(s) 地址） */
   server?: string;
-  /** openlist: 选中的资源源挂载路径，如 /EmberHub_Baidu */
+  /** openlist: 资源源挂载路径（如 /EmberHub_Baidu） */
   mountPath?: string;
   username?: string;
   password?: string;
@@ -31,6 +31,13 @@ export function openlistDavUrl(source: SourceConfig): string {
   let mount = (source.mountPath ?? "").trim();
   if (mount && !mount.startsWith("/")) mount = "/" + mount;
   return `${withScheme}/dav${mount}`;
+}
+
+/** 由 HTTP 地址推导 HTTP 根地址（纯静态服务器，资源根即服务器根）。 */
+export function httpBaseUrl(source: SourceConfig): string {
+  const server = (source.server ?? "").trim().replace(/\/+$/, "");
+  if (!server) return "";
+  return /^https?:\/\//i.test(server) ? server : `http://${server}`;
 }
 
 /** 远端文件/目录条目，`path` 为相对根的 posix 路径 */

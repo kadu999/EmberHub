@@ -39,9 +39,17 @@ export const tauri = {
   webdavReadText: (auth: DavAuth, path: string) =>
     invoke<string>("webdav_read_text", { ...auth, path }),
 
+  // ---- HTTP（纯静态服务器）----
+  httpList: (base: string, path: string) =>
+    invoke<DavEntry[]>("http_list", { base, path }),
+  httpReadText: (base: string, path: string) =>
+    invoke<string>("http_read_text", { base, path }),
+
   // ---- 下载 / 解压 / 本地文件 ----
   webdavDownload: (auth: DavAuth, path: string, dest: string) =>
     invoke<number>("webdav_download", { ...auth, path, dest }),
+  httpDownload: (base: string, path: string, dest: string) =>
+    invoke<number>("http_download", { base, path, dest }),
   defaultDownloadDir: () => invoke<string>("default_download_dir"),
   pathSize: (path: string) => invoke<number>("path_size", { path }),
   pathExists: (path: string) => invoke<boolean>("path_exists", { path }),

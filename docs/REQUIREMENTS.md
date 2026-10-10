@@ -21,7 +21,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 
 | 术语 | 含义 |
 |---|---|
-| 资源服务器 | 存放 `Roms` 与 `Emulators` 的服务器，**仅支持：OpenList(WebDAV)** |
+| 资源服务器 | 存放 `Roms` 与 `Emulators` 的服务器，**支持：OpenList(WebDAV) / HTTP(静态)** |
 | Roms | 游戏资源，按平台分文件夹，自定义 JSON |
 | Emulators | 模拟器资源，按平台打包，含单独配置文件与压缩包 |
 | 平台 | 游戏机种，如 GBA、NES、PS1、街机等 |
@@ -36,6 +36,7 @@ EmberHub 是一个**模拟器游戏启动器**。它本身不实现模拟功能�
 | 协议 | 说明 | 状态 |
 |---|---|---|
 | **OpenList / WebDAV** | PROPFIND 列目录 + GET 下载 | ✅ 已实现 |
+| **HTTP（纯静态）** | GET 下载 + 解析 HTML 目录列表（nginx autoindex / `python -m http.server`） | ✅ 已实现 |
 
 ### 3.2 服务器根目录结构
 

@@ -1,4 +1,4 @@
-// 设置页：OpenList 资源源配置 + 下载目录 + 媒体缓存。
+// 设置页：资源源（OpenList / HTTP）配置 + 下载目录。
 // 默认隐藏，按 F1 打开。
 import { useEffect, useState } from "react";
 import { useStore } from "../../state/store";
@@ -7,7 +7,7 @@ import { createProvider } from "../../storage";
 import { tauri } from "../../shared/tauri";
 import { mediaCacheRoot } from "../../domain/ensure";
 import { platform } from "../../platform";
-import type { SourceConfig } from "../../storage/types";
+import type { SourceConfig, StorageKind } from "../../storage/types";
 
 interface Props {
   onClose?: () => void;
@@ -49,6 +49,7 @@ export function SourcesPage({ onClose }: Props) {
     tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
   }, []);
 
+  const [kind, setKind] = useState<StorageKind>(initial?.kind ?? "openlist");
   const [server, setServer] = useState(initial?.server ?? DEFAULT_SERVER);
   const [mountPath, setMountPath] = useState(
     initial?.mountPath ?? APP_CONFIG.openlist.mountPath,
@@ -152,15 +153,27 @@ export function SourcesPage({ onClose }: Props) {
   }
 
   function buildConfig(): SourceConfig | null {
-    if (!normalizeServer(server) || !mountPath) return null;
+    if (!normalizeServer(server)) return null;
+    if (kind === "openlist" && !mountPath) return null;
+    // 纯静态 HTTP：资源根即服务器根，无子路径 / 账号密码
+    if (kind === "http") {
+      return {
+        id: "main",
+        name: "HTTP",
+        kind,
+        romsPath: romsPath.trim() || APP_CONFIG.defaults.romsPath,
+        emulatorsPath: emulatorsPath.trim() || APP_CONFIG.defaults.emulatorsPath,
+        server: normalizeServer(server),
+      };
+    }
     return {
       id: "main",
       name: mountPath.replace(/^\//, "") || "OpenList",
-      kind: "openlist",
+      kind,
       romsPath: romsPath.trim() || APP_CONFIG.defaults.romsPath,
       emulatorsPath: emulatorsPath.trim() || APP_CONFIG.defaults.emulatorsPath,
       server: server.trim(),
-      mountPath,
+      mountPath: mountPath.trim(),
       username: username.trim(),
       password,
     };
@@ -170,7 +183,7 @@ export function SourcesPage({ onClose }: Props) {
   async function connect() {
     const cfg = buildConfig();
     if (!cfg) {
-      setMessage({ ok: false, text: "请填写必填项（地址与资源源）" });
+      setMessage({ ok: false, text: "请填写必填项（地址；OpenList 还需选择资源源）" });
       return;
     }
     setTesting(true);
@@ -203,13 +216,10 @@ export function SourcesPage({ onClose }: Props) {
           )}
         </div>
       </div>
-      <p className="hint">通过 OpenList（WebDAV）读取游戏库。游戏库放在「游戏目录」（默认 Roms）下。</p>
+      <p className="hint">通过 OpenList（WebDAV）或 HTTP 静态服务器读取游戏库。游戏库放在「游戏目录」（默认 Roms）下。</p>
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>下载目录</h3>
-        <p className="hint">
-          ROM 与模拟器的存放位置（其下自动创建 <code>Roms/</code> 与 <code>Emulators/</code>）。留空则使用程序目录。
-        </p>
         <div className="field">
           <label>下载目录</label>
           <input
@@ -229,49 +239,73 @@ export function SourcesPage({ onClose }: Props) {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>OpenList 资源源</h3>
+        <h3 style={{ marginTop: 0 }}>资源源</h3>
 
         <div className="field">
-          <label>OpenList 地址（IP:端口）</label>
-          <input
-            value={server}
-            onChange={(e) => setServer(e.currentTarget.value)}
-            placeholder="127.0.0.1:5244"
-          />
+          <label>类型</label>
+          <select value={kind} onChange={(e) => setKind(e.currentTarget.value as StorageKind)}>
+            <option value="openlist">OpenList（WebDAV）</option>
+            <option value="http">HTTP（静态服务器）</option>
+          </select>
         </div>
-        <div className="field">
-          <label>用户名</label>
-          <input value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
-        </div>
-        <div className="field">
-          <label>密码</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
-        </div>
-        <div className="field">
-          <label>资源源（OpenList 挂载，固定）</label>
-          <div className="field-row">
-            <select
-              value={mountPath}
-              onChange={(e) => setMountPath(e.currentTarget.value)}
-              disabled
-            >
-              {mounts.length === 0 ? (
-                <option value={mountPath}>
-                  {mountPath || (loadingMounts ? "获取中…" : "点击右侧按钮获取")}
-                </option>
-              ) : (
-                mounts.map((m) => (
-                  <option key={m.path} value={m.path}>
-                    {m.name}
-                  </option>
-                ))
-              )}
-            </select>
-            <button className="ghost small" onClick={() => void fetchMounts()} disabled={loadingMounts}>
-              {loadingMounts ? "获取中…" : "获取资源源"}
-            </button>
-          </div>
-        </div>
+
+        {kind === "openlist" ? (
+          <>
+            <div className="field">
+              <label>OpenList 地址</label>
+              <input
+                value={server}
+                onChange={(e) => setServer(e.currentTarget.value)}
+                placeholder="http://127.0.0.1:5244"
+              />
+            </div>
+            <div className="field">
+              <label>用户名</label>
+              <input value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
+            </div>
+            <div className="field">
+              <label>密码</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
+            </div>
+            <div className="field">
+              <label>资源源（OpenList 挂载，固定）</label>
+              <div className="field-row">
+                <select
+                  value={mountPath}
+                  onChange={(e) => setMountPath(e.currentTarget.value)}
+                  disabled
+                >
+                  {mounts.length === 0 ? (
+                    <option value={mountPath}>
+                      {mountPath || (loadingMounts ? "获取中…" : "点击右侧按钮获取")}
+                    </option>
+                  ) : (
+                    mounts.map((m) => (
+                      <option key={m.path} value={m.path}>
+                        {m.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <button className="ghost small" onClick={() => void fetchMounts()} disabled={loadingMounts}>
+                  {loadingMounts ? "获取中…" : "获取资源源"}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="field">
+              <label>HTTP 地址</label>
+              <input
+                value={server}
+                onChange={(e) => setServer(e.currentTarget.value)}
+                placeholder="http://127.0.0.1:8000"
+              />
+            </div>
+          </>
+        )}
+
         <div className="actions">
           <button disabled={testing} onClick={() => void connect()}>
             {testing ? "连接中…" : "连接"}
