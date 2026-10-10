@@ -18,8 +18,9 @@ export async function listDownloadedGames(
     const root = joinPath(await getDownloadDir(source), romsRoot);
     const files = await tauri.listLocalFiles(root);
     for (const rel of files) set.add(joinPath(romsRoot, rel));
-  } catch {
-    // 忽略：目录不存在或不可读
+  } catch (e) {
+    // 目录不存在是正常的；其它错误记录一下，避免「已下载」标记静默失效
+    console.warn("[EmberHub] 读取已下载列表失败:", e);
   }
   return set;
 }

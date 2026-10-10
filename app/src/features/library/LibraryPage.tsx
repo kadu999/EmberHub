@@ -363,6 +363,8 @@ export function LibraryPage({
       // 下载 / 启动结束：收起浮层（面板由 progress/launchMsg 驱动）
       setProgress(null);
       setLaunchMsg(null);
+      // 刷新「已下载」标记（桌面端随后关窗，无妨；移动端留在库里可立即看到）
+      if (source) void listDownloadedGames(source, scanRoot).then(setDownloaded).catch(() => undefined);
       // 桌面端维持旧行为（启动后关窗）；移动端留在库里，不退出 App
       if (!platform.isMobile) await getCurrentWindow().close();
     } catch (e) {
