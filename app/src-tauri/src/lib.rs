@@ -168,6 +168,17 @@ fn launch_emulator(
     platform::launch_emulator(exe_path, args, workdir)
 }
 
+/// 运行外部程序并等待其结束，返回退出码。
+/// 用于一次性命令，例如 `azahar --install <cia>` 把补丁/DLC 装进模拟器。
+#[tauri::command]
+fn run_and_wait(
+    exe_path: String,
+    args: Vec<String>,
+    workdir: Option<String>,
+) -> Result<i32, String> {
+    platform::run_and_wait(exe_path, args, workdir)
+}
+
 /// Android：把本地 ROM 通过 FileProvider 以 content:// 交给目标模拟器 App，
 /// 或用显式组件 + extras 启动（如 RetroArch 的 RetroActivityFuture）。
 /// `path` 为空且无 component 表示只打开 App（进模拟器设置）。
@@ -990,6 +1001,7 @@ pub fn run() {
     builder
         .invoke_handler(tauri::generate_handler![
             launch_emulator,
+            run_and_wait,
             android_launch_app,
             android_install_apk,
             android_shared_storage_dir,

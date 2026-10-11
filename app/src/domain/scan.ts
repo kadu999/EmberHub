@@ -32,6 +32,8 @@ export interface Game {
   launch?: string;
   /** 使用 Roms 级 launch 时是否解压 ROM 压缩包（默认 true） */
   extract?: boolean;
+  /** 附加内容包（mod）在资源源上的相对路径（如 Roms/3DS/mods/xxx.zip）；可多个 */
+  mod?: string[];
   /** 显式指定的封面路径（games.json 里的 cover） */
   coverPath?: string;
   /** 该游戏对应的 media 子目录（懒加载封面/视频用） */
@@ -167,6 +169,9 @@ async function scanPlatform(
       description: gm.description,
       launch: gm.launch ?? pg.launch,
       extract: gm.extract ?? pg.extract,
+      mod: gm.mod
+        ? (Array.isArray(gm.mod) ? gm.mod : [gm.mod]).map((m) => normalizeRel(baseDir, m))
+        : undefined,
       coverPath: gm.cover ? normalizeRel(baseDir, gm.cover) : undefined,
       available: fileSet ? fileSet.has(basename(file).toLowerCase()) : undefined,
     };

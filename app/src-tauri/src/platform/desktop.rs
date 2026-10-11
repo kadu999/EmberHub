@@ -83,6 +83,32 @@ pub fn launch_emulator(
     Ok(pid)
 }
 
+/// 运行外部程序并等待其结束，返回退出码。
+/// 用于「一次性命令」，例如 `azahar --install <cia>` 把补丁/DLC 装进模拟器。
+pub fn run_and_wait(
+    exe_path: String,
+    args: Vec<String>,
+    workdir: Option<String>,
+) -> Result<i32, String> {
+    let mut cmd = Command::new(&exe_path);
+    cmd.args(&args);
+    if let Some(dir) = workdir {
+        if !dir.trim().is_empty() {
+            cmd.current_dir(dir);
+        }
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let status = cmd
+        .status()
+        .map_err(|e| format!("failed to run `{}`: {}", exe_path, e))?;
+    Ok(status.code().unwrap_or(-1))
+}
+
 /// 桌面端没有 Android Intent。
 pub fn android_launch_app(
     _app: &tauri::AppHandle,

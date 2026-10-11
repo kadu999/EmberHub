@@ -5,7 +5,7 @@ import { tauri } from "../shared/tauri";
 import { platform } from "../platform";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
-import { EmulatorInstallingError, ensureEmulator, ensureRom, getDownloadDir } from "./ensure";
+import { EmulatorInstallingError, ensureEmulator, ensureGameMod, ensureRom, getDownloadDir } from "./ensure";
 import { useStore } from "../state/store";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
@@ -180,6 +180,9 @@ export async function launchGame(
     throw e;
   });
   const romAbs = nativePath(await ensureRom(provider, source, game, onStatus, config.extract !== false));
+
+  // 桌面端：应用游戏的附加内容包（mod，如 3DS 汉化补丁）到模拟器 mods 目录
+  await ensureGameMod(provider, source, dir, config, game, onStatus);
 
   // Android：模拟器是已安装的 App，用包名 + Intent 启动（核心参数在移动端由模拟器自身管理）
   if (platform.isMobile) {

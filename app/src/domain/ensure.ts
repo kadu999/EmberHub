@@ -473,6 +473,68 @@ export async function installEmulator(
   await tauri.installApk(nativePath(dest));
 }
 
+/**
+ * 确保游戏的「附加内容包」（mod，如 3DS 汉化补丁）已就位：
+ * 下载 zip 并解压到该模拟器的 mods 目录（emulators.json 的 `modsRoot`，相对安装目录）。
+ * 仅桌面端；Android 的 mod 目录不同，暂不支持。
+ * 幂等：安装目录下的 `.emberhub-mods.json` 记录已应用的 mod（删掉该文件可强制重装）。
+ */
+export async function ensureGameMod(
+  provider: StorageProvider,
+  source: SourceConfig,
+  installDir: string,
+  config: EmulatorConfig,
+  game: Game,
+  onStatus?: (s: string) => void,
+): Promise<void> {
+  if (appPlatform.isMobile) return;
+  const modsRoot = config.modsRoot?.trim();
+  if (!game.mod || game.mod.length === 0 || !modsRoot || !provider.downloadTo) return;
+
+  const stampPath = joinPath(installDir, ".emberhub-mods.json");
+  let done: Record<string, boolean> = {};
+  try {
+    if (await tauri.fileExists(stampPath)) {
+      done = JSON.parse(await tauri.readTextFile(stampPath)) as Record<string, boolean>;
+    }
+  } catch {
+    done = {};
+  }
+  const dl = await getDownloadDir(source);
+  const cacheDir = joinPath(dl, ".cache", "Mods", game.collection);
+  // 保证模拟器使用便携 user 目录（Azahar 靠存在 `user/` 目录触发便携模式）
+  const destRoot = joinPath(installDir, modsRoot);
+  await tauri.ensureDir(destRoot);
+
+  for (const modRel of game.mod) {
+    if (done[modRel]) continue;
+
+    const local = joinPath(cacheDir, basename(modRel));
+    if (!(await tauri.fileExists(local))) {
+      onStatus?.("下载附加内容…");
+      await tauri.ensureDir(cacheDir);
+      await provider.downloadTo(modRel, local);
+    }
+
+    if (extname(modRel) === "cia" && config.installArgs && config.installArgs.length > 0) {
+      // .cia：交给模拟器安装（如 `azahar --install`），等待结束后再启动游戏
+      const exe = isAbsolute(config.exe) ? config.exe : joinPath(installDir, config.exe);
+      const args = config.installArgs.map((a) =>
+        a.replace(/\{file\.path\}/g, local).replace(/\{file\.name\}/g, basename(local)),
+      );
+      onStatus?.("安装附加内容…");
+      const code = await tauri.runAndWait(exe, args, dirname(exe));
+      if (code !== 0) throw new Error(`安装附加内容失败（退出码 ${code}）。`);
+    } else {
+      onStatus?.("应用附加内容…");
+      await tauri.extractArchive(local, destRoot);
+    }
+
+    done[modRel] = true;
+    await tauri.writeTextFile(stampPath, JSON.stringify(done));
+  }
+}
+
 /** 确保 ROM 在本地；返回本地绝对路径（压缩包会自动解压）。 */
 export async function ensureRom(
   provider: StorageProvider,

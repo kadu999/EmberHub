@@ -146,6 +146,7 @@ export function parsePlatformGames(text: string, fallbackPlatform: string): Plat
       description: str(gg.description),
       launch: str(gg.launch),
       extract: typeof gg.extract === "boolean" ? gg.extract : undefined,
+      mod: str(gg.mod) ?? strArray(gg.mod),
     };
   });
 
@@ -200,6 +201,8 @@ function emulatorConfigFrom(o: Record<string, unknown>, fallbackPlatform: string
     activity: str(o.activity),
     extras: strMap(o.extras),
     platformExtras: strMapMap(o.platformExtras),
+    modsRoot: str(o.modsRoot),
+    installArgs: strArray(o.installArgs),
   };
 }
 

@@ -69,6 +69,10 @@ export const tauri = {
   launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>
     invoke<number>("launch_emulator", { exePath, args, workdir }),
 
+  /** 运行外部程序并等待结束，返回退出码（用于 `--install` 等一次性命令） */
+  runAndWait: (exePath: string, args: string[] = [], workdir?: string) =>
+    invoke<number>("run_and_wait", { exePath, args, workdir }),
+
   /** Android：用 Intent + FileProvider 启动目标 App，并把 ROM 以 content:// 传入（path 为空则只打开 App） */
   androidLaunchApp: (
     pkg: string,

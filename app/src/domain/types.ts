@@ -80,6 +80,12 @@ export interface GameMeta {
   launch?: string;
   /** 是否解压该游戏文件（压缩包 ROM）。默认 true；仅在使用 Roms 级 launch 时有意义。 */
   extract?: boolean;
+  /**
+   * 游戏级「附加内容包」（mod）路径，相对本平台目录（如 `mods/xxx.zip`）。
+   * 可以是单个字符串或数组（一个游戏可能需要多个：如 更新补丁 + DLC）。
+   * `.zip` 解压到模拟器 mods 目录（LayeredFS）；`.cia` 用 `installArgs` 安装。
+   */
+  mod?: string | string[];
 }
 
 /** Roms/<平台>/games.json */
@@ -133,6 +139,17 @@ export interface EmulatorConfig {
   extras?: Record<string, string>;
   /** Android：按 Roms 平台覆盖 extras（合并到 extras 之上，键为 Roms 平台名） */
   platformExtras?: Record<string, Record<string, string>>;
+  /**
+   * 游戏 mod 的落点目录（相对模拟器安装目录），如 Azahar 的 `user`。
+   * 游戏条目里的 `mod`（zip）会在启动前解压到这里（zip 内部已按 mod 目录结构打包）。
+   * 仅桌面端生效。
+   */
+  modsRoot?: string;
+  /**
+   * 当 mod 是 `.cia` 时的「安装命令参数」（相对 exe，含 `{file.path}` 占位符），
+   * 例如 Azahar 的 `["--install", "{file.path}"]`。启动前会运行该命令并等待结束。
+   */
+  installArgs?: string[];
 }
 
 /** Emulators/platforms.json：Roms 平台文件夹 → Emulators 平台文件夹 */

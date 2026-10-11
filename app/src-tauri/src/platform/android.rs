@@ -12,6 +12,15 @@ pub fn launch_emulator(
     Err("Android 端请使用 Intent 启动模拟器（android_launch_app）。".to_string())
 }
 
+/// Android 端不支持运行外部命令并等待。
+pub fn run_and_wait(
+    _exe_path: String,
+    _args: Vec<String>,
+    _workdir: Option<String>,
+) -> Result<i32, String> {
+    Err("Android 端不支持运行外部命令。".to_string())
+}
+
 /// 用 Intent 启动目标模拟器 App；`path` 为空表示只打开 App（进设置）。
 pub fn android_launch_app(
     app: &AppHandle,
