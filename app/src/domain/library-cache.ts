@@ -139,9 +139,21 @@ class CachedProvider implements StorageProvider {
     return version;
   }
 
-  /** 强制联网刷新 manifest（游戏库连接 / 模拟器页「从服务器刷新」时用）。 */
+  /** 强制联网刷新 manifest（游戏库连接 / 模拟器页「从服务器刷新」时用）。
+   *  联网失败 → 回退本地缓存（离线也能浏览上次的库）。 */
   async refreshManifest(): Promise<void> {
-    const raw = await this.base.readText("manifest.json");
+    let raw: string;
+    try {
+      raw = await this.base.readText("manifest.json");
+    } catch (e) {
+      const cached = await readIfExists(this.manifestCache());
+      if (cached === undefined) throw e; // 从没缓存过 → 确实没得用
+      const ver = this.applyManifestMeta(cached);
+      const stored = (await readIfExists(this.versionCache())) ?? ver;
+      this.storedVersion = stored;
+      this.currentVersion = stored; // 视为「未变化」→ games / 目录列表直接用缓存
+      return;
+    }
     this.storedVersion = (await readIfExists(this.versionCache())) ?? null;
     this.currentVersion = this.applyManifestMeta(raw);
     await tauri.writeTextFile(this.manifestCache(), raw);
