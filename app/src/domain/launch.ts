@@ -144,6 +144,9 @@ export async function launchGame(
   onStatus?: (s: string) => void,
 ): Promise<void> {
   const dl = await getDownloadDir(source);
+  void tauri
+    .log("INFO", "launch", `${game.title} (${game.collection}) file=${game.files[0]}`)
+    .catch(() => undefined);
 
   // 1) Roms 的 launch 优先（自定义命令；是否解压由游戏/平台级 extract 决定，默认解压）
   if (game.launch && game.launch.trim() !== "") {

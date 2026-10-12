@@ -369,11 +369,16 @@ export async function ensureEmulator(
   // 版本比对：已安装且版本一致则直接用（仍补写一次配置，保证配置变更能生效）
   if (!force) {
     const ver = await installedVersion(stampPath);
+    void tauri
+      .log("INFO", "ensureEmulator", `${emuPlatform} installed=${ver ?? "none"} want=${config.version}`)
+      .catch(() => undefined);
     if (ver === config.version) {
       await provisionEmulatorConfigs(provider, emuBase, localDir, config, dl, romsRoot, onStatus);
       onStatus?.(`模拟器已就绪（${config.version}）`);
       return { dir: localDir, config, args };
     }
+  } else {
+    void tauri.log("INFO", "ensureEmulator", `${emuPlatform} force 重装`).catch(() => undefined);
   }
 
   // 下载模拟器压缩包到缓存目录
@@ -543,6 +548,9 @@ export async function ensureRom(
   const dl = await getDownloadDir(source);
   // 保留服务器上的相对路径（含子文件夹），避免多卷/多盘同名文件互相覆盖
   const dest = joinPath(dl, romRel);
+  void tauri
+    .log("INFO", "ensureRom", `${romRel} extract=${extract} dest=${dest}`)
+    .catch(() => undefined);
 
   const fetch = async () => {
     if (await tauri.fileExists(dest)) {

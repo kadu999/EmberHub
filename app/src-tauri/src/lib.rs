@@ -144,6 +144,12 @@ fn log_init(dir: String) {
     }
 }
 
+/// 前端写一行日志（调试用）。
+#[tauri::command]
+fn log(level: String, tag: String, message: String) {
+    log_line(&level, &tag, &message);
+}
+
 // ---------------------------------------------------------------------------
 // 本地文件系统
 // ---------------------------------------------------------------------------
@@ -604,12 +610,16 @@ fn remove_path(path: String) -> Result<(), String> {
 }
 
 fn extract_zip_impl(zip_path: &str, dest_dir: &str) -> Result<(), String> {
-    let file = std::fs::File::open(zip_path).map_err(|e| format!("打开压缩包失败: {}", e))?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("读取压缩包失败: {}", e))?;
+    let file = std::fs::File::open(zip_path).map_err(|e| format!("打开压缩包失败 {}: {}", zip_path, e))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| format!("读取压缩包失败 {}: {}", zip_path, e))?;
     std::fs::create_dir_all(dest_dir).map_err(|e| e.to_string())?;
 
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| format!("读取条目失败 {} #{}: {}", zip_path, i, e))?;
+        let name = entry.name().to_string();
         let outpath = match entry.enclosed_name() {
             Some(p) => std::path::Path::new(dest_dir).join(p),
             None => continue, // 防目录穿越
@@ -621,7 +631,8 @@ fn extract_zip_impl(zip_path: &str, dest_dir: &str) -> Result<(), String> {
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
             let mut outfile = std::fs::File::create(&outpath).map_err(|e| e.to_string())?;
-            std::io::copy(&mut entry, &mut outfile).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut outfile)
+                .map_err(|e| format!("解压失败 {} :: {}: {}", zip_path, name, e))?;
         }
     }
     Ok(())
@@ -630,17 +641,21 @@ fn extract_zip_impl(zip_path: &str, dest_dir: &str) -> Result<(), String> {
 /// 按扩展名解压压缩包（支持 zip / 7z）。
 #[tauri::command]
 fn extract_archive(path: String, dest_dir: String) -> Result<(), String> {
+    log_line("INFO", "extract", &format!("{} -> {}", path, dest_dir));
     std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
     let lower = path.to_ascii_lowercase();
-    if lower.ends_with(".7z") {
+    let r = if lower.ends_with(".7z") {
         sevenz_rust2::decompress_file(&path, &dest_dir)
-            .map_err(|e| format!("解压 7z 失败：{}", e))?;
-        Ok(())
+            .map_err(|e| format!("解压 7z 失败 {}：{}", path, e))
     } else if lower.ends_with(".zip") {
         extract_zip_impl(&path, &dest_dir)
     } else {
         Err(format!("不支持的压缩格式：{}", path))
+    };
+    if let Err(e) = &r {
+        log_error("extract", e);
     }
+    r
 }
 
 /// 通用下载：GET `url` 到本地 `dest`，支持**断点续传**（目标已存在则用 Range 续传），返回字节数。
@@ -1031,9 +1046,9 @@ pub fn run() {
             extract_archive,
             host_os,
             exit_app,
-            log_init
-        ])
-        .run(tauri::generate_context!())
+            log_init,
+            log
+        ])        .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 

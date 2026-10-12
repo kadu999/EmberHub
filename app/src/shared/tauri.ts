@@ -64,6 +64,9 @@ export const tauri = {
 
   /** 指定失败日志目录（<下载目录>/cache/logs）；下载目录变化时重新调用。 */
   logInit: (dir: string) => invoke<void>("log_init", { dir }),
+  /** 前端写一行日志（调试用） */
+  log: (level: string, tag: string, message: string) =>
+    invoke<void>("log", { level, tag, message }),
 
   /** 启动外部模拟器，返回进程 PID */
   launchEmulator: (exePath: string, args: string[] = [], workdir?: string) =>
