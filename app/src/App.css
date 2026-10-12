@@ -292,6 +292,40 @@ code {
   font-weight: 600;
 }
 
+.chip-count {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 过滤 / 排序栏 */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.filter-bar input,
+.filter-bar select {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.filter-search {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.count-badge {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .warnings {
   background: var(--panel);
   border: 1px solid var(--border);

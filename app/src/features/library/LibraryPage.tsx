@@ -118,6 +118,12 @@ export function LibraryPage({
   // 本地已下载的游戏 id 集合
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
 
+  // 过滤 / 排序
+  const [query, setQuery] = useState("");
+  const [genreFilter, setGenreFilter] = useState("");
+  const [sortKey, setSortKey] = useState<"title" | "release" | "rating" | "developer">("title");
+  const [sortAsc, setSortAsc] = useState(true);
+
   // 让 launchRef 始终指向最新闭包（provider/source 变化后仍可用）
   useEffect(() => {
     launchRef.current = (g) => void launch(g);
@@ -250,10 +256,75 @@ export function LibraryPage({
   }, [selected, provider, source]);
 
   const games = result?.games;
-  const filtered = useMemo(
+
+  // 各平台游戏数
+  const countByCollection = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of games ?? []) m.set(g.collection, (m.get(g.collection) ?? 0) + 1);
+    return m;
+  }, [games]);
+
+  // 当前平台的游戏
+  const collectionGames = useMemo(
     () => (games ?? []).filter((g) => g.collection === collection),
     [games, collection],
   );
+
+  // 当前平台可选的类型（按逗号拆开去重）
+  const genreOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const g of collectionGames) {
+      for (const part of (g.genre ?? "").split(",")) {
+        const t = part.trim();
+        if (t) s.add(t);
+      }
+    }
+    return [...s].sort((a, b) => a.localeCompare(b, "zh"));
+  }, [collectionGames]);
+
+  // 过滤 + 排序
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = collectionGames;
+    if (q) list = list.filter((g) => g.title.toLowerCase().includes(q));
+    if (genreFilter) {
+      const gf = genreFilter.toLowerCase();
+      list = list.filter((g) => (g.genre ?? "").toLowerCase().includes(gf));
+    }
+    const key = (g: Game): string | number => {
+      switch (sortKey) {
+        case "release":
+          return g.release ?? "";
+        case "developer":
+          return g.developer ?? "";
+        case "rating":
+          return g.rating ?? -1;
+        default:
+          return g.title;
+      }
+    };
+    const sorted = [...list].sort((a, b) => {
+      const ka = key(a);
+      const kb = key(b);
+      const ma = ka === "" || ka === -1; // 缺失值排最后
+      const mb = kb === "" || kb === -1;
+      if (ma && mb) return a.title.localeCompare(b.title, "zh");
+      if (ma) return 1;
+      if (mb) return -1;
+      let r =
+        typeof ka === "number" && typeof kb === "number"
+          ? ka - kb
+          : String(ka).localeCompare(String(kb), "zh");
+      if (r === 0) r = a.title.localeCompare(b.title, "zh");
+      return sortAsc ? r : -r;
+    });
+    return sorted;
+  }, [collectionGames, query, genreFilter, sortKey, sortAsc]);
+
+  // 切换平台时清空类型过滤（避免过滤条件在新平台不存在）
+  useEffect(() => {
+    setGenreFilter("");
+  }, [collection]);
 
   // 记住上次选中（下次打开定位）
   useEffect(() => {
@@ -496,12 +567,54 @@ export function LibraryPage({
                 }}
               >
                 {c}
+                <span className="chip-count">{countByCollection.get(c) ?? 0}</span>
               </button>
             ))}
             {scanning && <span className="refresh-badge">刷新中…</span>}
             <button className="ghost small" style={{ marginLeft: "auto" }} onClick={onOpenMenu}>
               菜单
             </button>
+          </div>
+
+          <div className="filter-bar">
+            <input
+              className="filter-search"
+              placeholder="搜索游戏名…"
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+            />
+            <select
+              className="filter-select"
+              value={genreFilter}
+              onChange={(e) => setGenreFilter(e.currentTarget.value)}
+            >
+              <option value="">全部类型</option>
+              {genreOptions.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+            <select
+              className="filter-select"
+              value={sortKey}
+              onChange={(e) =>
+                setSortKey(e.currentTarget.value as "title" | "release" | "rating" | "developer")
+              }
+            >
+              <option value="title">按标题</option>
+              <option value="release">按发行日期</option>
+              <option value="rating">按评分</option>
+              <option value="developer">按开发商</option>
+            </select>
+            <button
+              className="ghost small"
+              onClick={() => setSortAsc((v) => !v)}
+              title="切换升序 / 降序"
+            >
+              {sortAsc ? "↑ 升序" : "↓ 降序"}
+            </button>
+            <span className="count-badge">共 {filtered.length} 款</span>
           </div>
 
           {result && result.warnings.length > 0 && (
