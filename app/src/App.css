@@ -292,14 +292,7 @@ code {
   font-weight: 600;
 }
 
-.chip-count {
-  margin-left: 6px;
-  font-size: 11px;
-  opacity: 0.8;
-  font-variant-numeric: tabular-nums;
-}
-
-/* 过滤 / 排序栏 */
+/* 过滤栏 */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;

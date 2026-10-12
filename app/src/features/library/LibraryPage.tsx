@@ -255,16 +255,6 @@ export function LibraryPage({
 
   const games = result?.games;
 
-  // 各平台游戏数（只统计已上传的）
-  const countByCollection = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const g of games ?? []) {
-      if (g.available === false) continue;
-      m.set(g.collection, (m.get(g.collection) ?? 0) + 1);
-    }
-    return m;
-  }, [games]);
-
   // 当前平台的游戏（隐藏「未上传」的）
   const collectionGames = useMemo(
     () => (games ?? []).filter((g) => g.collection === collection && g.available !== false),
@@ -519,7 +509,6 @@ export function LibraryPage({
                 }}
               >
                 {c}
-                <span className="chip-count">{countByCollection.get(c) ?? 0}</span>
               </button>
             ))}
             {scanning && <span className="refresh-badge">刷新中…</span>}
