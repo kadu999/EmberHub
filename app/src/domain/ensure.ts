@@ -538,22 +538,37 @@ export async function ensureRom(
   const romRel = game.files[0];
   if (!romRel) throw new Error("该游戏没有指定文件。");
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
+  const download = provider.downloadTo;
 
   const dl = await getDownloadDir(source);
   // 保留服务器上的相对路径（含子文件夹），避免多卷/多盘同名文件互相覆盖
   const dest = joinPath(dl, romRel);
 
-  if (await tauri.fileExists(dest)) {
-    onStatus?.("已下载，直接启动");
-  } else {
-    onStatus?.(`开始下载 ${basename(romRel)}`);
-    await provider.downloadTo(romRel, dest);
-    onStatus?.("下载完成");
-  }
+  const fetch = async () => {
+    if (await tauri.fileExists(dest)) {
+      onStatus?.("已下载，直接启动");
+    } else {
+      onStatus?.(`开始下载 ${basename(romRel)}`);
+      await download(romRel, dest);
+      onStatus?.("下载完成");
+    }
+  };
 
+  await fetch();
   if (!extract) return dest;
+
   const { archives } = await loadResourceConfig(provider);
-  return maybeExtract(dest, archives, onStatus);
+  try {
+    return await maybeExtract(dest, archives, onStatus);
+  } catch {
+    // 本地压缩包可能损坏（CRC 校验失败）→ 删掉重下一次再试
+    onStatus?.("压缩包损坏，重新下载…");
+    await tauri.removePath(dest).catch(() => undefined);
+    await tauri.removePath(`${dest}.part`).catch(() => undefined);
+    await tauri.removePath(joinPath(dirname(dest), stripExt(basename(dest)))).catch(() => undefined);
+    await fetch();
+    return await maybeExtract(dest, archives, onStatus);
+  }
 }
 
 /** 若文件是压缩包则解压，返回内部 ROM 路径。已解压过则直接复用。 */
