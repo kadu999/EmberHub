@@ -631,8 +631,11 @@ fn extract_zip_impl(zip_path: &str, dest_dir: &str) -> Result<(), String> {
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
             let mut outfile = std::fs::File::create(&outpath).map_err(|e| e.to_string())?;
-            std::io::copy(&mut entry, &mut outfile)
-                .map_err(|e| format!("解压失败 {} :: {}: {}", zip_path, name, e))?;
+            if let Err(e) = std::io::copy(&mut entry, &mut outfile) {
+                // 个别打包工具会产出元数据不一致的条目（例如空文件被标成 Stored，
+                // 导致 CRC/大小校验失败）。单个条目失败不应中断整个解压：跳过并记录。
+                log_error("extract", &format!("条目损坏，已跳过 {}: {}", name, e));
+            }
         }
     }
     Ok(())
