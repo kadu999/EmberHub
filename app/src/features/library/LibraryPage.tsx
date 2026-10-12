@@ -118,9 +118,8 @@ export function LibraryPage({
   // 本地已下载的游戏 id 集合
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
 
-  // 过滤 / 排序
+  // 搜索
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<"release" | "rating" | "developer">("release");
 
   // 让 launchRef 始终指向最新闭包（provider/source 变化后仍可用）
   useEffect(() => {
@@ -272,40 +271,12 @@ export function LibraryPage({
     [games, collection],
   );
 
-  // 搜索 + 排序
+  // 搜索
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = collectionGames;
-    if (q) list = list.filter((g) => g.title.toLowerCase().includes(q));
-    const key = (g: Game): string | number => {
-      switch (sortKey) {
-        case "release":
-          return g.release ?? "";
-        case "developer":
-          return g.developer ?? "";
-        case "rating":
-          return g.rating ?? -1;
-        default:
-          return g.title;
-      }
-    };
-    const sorted = [...list].sort((a, b) => {
-      const ka = key(a);
-      const kb = key(b);
-      const ma = ka === "" || ka === -1; // 缺失值排最后
-      const mb = kb === "" || kb === -1;
-      if (ma && mb) return a.title.localeCompare(b.title, "zh");
-      if (ma) return 1;
-      if (mb) return -1;
-      let r =
-        typeof ka === "number" && typeof kb === "number"
-          ? ka - kb
-          : String(ka).localeCompare(String(kb), "zh");
-      if (r === 0) r = a.title.localeCompare(b.title, "zh");
-      return -r; // 固定降序
-    });
-    return sorted;
-  }, [collectionGames, query, sortKey]);
+    if (!q) return collectionGames;
+    return collectionGames.filter((g) => g.title.toLowerCase().includes(q));
+  }, [collectionGames, query]);
 
   // 记住上次选中（下次打开定位）
   useEffect(() => {
@@ -564,17 +535,6 @@ export function LibraryPage({
               value={query}
               onChange={(e) => setQuery(e.currentTarget.value)}
             />
-            <select
-              className="filter-select"
-              value={sortKey}
-              onChange={(e) =>
-                setSortKey(e.currentTarget.value as "release" | "rating" | "developer")
-              }
-            >
-              <option value="release">按发行日期</option>
-              <option value="rating">按评分</option>
-              <option value="developer">按开发商</option>
-            </select>
             <span className="count-badge">共 {filtered.length} 款</span>
           </div>
 
