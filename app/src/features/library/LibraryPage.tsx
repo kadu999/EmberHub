@@ -120,8 +120,7 @@ export function LibraryPage({
 
   // 过滤 / 排序
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<"title" | "release" | "rating" | "developer">("title");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortKey, setSortKey] = useState<"release" | "rating" | "developer">("release");
 
   // 让 launchRef 始终指向最新闭包（provider/source 变化后仍可用）
   useEffect(() => {
@@ -303,10 +302,10 @@ export function LibraryPage({
           ? ka - kb
           : String(ka).localeCompare(String(kb), "zh");
       if (r === 0) r = a.title.localeCompare(b.title, "zh");
-      return sortAsc ? r : -r;
+      return -r; // 固定降序
     });
     return sorted;
-  }, [collectionGames, query, sortKey, sortAsc]);
+  }, [collectionGames, query, sortKey]);
 
   // 记住上次选中（下次打开定位）
   useEffect(() => {
@@ -569,21 +568,13 @@ export function LibraryPage({
               className="filter-select"
               value={sortKey}
               onChange={(e) =>
-                setSortKey(e.currentTarget.value as "title" | "release" | "rating" | "developer")
+                setSortKey(e.currentTarget.value as "release" | "rating" | "developer")
               }
             >
-              <option value="title">按标题</option>
               <option value="release">按发行日期</option>
               <option value="rating">按评分</option>
               <option value="developer">按开发商</option>
             </select>
-            <button
-              className="ghost small"
-              onClick={() => setSortAsc((v) => !v)}
-              title="切换升序 / 降序"
-            >
-              {sortAsc ? "↑ 升序" : "↓ 降序"}
-            </button>
             <span className="count-badge">共 {filtered.length} 款</span>
           </div>
 
