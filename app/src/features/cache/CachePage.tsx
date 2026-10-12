@@ -1,17 +1,14 @@
-// 资源缓存：独立弹框，用于查看/清理本地缓存（测试用）。
+// 资源缓存：查看/清理本地数据（只保留 3 项：游戏、模拟器、缓存）。
 import { useEffect, useState } from "react";
-import { openPath } from "@tauri-apps/plugin-opener";
 import { useStore } from "../../state/store";
 import { tauri } from "../../shared/tauri";
-import { joinPath } from "../../shared/path";
+import { cacheRoot, emulatorsRoot, romsRoot } from "../../domain/paths";
 
-/** 可清理的缓存/数据项（相对下载目录）。 */
-const CACHE_ITEMS = [
-  { key: "library", label: "游戏库缓存", desc: "manifest + 各平台 games.json", dir: ".cache/library", isCache: true },
-  { key: "media", label: "媒体缓存", desc: "封面 / 视频预览", dir: ".cache/media", isCache: true },
-  { key: "emuCache", label: "模拟器压缩包缓存", desc: "下载的模拟器 zip", dir: ".cache/Emulators", isCache: true },
-  { key: "roms", label: "已下载游戏", desc: "Roms/", dir: "Roms", isCache: false },
-  { key: "emulators", label: "已安装模拟器", desc: "Emulators/", dir: "Emulators", isCache: false },
+/** 3 个可删除项（dir 由下载目录派生）。 */
+const ITEMS = [
+  { key: "roms", label: "已下载游戏", dir: romsRoot },
+  { key: "emulators", label: "已安装模拟器", dir: emulatorsRoot },
+  { key: "cache", label: "缓存", dir: cacheRoot },
 ] as const;
 
 function formatSize(n: number | null | undefined): string {
@@ -33,27 +30,19 @@ export function CachePage({ onClose }: Props) {
     tauri.defaultDownloadDir().then(setDefaultDir).catch(() => undefined);
   }, []);
 
-  const [dir, setDir] = useState(downloadDir ?? "");
+  const baseDir = (downloadDir?.trim() || defaultDir).replace(/\\/g, "/");
   const [sizes, setSizes] = useState<Record<string, number | null>>({});
   const [clearingKey, setClearingKey] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const baseDir = (dir.trim() || defaultDir).replace(/\\/g, "/");
 
   async function refreshSizes() {
     if (!baseDir) return;
     const next: Record<string, number | null> = {};
-    for (const it of CACHE_ITEMS) {
+    for (const it of ITEMS) {
       try {
-        next[it.key] = await tauri.pathSize(joinPath(baseDir, it.dir));
+        next[it.key] = await tauri.pathSize(it.dir(baseDir));
       } catch {
         next[it.key] = null;
       }
-    }
-    try {
-      next.__log = await tauri.pathSize(joinPath(baseDir, "logs", "emberhub.log"));
-    } catch {
-      next.__log = null;
     }
     setSizes(next);
   }
@@ -63,41 +52,15 @@ export function CachePage({ onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseDir]);
 
-  async function clearDir(it: (typeof CACHE_ITEMS)[number]) {
+  async function remove(it: (typeof ITEMS)[number]) {
     setClearingKey(it.key);
     try {
-      await tauri.removePath(joinPath(baseDir, it.dir));
+      await tauri.removePath(it.dir(baseDir));
       await refreshSizes();
-      setMessage({ ok: true, text: `已清理：${it.label}` });
-    } catch (e) {
-      setMessage({ ok: false, text: `清理失败：${String(e)}` });
+    } catch {
+      /* 忽略 */
     } finally {
       setClearingKey(null);
-    }
-  }
-
-  async function clearAllCaches() {
-    setClearingKey("__all__");
-    try {
-      for (const it of CACHE_ITEMS.filter((x) => x.isCache)) {
-        await tauri.removePath(joinPath(baseDir, it.dir));
-      }
-      await refreshSizes();
-      setMessage({ ok: true, text: "已清理全部缓存" });
-    } catch (e) {
-      setMessage({ ok: false, text: `清理失败：${String(e)}` });
-    } finally {
-      setClearingKey(null);
-    }
-  }
-
-  async function clearLog() {
-    try {
-      await tauri.writeTextFile(joinPath(baseDir, "logs", "emberhub.log"), "");
-      await refreshSizes();
-      setMessage({ ok: true, text: "已清空运行日志" });
-    } catch (e) {
-      setMessage({ ok: false, text: `清空失败：${String(e)}` });
     }
   }
 
@@ -105,82 +68,28 @@ export function CachePage({ onClose }: Props) {
     <div className="settings">
       <div className="settings-head">
         <h2>资源缓存</h2>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="ghost small" onClick={() => void refreshSizes()}>
-            刷新占用
-          </button>
-          <button className="ghost small" onClick={onClose}>
-            关闭（Esc）
-          </button>
-        </div>
-      </div>
-      <p className="hint">
-        查看与清理本地缓存（便于测试）。基准目录：<code>{baseDir || "—"}</code>
-      </p>
-
-      <div className="field">
-        <label>下载目录（可临时改成别的目录查看）</label>
-        <input
-          value={dir}
-          onChange={(e) => setDir(e.currentTarget.value)}
-          placeholder={defaultDir || "默认"}
-        />
-      </div>
-      <div className="actions">
-        <button className="ghost small" onClick={() => setDir("")}>
-          重置为默认
+        <button className="ghost small" onClick={onClose}>
+          关闭（Esc）
         </button>
       </div>
 
       <ul className="cache-list">
-        {CACHE_ITEMS.map((it) => (
+        {ITEMS.map((it) => (
           <li key={it.key}>
             <div className="cache-info">
               <span className="cache-name">{it.label}</span>
-              <span className="cache-meta">
-                {it.desc} · <code>{it.dir}</code> · {formatSize(sizes[it.key])}
-              </span>
+              <span className="cache-meta">{formatSize(sizes[it.key])}</span>
             </div>
             <button
               className="ghost small"
               disabled={clearingKey !== null}
-              onClick={() => void clearDir(it)}
+              onClick={() => void remove(it)}
             >
-              {clearingKey === it.key ? "清理中…" : "清理"}
+              {clearingKey === it.key ? "删除中…" : "删除"}
             </button>
           </li>
         ))}
       </ul>
-
-      <div className="actions">
-        <button className="ghost small" disabled={clearingKey !== null} onClick={() => void clearAllCaches()}>
-          {clearingKey === "__all__" ? "清理中…" : "清理全部缓存"}
-        </button>
-      </div>
-      <p className="hint">
-        「清理全部缓存」只清 <code>.cache/</code>（游戏库/媒体/模拟器包），不动已下载的 Roms 与已安装模拟器。
-      </p>
-
-      <div className="card">
-        <h3>运行日志</h3>
-        <p className="hint">
-          下载 / 读取失败会写到这里：
-          <code>{joinPath(baseDir, "logs", "emberhub.log")}</code>（{formatSize(sizes.__log)}）
-        </p>
-        <div className="actions">
-          <button
-            className="ghost small"
-            onClick={() => void openPath(joinPath(baseDir, "logs")).catch(() => undefined)}
-          >
-            打开日志文件夹
-          </button>
-          <button className="ghost small" onClick={() => void clearLog()}>
-            清空日志
-          </button>
-        </div>
-      </div>
-
-      {message && <p className={message.ok ? "ok" : "error"}>{message.text}</p>}
     </div>
   );
 }

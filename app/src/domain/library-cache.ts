@@ -8,13 +8,7 @@ import { tauri } from "../shared/tauri";
 import { basename, dirname, joinPath } from "../shared/path";
 import type { RemoteEntry, SourceConfig, StorageKind, StorageProvider } from "../storage/types";
 import { libraryCacheRoot } from "./ensure";
-
-/** 资源源短标识（与 ensure.ts 的 sourceSlug 同算法，隔离不同源的缓存）。 */
-function sourceSlug(key: string): string {
-  let h = 5381;
-  for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) >>> 0;
-  return h.toString(16);
-}
+import { sourceSlug } from "./paths";
 
 /** 内容哈希（manifest 没写 version 时的兜底）。 */
 function hash(s: string): string {

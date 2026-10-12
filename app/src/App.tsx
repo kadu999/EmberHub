@@ -8,7 +8,7 @@ import { CachePage } from "./features/cache/CachePage";
 import { useStore } from "./state/store";
 import { tauri } from "./shared/tauri";
 import { getDownloadDir } from "./domain/ensure";
-import { joinPath } from "./shared/path";
+import { logsRoot } from "./domain/paths";
 import { platform } from "./platform";
 import { APP_CONFIG } from "./config/config";
 import "./App.css";
@@ -69,12 +69,12 @@ function App() {
       .catch(() => undefined);
   }, [fullscreen]);
 
-  // 失败日志目录：<下载目录>/logs（下载目录变化时更新）
+  // 失败日志目录：<下载目录>/cache/logs（下载目录变化时更新）
   // 权限门通过前不写日志，避免未授权时写文件失败（EPERM）。
   useEffect(() => {
     if (!permsReady) return;
     void getDownloadDir(source ?? undefined)
-      .then((d) => tauri.logInit(joinPath(d, "logs")))
+      .then((d) => tauri.logInit(logsRoot(d)))
       .catch(() => undefined);
   }, [source, downloadDir, permsReady]);
 

@@ -9,6 +9,7 @@ import type { EmulatorsFile } from "./parse";
 import { loadResourceConfig, type ResourceConfig } from "./resource-config";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
+import { emulatorZipsDir, libraryRoot, mediaRoot, modsCacheDir, sourceSlug } from "./paths";
 
 /** 默认下载目录只解析一次（Rust 侧也会缓存，这里避免重复 invoke）。 */
 let defaultDirPromise: Promise<string> | null = null;
@@ -33,26 +34,17 @@ export async function getDownloadDir(source?: SourceConfig): Promise<string> {
   return defaultDownloadDir();
 }
 
-/** 资源源的短标识（隔离各源的媒体缓存，避免切换资源源时串源）。 */
-function sourceSlug(provider: StorageProvider): string {
-  let h = 5381;
-  for (let i = 0; i < provider.key.length; i++) {
-    h = ((h << 5) + h + provider.key.charCodeAt(i)) >>> 0;
-  }
-  return h.toString(16);
-}
-
 /** 缓存根（配置 / 清单 / 列表等元数据）。
  *  Android 放 App 私有目录：共享目录不随卸载清空，改服务器配置后容易命中旧缓存；
  *  桌面端跟随下载目录。 */
 export async function libraryCacheRoot(): Promise<string> {
   const base = appPlatform.isMobile ? await tauri.defaultDownloadDir() : await getDownloadDir();
-  return joinPath(base, ".cache", "library");
+  return libraryRoot(base);
 }
 
 /** 媒体缓存根目录（所有资源源共用这一层，下面按源标识分目录）。 */
 export async function mediaCacheRoot(): Promise<string> {
-  return joinPath(await getDownloadDir(), ".cache", "media");
+  return mediaRoot(await getDownloadDir());
 }
 
 /** 默认运行平台 → 文件夹名（可在 manifest.json 的 osFolders 里覆盖）。 */
@@ -387,7 +379,7 @@ export async function ensureEmulator(
   // 下载模拟器压缩包到缓存目录
   if (!provider.downloadTo) throw new Error("该存储源不支持下载模拟器。");
   const remoteArchive = joinPath(emuBase, config.archive);
-  const cacheDir = joinPath(dl, ".cache", "Emulators", emuPlatform);
+  const cacheDir = emulatorZipsDir(dl, emuPlatform);
   await tauri.ensureDir(cacheDir);
   const localArchive = joinPath(cacheDir, basename(config.archive));
   onStatus?.(`下载模拟器 ${emuPlatform} ${config.version}…`);
@@ -411,7 +403,7 @@ export async function removeEmulator(
   const cfg = await loadResourceConfig(provider);
   const dl = await getDownloadDir(source);
   await tauri.removePath(joinPath(dl, cfg.emulatorsDir, platform));
-  await tauri.removePath(joinPath(dl, ".cache", "Emulators", platform));
+  await tauri.removePath(emulatorZipsDir(dl, platform));
 }
 
 /** 直接打开模拟器（不启动游戏，用于进模拟器设置）。会先确保已安装。 */
@@ -501,7 +493,7 @@ export async function ensureGameMod(
     done = {};
   }
   const dl = await getDownloadDir(source);
-  const cacheDir = joinPath(dl, ".cache", "Mods", game.collection);
+  const cacheDir = modsCacheDir(dl, game.collection);
   // 保证模拟器使用便携 user 目录（Azahar 靠存在 `user/` 目录触发便携模式）
   const destRoot = joinPath(installDir, modsRoot);
   await tauri.ensureDir(destRoot);
@@ -623,9 +615,9 @@ export async function ensureLocalMedia(
   if (!provider.downloadTo) throw new Error("该存储源不支持下载。");
 
   const dl = await getDownloadDir();
-  // 媒体缓存：<下载目录>/.cache/media/<源标识>/<镜像路径>
+  // 媒体缓存：<下载目录>/cache/media/<源标识>/<镜像路径>
   // 带上源标识，切换到另一个资源源时不会命中旧源的缓存。
-  const dest = joinPath(dl, ".cache", "media", sourceSlug(provider), relPath);
+  const dest = joinPath(mediaRoot(dl), sourceSlug(provider.key), relPath);
   if (await tauri.fileExists(dest)) return dest;
 
   const running = inFlight.get(dest);
