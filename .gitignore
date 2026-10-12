@@ -33,5 +33,10 @@ Thumbs.db
 __pycache__/
 *.pyc
 
-# ×ÔÇ©Ãû keystore£¨Éú³ÉµÄ·Ö·¢°üÇ©Ãû£¬ÎğÌá½»£©
+# ç™¾åº¦ AI è„šæœ¬ä¸å¯†é’¥ï¼ˆå«æ˜æ–‡ AK/SKã€tokenï¼Œå‹¿å…¥åº“ï¼‰
+/baidu.txt
+/get_baidu_token.py
+/get_baidu_refresh_token.py
+
+# ï¿½ï¿½Ç©ï¿½ï¿½ keystoreï¿½ï¿½ï¿½ï¿½ï¿½ÉµÄ·Ö·ï¿½ï¿½ï¿½Ç©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½á½»ï¿½ï¿½
 .android-signing/
