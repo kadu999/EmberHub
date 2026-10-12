@@ -173,11 +173,12 @@ export function LibraryPage({
       if (source) void warmEmulatorConfig(provider, source).catch(() => undefined);
       // 恢复上次选中的游戏/平台；找不到则回退到该平台第一个或全局第一个
       const { lastGameId, lastCollection } = useStore.getState();
-      const remembered = lastGameId ? r.games.find((g) => g.id === lastGameId) : undefined;
+      const avail = r.games.filter((g) => g.available !== false);
+      const remembered = lastGameId ? avail.find((g) => g.id === lastGameId) : undefined;
       const sel =
         remembered ??
-        (lastCollection ? r.games.find((g) => g.collection === lastCollection) : undefined) ??
-        r.games[0] ??
+        (lastCollection ? avail.find((g) => g.collection === lastCollection) : undefined) ??
+        avail[0] ??
         null;
       if (remembered) pendingScrollId.current = remembered.id;
       setSelected(sel);
@@ -257,16 +258,19 @@ export function LibraryPage({
 
   const games = result?.games;
 
-  // 各平台游戏数
+  // 各平台游戏数（只统计已上传的）
   const countByCollection = useMemo(() => {
     const m = new Map<string, number>();
-    for (const g of games ?? []) m.set(g.collection, (m.get(g.collection) ?? 0) + 1);
+    for (const g of games ?? []) {
+      if (g.available === false) continue;
+      m.set(g.collection, (m.get(g.collection) ?? 0) + 1);
+    }
     return m;
   }, [games]);
 
-  // 当前平台的游戏
+  // 当前平台的游戏（隐藏「未上传」的）
   const collectionGames = useMemo(
-    () => (games ?? []).filter((g) => g.collection === collection),
+    () => (games ?? []).filter((g) => g.collection === collection && g.available !== false),
     [games, collection],
   );
 
@@ -470,7 +474,7 @@ export function LibraryPage({
     const next = (i + delta + list.length) % list.length;
     const c = list[next];
     setCollection(c);
-    const first = result?.games.find((g) => g.collection === c);
+    const first = result?.games.find((g) => g.collection === c && g.available !== false);
     if (first) setSelected(first);
   }
 
@@ -561,8 +565,8 @@ export function LibraryPage({
                 className={collection === c ? "chip active" : "chip"}
                 onClick={() => {
                   setCollection(c);
-                  // 切换平台时自动选中该平台的第一个游戏
-                  const first = result?.games.find((g) => g.collection === c);
+                  // 切换平台时自动选中该平台的第一个游戏（跳过未上传）
+                  const first = result?.games.find((g) => g.collection === c && g.available !== false);
                   if (first) setSelected(first);
                 }}
               >
@@ -652,10 +656,7 @@ export function LibraryPage({
                 onDoubleClick={() => launch(g)}
               >
                 <Cover provider={provider} path={g.coverPath} dir={g.mediaDir} title={g.title} />
-                {g.available === false && <span className="game-badge">未上传</span>}
-                {g.available !== false && downloaded.has(g.id) && (
-                  <span className="game-badge downloaded">已下载</span>
-                )}
+                {downloaded.has(g.id) && <span className="game-badge downloaded">已下载</span>}
                 <span className="game-title" title={g.title}>
                   {g.title}
                 </span>
