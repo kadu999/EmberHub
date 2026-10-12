@@ -106,6 +106,8 @@ export function LibraryPage({
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 首次加载过久（多半是连不上资源库）：给提示 + 设置入口，避免卡死
+  const [slow, setSlow] = useState(false);
   const [collection, setCollection] = useState("");
   const [selected, setSelected] = useState<Game | null>(null);
   const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -191,6 +193,16 @@ export function LibraryPage({
   useEffect(() => {
     if (provider && source) void scan();
   }, [provider, source, scan, scanToken]);
+
+  // 首次加载迟迟没结果（可能连不上资源库）：12s 后给提示，让用户能去改地址
+  useEffect(() => {
+    if (result || error || !source) {
+      setSlow(false);
+      return;
+    }
+    const t = setTimeout(() => setSlow(true), 12000);
+    return () => clearTimeout(t);
+  }, [result, error, source]);
 
   // 本地已下载集合（每次扫描结果更新后刷新，用于卡片「已下载」标记）
   useEffect(() => {
@@ -349,14 +361,18 @@ export function LibraryPage({
     );
   }
 
-  // 首次加载（还没有数据，也没报错）
+  // 首次加载（还没有数据，也没报错）：给「打开设置」出口，避免连不上时卡死在这里
   if (!result && !error) {
     return (
       <div className="page centered">
         <div className="loading">
-          <span className="spinner" />
-          正在加载游戏库…
+          {!slow && <span className="spinner" />}
+          <span>{slow ? "连接不上资源库" : "正在加载游戏库…"}</span>
         </div>
+        {slow && (
+          <p className="hint">长时间连不上，请检查「资源库地址」是否正确或服务器是否已启动。</p>
+        )}
+        <button onClick={onOpenSettings}>打开设置</button>
       </div>
     );
   }
