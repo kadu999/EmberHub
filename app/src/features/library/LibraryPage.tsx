@@ -120,7 +120,6 @@ export function LibraryPage({
 
   // 过滤 / 排序
   const [query, setQuery] = useState("");
-  const [genreFilter, setGenreFilter] = useState("");
   const [sortKey, setSortKey] = useState<"title" | "release" | "rating" | "developer">("title");
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -274,27 +273,11 @@ export function LibraryPage({
     [games, collection],
   );
 
-  // 当前平台可选的类型（按逗号拆开去重）
-  const genreOptions = useMemo(() => {
-    const s = new Set<string>();
-    for (const g of collectionGames) {
-      for (const part of (g.genre ?? "").split(",")) {
-        const t = part.trim();
-        if (t) s.add(t);
-      }
-    }
-    return [...s].sort((a, b) => a.localeCompare(b, "zh"));
-  }, [collectionGames]);
-
-  // 过滤 + 排序
+  // 搜索 + 排序
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = collectionGames;
     if (q) list = list.filter((g) => g.title.toLowerCase().includes(q));
-    if (genreFilter) {
-      const gf = genreFilter.toLowerCase();
-      list = list.filter((g) => (g.genre ?? "").toLowerCase().includes(gf));
-    }
     const key = (g: Game): string | number => {
       switch (sortKey) {
         case "release":
@@ -323,12 +306,7 @@ export function LibraryPage({
       return sortAsc ? r : -r;
     });
     return sorted;
-  }, [collectionGames, query, genreFilter, sortKey, sortAsc]);
-
-  // 切换平台时清空类型过滤（避免过滤条件在新平台不存在）
-  useEffect(() => {
-    setGenreFilter("");
-  }, [collection]);
+  }, [collectionGames, query, sortKey, sortAsc]);
 
   // 记住上次选中（下次打开定位）
   useEffect(() => {
@@ -587,18 +565,6 @@ export function LibraryPage({
               value={query}
               onChange={(e) => setQuery(e.currentTarget.value)}
             />
-            <select
-              className="filter-select"
-              value={genreFilter}
-              onChange={(e) => setGenreFilter(e.currentTarget.value)}
-            >
-              <option value="">全部类型</option>
-              {genreOptions.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
             <select
               className="filter-select"
               value={sortKey}
