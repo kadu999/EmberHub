@@ -10,7 +10,8 @@
 #
 # 注意事项：
 #   - 服务器必须能「列目录」，Python 的 http.server 默认已开启。
-#   - 打开「外网」表示绑定 0.0.0.0，允许局域网 / 其它设备访问（Windows 防火墙可能需放行）。
+#   - 「外网」默认开启：绑定 0.0.0.0，允许局域网 / 其它设备访问（Windows 防火墙可能需放行）；
+#     取消勾选则绑 127.0.0.1，仅本机可访问。
 
 import json
 import os
@@ -175,10 +176,12 @@ class App(tk.Tk):
             root = DEFAULT_ROOT
         self.var_root = tk.StringVar(value=root)
         self.var_port = tk.StringVar(value=str(state.get("port", 8000)))
-        # 兼容旧配置：以前用 bind == "0.0.0.0" 表示外网
+        # 「外网」（绑 0.0.0.0，允许局域网 / 其它设备访问）默认开启。
+        # 兼容旧配置：以前用 bind == "0.0.0.0" 表示外网、bind == "127.0.0.1" 表示仅本机。
         external = state.get("external")
         if external is None:
-            external = state.get("bind") == "0.0.0.0"
+            bind = state.get("bind")
+            external = True if bind is None else (bind == "0.0.0.0")
         self.var_external = tk.BooleanVar(value=bool(external))
 
     def _save_state(self):
