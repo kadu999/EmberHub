@@ -5,7 +5,7 @@ import { tauri } from "../shared/tauri";
 import { platform } from "../platform";
 import { basename, dirname, extname, isAbsolute, joinPath, nativePath, stripExt } from "../shared/path";
 import type { SourceConfig, StorageProvider } from "../storage/types";
-import { EmulatorInstallingError, ensureEmulator, ensureGameMod, ensureRom, getDownloadDir } from "./ensure";
+import { EmulatorInstallingError, ensureEmulator, ensureGameMod, ensureRom, getDownloadDir, stageAsciiRom } from "./ensure";
 import { useStore } from "../state/store";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
@@ -204,7 +204,9 @@ export async function launchGame(
 
   const exe = nativePath(isAbsolute(config.exe) ? config.exe : joinPath(dir, config.exe));
   const vars: LaunchVars = { platform: game.collection, title: game.title, emulatorDir: dir };
-  const args = (cfgArgs ?? []).map((a) => substitute(a, romAbs, vars));
+  // 有些模拟器（如 melonDS 1.1）命令行不认非 ASCII 路径：按需先暂存到 ASCII 路径
+  const launchRom = config.asciiRom ? nativePath(await stageAsciiRom(romAbs, dir)) : romAbs;
+  const args = (cfgArgs ?? []).map((a) => substitute(a, launchRom, vars));
   const workdir = nativePath(config.workdir ? joinPath(dir, config.workdir) : dirname(exe));
   onStatus?.("启动中…");
   await platform.launchEmulator(exe, args, workdir);

@@ -59,6 +59,9 @@ export const tauri = {
   writeTextFile: (path: string, content: string) =>
     invoke<void>("write_text_file", { path, content }),
   removePath: (path: string) => invoke<void>("remove_path", { path }),
+  /** 把文件准备到目标路径（优先硬链接，失败则复制）。用于暂存「ASCII ROM」。 */
+  linkOrCopyFile: (src: string, dest: string) =>
+    invoke<void>("link_or_copy_file", { src, dest }),
   extractArchive: (path: string, destDir: string) =>
     invoke<void>("extract_archive", { path, destDir }),
 

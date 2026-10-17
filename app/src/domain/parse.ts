@@ -194,6 +194,7 @@ function emulatorConfigFrom(o: Record<string, unknown>, fallbackPlatform: string
     args: Array.isArray(o.args) ? (o.args.filter((a) => typeof a === "string") as string[]) : undefined,
     workdir: str(o.workdir),
     extract: typeof o.extract === "boolean" ? o.extract : undefined,
+    asciiRom: typeof o.asciiRom === "boolean" ? o.asciiRom : undefined,
     configs: parseEmulatorFiles(o.configs),
     package: str(o.package),
     mime: str(o.mime),

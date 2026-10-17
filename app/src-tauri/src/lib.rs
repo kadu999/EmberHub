@@ -596,6 +596,27 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+/// 把文件准备到目标路径：优先硬链接（同盘零拷贝），失败则复制。
+/// 目标已存在时先删除；若被占用（模拟器正打开）则直接复用现有文件。
+/// 用于给「命令行不认非 ASCII 路径」的模拟器（如 melonDS 1.1）准备 ASCII 路径的 ROM。
+#[tauri::command]
+fn link_or_copy_file(src: String, dest: String) -> Result<(), String> {
+    let dest_path = std::path::Path::new(&dest);
+    if let Some(parent) = dest_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    if dest_path.exists() && std::fs::remove_file(dest_path).is_err() {
+        // 目标被占用 → 复用现有文件（内容与来源一致或模拟器正在使用）
+        return Ok(());
+    }
+    match std::fs::hard_link(&src, dest_path) {
+        Ok(_) => Ok(()),
+        Err(_) => std::fs::copy(&src, dest_path)
+            .map(|_| ())
+            .map_err(|e| format!("准备文件失败 {} -> {}: {}", src, dest, e)),
+    }
+}
+
 /// 删除文件或目录。
 #[tauri::command]
 fn remove_path(path: String) -> Result<(), String> {
@@ -1045,6 +1066,7 @@ pub fn run() {
             ensure_dir,
             read_text_file,
             write_text_file,
+            link_or_copy_file,
             remove_path,
             extract_archive,
             host_os,

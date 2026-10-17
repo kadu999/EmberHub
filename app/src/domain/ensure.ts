@@ -9,7 +9,7 @@ import type { EmulatorsFile } from "./parse";
 import { loadResourceConfig, type ResourceConfig } from "./resource-config";
 import type { EmulatorConfig } from "./types";
 import type { Game } from "./scan";
-import { emulatorZipsDir, libraryRoot, mediaRoot, modsCacheDir, sourceSlug } from "./paths";
+import { emulatorZipsDir, libraryRoot, mediaRoot, modsCacheDir, sourceSlug, stagedRomsDir } from "./paths";
 
 /** 默认下载目录只解析一次（Rust 侧也会缓存，这里避免重复 invoke）。 */
 let defaultDirPromise: Promise<string> | null = null;
@@ -625,6 +625,44 @@ async function firstRomFile(dir: string, archives: string[]): Promise<string | u
     }
   }
   return undefined;
+}
+
+/** 路径是否全为 ASCII 字符。 */
+export function isAsciiPath(p: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  return /^[\x00-\x7F]*$/.test(p);
+}
+
+/** 由字符串派生的稳定短哈希（djb2，8 位十六进制）。 */
+function shortHash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(16).padStart(8, "0");
+}
+
+/**
+ * 把 ROM 准备到纯 ASCII 路径，返回可直接传给模拟器的路径。
+ * - 路径本就全 ASCII：原样返回，不做任何事。
+ * - 否则：硬链接（同盘零拷贝，失败则复制）到 `<模拟器安装目录>/.roms-ascii/<hash>-<名>`。
+ * 用于命令行不认非 ASCII 路径的模拟器（如 melonDS 1.1 传中文路径会报「ROM 不存在」）。
+ * 存档会落在该目录下，随模拟器安装目录一起保留。
+ */
+export async function stageAsciiRom(romAbs: string, installDir: string): Promise<string> {
+  if (isAsciiPath(romAbs)) return romAbs;
+  const name = basename(romAbs);
+  const ext = extname(name);
+  const stem =
+    stripExt(name)
+      .replace(/[^\x20-\x7E]+/g, "-")
+      .replace(/[\\/:*?"<>|]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^[-. ]+|[-. ]+$/g, "") || "rom";
+  const dest = joinPath(stagedRomsDir(installDir), `${shortHash(romAbs)}-${stem}${ext ? "." + ext : ""}`);
+  await tauri.linkOrCopyFile(nativePath(romAbs), nativePath(dest));
+  void tauri
+    .log("INFO", "stageAsciiRom", `${romAbs} -> ${dest}`)
+    .catch(() => undefined);
+  return dest;
 }
 
 /** 在途下载去重：同一目标只下载一次 */

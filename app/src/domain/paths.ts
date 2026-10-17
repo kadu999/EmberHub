@@ -34,3 +34,6 @@ export const modsCacheDir = (dl: string, platform: string) =>
 export const emulatorZipsDir = (dl: string, platform: string) =>
   joinPath(cacheRoot(dl), "emulators", platform);
 export const logsRoot = (dl: string) => joinPath(cacheRoot(dl), "logs");
+
+/** 用户数据：给「不认非 ASCII 路径」的模拟器暂存的 ASCII ROM（放模拟器安装目录下，随模拟器一起保留）。 */
+export const stagedRomsDir = (installDir: string) => joinPath(installDir, ".roms-ascii");

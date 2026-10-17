@@ -125,6 +125,13 @@ export interface EmulatorConfig {
   workdir?: string;
   /** 是否解压 ROM 压缩包（默认 true）。模拟器能直接读压缩包时设为 false。 */
   extract?: boolean;
+  /**
+   * 是否把 ROM 先准备到纯 ASCII 路径再交给模拟器（默认 false）。
+   * 有些模拟器的命令行不认非 ASCII 路径：melonDS 1.1 传入中文路径会报
+   * 「This ROM file does not exist」。开启后启动前把 ROM 硬链接（同盘零拷贝，
+   * 失败则复制）到模拟器安装目录下的 `.roms-ascii/`，并把 `{file.path}` 指向该副本。
+   */
+  asciiRom?: boolean;
   /** 解压后要写入/覆盖到模拟器安装目录的配置文件（可选） */
   configs?: EmulatorFile[];
   /** Android：目标 App 包名（可选；缺省用 exe 作为包名） */
