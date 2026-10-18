@@ -93,7 +93,7 @@ EmberHub/
 ├─ release/                             # (ignored) 唯一的发布产物出口
 │  ├─ desktop/                          #   安装包 + portable/（便携版文件夹与 zip）
 │  ├─ android/                          #   ★ .apk / .aab
-│  └─ server/Emulators/                 #   服务器模拟器发行包（源 server/Emulators）
+│  └─ server/Emulators/                 #   服务器模拟器发行包（源：资源树 G:\EmberHub\Emulators）
 ├─ openlist/                            # (ignored) 中转站程序 + data
 ├─ .gitignore
 ├─ README.md
@@ -204,7 +204,7 @@ Tauri 2 的模型是**一套前端 + 一份 `src-tauri`**：桌面走 `main.rs`�
 - 开发到设备 / 模拟器：`powershell -ExecutionPolicy Bypass -File scripts/dev-android.ps1`
 - 打包：`powershell -ExecutionPolicy Bypass -File scripts/build-android.ps1`，APK/AAB 自动导出到 `release/android/`
 - 产物原始路径：`src-tauri/gen/android/app/build/outputs/{apk,bundle}/...`
-- 服务器模拟器发行包：整理到 `release/server/Emulators/`（源 `server/Emulators/`），随资源服务器上传
+- 服务器模拟器发行包：整理到 `release/server/Emulators/`（源：资源树 `G:\EmberHub\Emulators\`），随资源服务器上传
 - 签名 keystore **不入库**（生成的 Android 工程自带 ignore 规则）
 - CI：桌面与 Android 分两个 workflow，共享同一份前端构建
 

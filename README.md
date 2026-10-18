@@ -57,7 +57,6 @@
 ```
 EmberHub/                 # 仓库根（项目）
 ├─ app/                   # 应用（Tauri 2 + React + TS）
-├─ server/                # 资源服务器（OpenList）资源源文件
 ├─ docs/                  # 设计与目录规范
 ├─ scripts/               # 一键脚本（PC 与 Android 平级，靠名字区分）
 │  ├─ build-pc.bat / dev-pc.bat             # 桌面：打包 / 开发（双击即用）
@@ -69,7 +68,7 @@ EmberHub/                 # 仓库根（项目）
 ├─ release/               # 唯一的发布产物出口（已 gitignore）
 │  ├─ desktop/            #   桌面：.msi / setup.exe + portable/（便携版）
 │  ├─ android/            #   安卓：.apk / .aab
-│  └─ server/Emulators/   #   服务器模拟器发行包
+│  └─ server/Emulators/   #   服务器模拟器发行包（源：资源树 G:\EmberHub\Emulators）
 ├─ openlist/              # 中转站（OpenList，已 gitignore，不提交）
 └─ README.md
 ```
